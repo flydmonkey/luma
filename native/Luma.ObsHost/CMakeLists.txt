@@ -33,6 +33,8 @@ target_compile_options(Luma.ObsHost PRIVATE /utf-8)
 
 target_link_libraries(Luma.ObsHost PRIVATE
   "${OBS_IMPLIB}"
+  d3d11
+  dxgi
   ole32
   user32
   gdi32

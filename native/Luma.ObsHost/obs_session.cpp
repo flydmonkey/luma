@@ -12,6 +12,8 @@
 #include <util/base.h>
 
 #include <windows.h>
+#include <d3d11.h>
+#include <dxgi1_5.h>
 
 #include <atomic>
 #include <cstdarg>
@@ -153,6 +155,99 @@ void GetMonitorSize(int index, int& width, int& height, std::string& monitorId)
             height = static_cast<int>(mode.dmPelsHeight);
         }
     }
+}
+
+// duplicator-monitor-capture: 1 = DXGI, 2 = WGC.
+// DuplicateOutput1 is unsupported on some AMD drivers and the picture is black.
+// Forcing WGC on every machine blacks out Intel, where DXGI already works.
+int ChooseDisplayCaptureMethod()
+{
+    static int cached = 0;
+    if (cached != 0)
+    {
+        return cached;
+    }
+
+    const HRESULT unsupported = static_cast<HRESULT>(0x887A0004);
+    ID3D11Device* device = nullptr;
+    ID3D11DeviceContext* context = nullptr;
+    D3D_FEATURE_LEVEL level{};
+    const HRESULT created = D3D11CreateDevice(
+        nullptr,
+        D3D_DRIVER_TYPE_HARDWARE,
+        nullptr,
+        D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+        nullptr,
+        0,
+        D3D11_SDK_VERSION,
+        &device,
+        &level,
+        &context);
+    if (FAILED(created) || device == nullptr)
+    {
+        LogLine("display capture WGC: D3D11 probe failed 0x%08lX", created);
+        cached = 2;
+        return cached;
+    }
+
+    IDXGIDevice* dxgiDevice = nullptr;
+    IDXGIAdapter* adapter = nullptr;
+    device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice));
+    if (dxgiDevice != nullptr)
+    {
+        dxgiDevice->GetAdapter(&adapter);
+    }
+
+    HRESULT duplication = unsupported;
+    bool dxgiOk = false;
+    if (adapter != nullptr)
+    {
+        for (UINT index = 0;; index++)
+        {
+            IDXGIOutput* output = nullptr;
+            if (adapter->EnumOutputs(index, &output) == DXGI_ERROR_NOT_FOUND)
+            {
+                break;
+            }
+
+            IDXGIOutput5* output5 = nullptr;
+            if (SUCCEEDED(output->QueryInterface(__uuidof(IDXGIOutput5), reinterpret_cast<void**>(&output5)))
+                && output5 != nullptr)
+            {
+                const DXGI_FORMAT format = DXGI_FORMAT_B8G8R8A8_UNORM;
+                IDXGIOutputDuplication* dup = nullptr;
+                duplication = output5->DuplicateOutput1(device, 0, 1, &format, &dup);
+                if (SUCCEEDED(duplication) && dup != nullptr)
+                {
+                    dxgiOk = true;
+                    dup->Release();
+                }
+
+                output5->Release();
+            }
+
+            output->Release();
+            if (dxgiOk)
+            {
+                break;
+            }
+        }
+    }
+
+    if (adapter != nullptr)
+    {
+        adapter->Release();
+    }
+    if (dxgiDevice != nullptr)
+    {
+        dxgiDevice->Release();
+    }
+    context->Release();
+    device->Release();
+
+    cached = dxgiOk ? 1 : 2;
+    LogLine("display capture %s (DuplicateOutput1 0x%08lX)", dxgiOk ? "DXGI" : "WGC", duplication);
+    return cached;
 }
 
 void StopStamp();
@@ -1009,9 +1104,7 @@ SessionStatus ObsStart(const StartRequest& request)
             obs_data_set_string(settings, "monitor_id", monitorId.c_str());
         }
         obs_data_set_bool(settings, "capture_cursor", true);
-        // DXGI DuplicateOutput1 returns DXGI_ERROR_UNSUPPORTED on this GPU.
-        // Automatic selection stays on DXGI and the recording is black.
-        obs_data_set_int(settings, "method", 2);
+        obs_data_set_int(settings, "method", ChooseDisplayCaptureMethod());
         obs_data_set_bool(settings, "force_sdr", true);
         g_videoSource = CreateInput("monitor_capture", "luma-display", settings);
         obs_data_release(settings);
