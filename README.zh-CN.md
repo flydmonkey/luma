@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/readme/icon.png" alt="Luma" width="72">
+
 # Luma
 
 **本地优先的 Windows 录屏工具，画面采集走 libobs。**
@@ -12,6 +14,8 @@
 ![.NET](https://img.shields.io/badge/.NET-8-512BD4?style=flat-square)
 
 [仓库](https://github.com/flydmonkey/luma) · [AI Skill](.cursor/skills/luma-control/SKILL.md) · [OpenAPI](docs/openapi/openapi.json)
+
+<img src="docs/readme/record-display-zh.png" alt="Luma 显示器录制模式" width="504">
 
 </div>
 
@@ -41,6 +45,11 @@ Luma 可以录制显示器、区域、窗口，或只留下声音，也可以截
 | 录音 | 系统声、麦克风或两者，保存为 `.m4a` | 会议、旁白和声音记录 |
 | 截图 | 一张 PNG，可选本机 OCR | 留下或复制某一帧 |
 
+<div align="center">
+<img src="docs/readme/record-region-zh.png" alt="Luma 区域录制模式" width="32%">
+<img src="docs/readme/record-window-zh.png" alt="Luma 窗口录制模式" width="32%">
+</div>
+
 画质预设从 720p 到 4K，默认 30 fps，并优先使用硬件编码。视频容器为 `.mp4`、`.mkv`、`.mov`、`.flv`。这一版不会开始游戏采集。
 
 ## AI Skill 与开放接口
@@ -63,9 +72,17 @@ Luma 可以录制显示器、区域、窗口，或只留下声音，也可以截
 
 ## 片库
 
+<div align="center">
+<img src="docs/readme/library-zh.png" alt="Luma 本机视频片库" width="720">
+</div>
+
 成片出现在「我的视频」，直接读取本机保存目录。可以预览、改名、打开所在位置或删除。后期处理会另存新文件，原片还在。这些编辑是桌面功能；局域网接口只能列出和删除。
 
 ## 设置与局域网
+
+<div align="center">
+<img src="docs/readme/settings-lan-zh.png" alt="Luma 设置与局域网访问" width="584">
+</div>
 
 设置页管理主题、语言、保存位置、画质、容器、声音设备、摄像头和水印、热键、定时、分段、托盘和局域网访问。
 

@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/readme/icon.png" alt="Luma" width="72">
+
 # Luma
 
 **A local-first screen recorder for Windows, with capture through libobs.**
@@ -12,6 +14,8 @@
 ![.NET](https://img.shields.io/badge/.NET-8-512BD4?style=flat-square)
 
 [Repository](https://github.com/flydmonkey/luma) · [AI Skill](.cursor/skills/luma-control/SKILL.md) · [OpenAPI](docs/openapi/openapi.json)
+
+<img src="docs/readme/record-display-en.png" alt="Luma recording a display" width="504">
 
 </div>
 
@@ -41,6 +45,11 @@ Live capture and hardware encoding go through open-source [libobs](https://githu
 | Audio | System audio, microphone, or both, saved as `.m4a` | Meetings, narration, and audio notes |
 | Screenshot | A still PNG, with optional local OCR | A frame you want to keep or copy |
 
+<div align="center">
+<img src="docs/readme/record-region-en.png" alt="Luma region capture mode" width="32%">
+<img src="docs/readme/record-window-en.png" alt="Luma window capture mode" width="32%">
+</div>
+
 Quality presets run from 720p to 4K. The default frame rate is 30 fps, and hardware encoding is preferred. Video containers are `.mp4`, `.mkv`, `.mov`, and `.flv`. This build does not start game capture.
 
 ## AI skill and open API
@@ -66,6 +75,10 @@ The API can also patch theme, UI language, and save folder, list the library, an
 Finished files appear under **My Videos**, read from the save folder on this PC. Preview, rename, reveal, or delete them there. Processing writes a new file and leaves the original in place. Those editing actions are desktop actions; the LAN API lists and deletes only.
 
 ## Settings and LAN
+
+<div align="center">
+<img src="docs/readme/settings-lan-en.png" alt="Luma settings and LAN access" width="584">
+</div>
 
 Settings cover theme, language, save folder, quality, container, audio devices, camera and watermark overlays, hotkeys, schedules, segmentation, tray behavior, and LAN access.
 
