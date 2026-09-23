@@ -1,0 +1,151 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches application version
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          APP_VERSION="$(sed -n 's/.*<Version>\([^<]*\)<\/Version>.*/\1/p' Directory.Build.props | head -n 1)"
+          if [[ -z "$APP_VERSION" ]]; then
+            echo "Version element not found in Directory.Build.props" >&2
+            exit 1
+          fi
+          if [[ "$TAG_VERSION" != "$APP_VERSION" ]]; then
+            echo "Tag $GITHUB_REF_NAME (version $TAG_VERSION) does not match Directory.Build.props version $APP_VERSION" >&2
+            exit 1
+          fi
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Cache OBS runtime
+        id: obs-cache
+        uses: actions/cache@v4
+        with:
+          path: third_party/obs
+          key: obs-runtime-${{ hashFiles('tools/fetch-obs-runtime.ps1') }}
+
+      - name: Fetch OBS runtime
+        if: steps.obs-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: tools/fetch-obs-runtime.ps1
+
+      - name: Build OBS host
+        shell: pwsh
+        run: tools/build-obs-host.ps1 -Configuration Release
+
+      - name: Test
+        shell: pwsh
+        run: dotnet test Luma.sln -c Release -p:Platform=x64
+
+      - name: Publish
+        shell: pwsh
+        run: dotnet publish src/Luma.App/Luma.App.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:WindowsAppSDKSelfContained=true
+
+      - name: Stage runtime and license
+        shell: pwsh
+        run: |
+          $publish = (Resolve-Path "src/Luma.App/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish").Path
+          & tools/stage-obs-runtime.ps1 -Dest $publish
+          Copy-Item LICENSE (Join-Path $publish "LICENSE") -Force
+          foreach ($name in @("Luma.exe", "Luma.ObsHost.exe", "obs.dll", "LICENSE")) {
+            if (-not (Test-Path (Join-Path $publish $name))) {
+              throw "Missing $name in $publish"
+            }
+          }
+          if (Test-Path (Join-Path $publish "ffmpeg.exe")) {
+            throw "ffmpeg.exe must not be packaged"
+          }
+          Add-Content -Path $env:GITHUB_ENV -Value "PUBLISH_DIR=$publish" -Encoding utf8NoBOM
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          $iscc = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+            "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { throw "ISCC.exe not found" }
+          $out = "dist"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $publishDir = $env:PUBLISH_DIR.Replace('\', '/')
+          & $iscc "/DMyAppVersion=$env:APP_VERSION" "/DPublishDir=$publishDir" "/O$out" installer/luma.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
+          $setup = Join-Path $out "Luma-$env:APP_VERSION-win-x64-setup.exe"
+          if (-not (Test-Path $setup)) { throw "Installer not found: $setup" }
+
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            --draft \
+            --title "Luma $GITHUB_REF_NAME" \
+            --notes "Automatic release" \
+            "dist/Luma-${APP_VERSION}-win-x64-setup.exe"
+
+      - name: Upload publish directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: luma-publish
+          path: src/Luma.App/bin/x64/Release/net8.0-windows10.0.19041.0/win-x64/publish
+          if-no-files-found: error
+
+  windows-portable:
+    needs: release
+    runs-on: windows-latest
+    steps:
+      - name: Download publish directory
+        uses: actions/download-artifact@v4
+        with:
+          name: luma-publish
+          path: publish
+
+      - name: Create portable zip
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".Substring(1)
+          if (-not (Test-Path "publish\Luma.exe")) { throw "Luma.exe is not at the publish root" }
+          if (Test-Path "publish\ffmpeg.exe") { throw "ffmpeg.exe must not be packaged" }
+          $zip = "Luma-$version-win-x64.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path "publish\*" -DestinationPath $zip
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $zip))
+          try {
+            $rootExe = $archive.Entries | Where-Object { $_.FullName -eq "Luma.exe" }
+            if (-not $rootExe) { throw "Zip root does not contain Luma.exe" }
+          } finally {
+            $archive.Dispose()
+          }
+
+      - name: Upload portable zip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$GITHUB_REF_NAME" "Luma-${GITHUB_REF_NAME#v}-win-x64.zip" --clobber

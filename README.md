@@ -125,6 +125,10 @@ The unpackaged executable is:
 
 `src\Luma.App\bin\x64\Debug\net8.0-windows10.0.19041.0\win-x64\Luma.exe`
 
+### GitHub release
+
+Set `<Version>` in `Directory.Build.props` to the version you want to publish, then push a matching `vX.Y.Z` tag. The release workflow attaches both the zip and the exe installer to a draft GitHub Release.
+
 ## Documentation
 
 - [Privacy policy](docs/legal/en/privacy.html)

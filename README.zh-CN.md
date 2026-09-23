@@ -129,6 +129,10 @@ dotnet test Luma.sln -c Debug -p:Platform=x64
 
 `src\Luma.App\bin\x64\Debug\net8.0-windows10.0.19041.0\win-x64\Luma.exe`
 
+### GitHub 发布
+
+把 `Directory.Build.props` 里的 `<Version>` 改成要发布的版本号，再推送同名的 `vX.Y.Z` 标签。发布工作流会把 zip 和 exe 安装包都挂到一份草稿 GitHub Release 上。
+
 ## 文档
 
 - [隐私协议](docs/legal/zh-Hans/privacy.html)
