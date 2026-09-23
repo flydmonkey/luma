@@ -46,6 +46,18 @@ jobs:
         shell: pwsh
         run: tools/fetch-obs-runtime.ps1
 
+      - name: Cache OBS headers
+        id: obs-headers
+        uses: actions/cache@v4
+        with:
+          path: third_party/obs-src
+          key: obs-headers-${{ hashFiles('tools/fetch-obs-headers.ps1') }}
+
+      - name: Fetch OBS headers
+        if: steps.obs-headers.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: tools/fetch-obs-headers.ps1
+
       - name: Build OBS host
         shell: pwsh
         run: tools/build-obs-host.ps1 -Configuration Release
