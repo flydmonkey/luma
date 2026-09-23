@@ -53,6 +53,7 @@ public sealed partial class MainWindow : Window
     private SnipSession? _snip;
     private DateTime _segmentStart;
     private bool _hiddenForRecording;
+    private bool _windowConcealed;
     private bool _centerOnLaunch = true;
     private PointInt32? _restorePos;
     private bool _draggingCamera;
@@ -229,6 +230,7 @@ public sealed partial class MainWindow : Window
             _restorePos = pos;
         }
 
+        _windowConcealed = true;
         AppWindow.IsShownInSwitchers = false;
         SetCloaked(true);
         AppWindow.Move(new PointInt32(-32000, -32000));
@@ -237,6 +239,7 @@ public sealed partial class MainWindow : Window
     private void RevealWindow()
     {
         _hiddenForRecording = false;
+        _windowConcealed = false;
         SetCloaked(false);
         AppWindow.IsShownInSwitchers = true;
         if (_restorePos is { } pos)
@@ -913,9 +916,16 @@ public sealed partial class MainWindow : Window
         if (_busy || _session.Phase == SessionPhase.Idle) return;
         _busy = true;
         var silentLan = fromLan && Settings.SilentMode;
-        if (!silentLan)
+        var bringBack = _hiddenForRecording && !silentLan;
+        if (bringBack)
         {
-            ShowOverlay("processing");
+            HideBar();
+            RevealWindow();
+            ShowBusyMask();
+        }
+        else if (!silentLan && !_windowConcealed)
+        {
+            ShowBusyMask();
         }
 
         try
@@ -932,33 +942,34 @@ public sealed partial class MainWindow : Window
             SavedFileText.Text = Path.GetFileName(result.OutputPath);
             SavedWarningText.Visibility = string.IsNullOrWhiteSpace(result.Status.Warning) ? Visibility.Collapsed : Visibility.Visible;
             SavedWarningText.Text = result.Status.Warning ?? "";
-            if (!silentLan)
+            if (silentLan || (_windowConcealed && !bringBack))
             {
-                ShowOverlay("saved");
+                HideBusyMask();
+                return;
             }
 
-            if (_hiddenForRecording && !silentLan)
+            await Play(result.OutputPath, Path.GetFileNameWithoutExtension(result.OutputPath));
+            if (!string.IsNullOrWhiteSpace(result.Status.Warning))
             {
-                RevealWindow();
+                ShowBanner(result.Status.Warning, InfoBarSeverity.Warning);
             }
-
-            ShowPage("record");
         }
         catch (Exception ex)
         {
             try
             {
-                if (_hiddenForRecording)
+                if (bringBack && _windowConcealed)
                 {
                     RevealWindow();
                 }
             }
             catch (Exception)
             {
-                // The saved screen must stay reachable even if the window move fails.
+                // The window must stay reachable even if the move fails.
             }
 
             HideOverlay();
+            HideBusyMask();
             ShowBanner(ex.Message, InfoBarSeverity.Error);
             SetRecordingUi(false);
         }
@@ -981,6 +992,19 @@ public sealed partial class MainWindow : Window
         {
             UpdateIdleSummary();
         }
+    }
+
+    private void ShowBusyMask()
+    {
+        BusyText.Text = UiCopy.T("rec.processing");
+        BusyMask.Visibility = Visibility.Visible;
+        BusyRing.IsActive = true;
+    }
+
+    private void HideBusyMask()
+    {
+        BusyRing.IsActive = false;
+        BusyMask.Visibility = Visibility.Collapsed;
     }
 
     private void HideOverlay()

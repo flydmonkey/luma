@@ -68,10 +68,9 @@ public sealed class SettingsStore
             loaded.Automation ??= new AutomationSettings();
             loaded.Automation.StartAtLogon = false;
             loaded.Automation.Schedules = [];
-            if (loaded.LastMode == CaptureMode.Game)
-            {
-                loaded.LastMode = CaptureMode.Display;
-            }
+            loaded.LastMode = CaptureMode.Display;
+            loaded.MonitorIndex = 0;
+            loaded.Audio.AudioOnly = false;
 
             return loaded;
         }

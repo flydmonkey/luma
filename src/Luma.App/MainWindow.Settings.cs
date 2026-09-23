@@ -562,6 +562,7 @@ public sealed partial class MainWindow
         PreviewSavedButton.Content = UiCopy.T("home.preview");
         CountdownCancelButton.Content = UiCopy.T("common.cancel");
         ProcessingText.Text = UiCopy.T("rec.processing");
+        BusyText.Text = UiCopy.T("rec.processing");
         SavedTitleText.Text = UiCopy.T("rec.saved");
         SavedPreviewButton.Content = UiCopy.T("home.preview");
         SavedCloseButton.Content = UiCopy.T("common.close");

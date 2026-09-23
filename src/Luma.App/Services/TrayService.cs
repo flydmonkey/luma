@@ -17,6 +17,8 @@ public sealed class TrayService : IDisposable
     private readonly MenuFlyoutItem _pauseItem;
     private readonly MenuFlyoutItem _stopItem;
     private readonly MenuFlyoutItem _exitItem;
+    private readonly Relay _openCommand;
+    private readonly Relay _libraryCommand;
     private readonly Relay _startCommand;
     private readonly Relay _pauseCommand;
     private readonly Relay _stopCommand;
@@ -27,11 +29,13 @@ public sealed class TrayService : IDisposable
     public TrayService(DispatcherQueue dispatcher, Action showMain, Action showLibrary, Action exit, Action start, Action pause, Action stop)
     {
         _dispatcher = dispatcher;
+        _openCommand = new Relay(OnUi(showMain));
+        _libraryCommand = new Relay(OnUi(showLibrary));
         _startCommand = new Relay(OnUi(start));
         _pauseCommand = new Relay(OnUi(pause));
         _stopCommand = new Relay(OnUi(stop));
-        _openItem = Item(UiCopy.T("tray.open"), new Relay(OnUi(showMain)));
-        _libraryItem = Item(UiCopy.T("tray.library"), new Relay(OnUi(showLibrary)));
+        _openItem = Item(UiCopy.T("tray.open"), _openCommand);
+        _libraryItem = Item(UiCopy.T("tray.library"), _libraryCommand);
         _startItem = Item(UiCopy.T("tray.start"), _startCommand);
         _pauseItem = Item(UiCopy.T("tray.pause"), _pauseCommand);
         _stopItem = Item(UiCopy.T("tray.stop"), _stopCommand);
@@ -102,9 +106,13 @@ public sealed class TrayService : IDisposable
     {
         _recording = recording;
         _paused = paused;
+        _openCommand.SetCanExecute(!recording);
+        _libraryCommand.SetCanExecute(!recording);
         _startCommand.SetCanExecute(!recording);
         _pauseCommand.SetCanExecute(recording);
         _stopCommand.SetCanExecute(recording);
+        _openItem.IsEnabled = !recording;
+        _libraryItem.IsEnabled = !recording;
         _startItem.IsEnabled = !recording;
         _pauseItem.IsEnabled = recording;
         _stopItem.IsEnabled = recording;

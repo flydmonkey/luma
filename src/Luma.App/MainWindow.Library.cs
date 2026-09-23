@@ -145,32 +145,76 @@ public sealed partial class MainWindow
     private async Task OpenSelectedAsync()
     {
         if (SelectedItem() is not { } item || !File.Exists(item.Path)) return;
+        if (_session.Phase == SessionPhase.Processing && IsCurrentCut(item.Path))
+        {
+            if (!_windowConcealed)
+            {
+                ShowBusyMask();
+            }
+
+            return;
+        }
+
         await Play(item.Path, item.Name);
-        await Task.CompletedTask;
+    }
+
+    private bool IsCurrentCut(string path)
+    {
+        if (string.IsNullOrWhiteSpace(_lastFile) || string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        if (string.Equals(path, _lastFile, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var partial = _lastFile + ".partial.mkv";
+        return string.Equals(path, partial, StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task Play(string path, string title)
     {
+        if (_windowConcealed)
+        {
+            return;
+        }
+
         if (!File.Exists(path))
         {
+            HideBusyMask();
             ShowBanner(UiCopy.T("lib.rename.missing"), InfoBarSeverity.Error);
             return;
         }
 
+        ShowBusyMask();
+        _page = "library";
+        RecordPage.Visibility = Visibility.Collapsed;
+        SettingsPage.Visibility = Visibility.Collapsed;
+        LibraryPage.Visibility = Visibility.Visible;
         LibraryListPane.Visibility = Visibility.Collapsed;
-        LibraryViewer.Visibility = Visibility.Visible;
+        LibraryViewer.Visibility = Visibility.Collapsed;
+        LibraryButton.Visibility = Visibility.Collapsed;
+        SettingsButton.Visibility = Visibility.Visible;
         BackButton.Visibility = Visibility.Visible;
         TitleText.Text = UiCopy.T("page.preview");
         PreviewTitle.Text = title;
         ApplyWindowSize(960, 720);
+        var opened = new TaskCompletionSource<bool>();
+        MediaPlayer? player = null;
+        void OnOpened(MediaPlayer sender, object args) => opened.TrySetResult(true);
+        void OnFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args) => opened.TrySetResult(false);
         try
         {
-            var player = PreviewPlayer.MediaPlayer ?? new MediaPlayer();
+            player = PreviewPlayer.MediaPlayer ?? new MediaPlayer();
             if (PreviewPlayer.MediaPlayer is null)
             {
                 PreviewPlayer.SetMediaPlayer(player);
             }
 
+            player.MediaOpened += OnOpened;
+            player.MediaFailed += OnFailed;
             try
             {
                 var file = await StorageFile.GetFileFromPathAsync(path);
@@ -181,11 +225,39 @@ public sealed partial class MainWindow
                 PreviewPlayer.Source = MediaSource.CreateFromUri(new Uri(path));
             }
 
+            var finished = await Task.WhenAny(opened.Task, Task.Delay(TimeSpan.FromSeconds(20)));
+            if (_windowConcealed)
+            {
+                HideBusyMask();
+                return;
+            }
+
+            if (finished != opened.Task || !opened.Task.Result)
+            {
+                HideBusyMask();
+                LibraryViewer.Visibility = Visibility.Collapsed;
+                LibraryListPane.Visibility = Visibility.Visible;
+                TitleText.Text = UiCopy.T("page.library");
+                ShowBanner(UiCopy.T("lib.no.preview"), InfoBarSeverity.Error);
+                return;
+            }
+
+            LibraryViewer.Visibility = Visibility.Visible;
+            HideBusyMask();
             player.Play();
         }
         catch (Exception ex)
         {
+            HideBusyMask();
             ShowBanner(UiCopy.Tf("lib.preview.fail", ex.Message), InfoBarSeverity.Error);
+        }
+        finally
+        {
+            if (player is not null)
+            {
+                player.MediaOpened -= OnOpened;
+                player.MediaFailed -= OnFailed;
+            }
         }
     }
 
@@ -210,6 +282,7 @@ public sealed partial class MainWindow
             PreviewFullScreenButton.Label = UiCopy.T("lib.fullscreen");
         }
 
+        HideBusyMask();
         PreviewPlayer.MediaPlayer?.Pause();
         PreviewPlayer.Source = null;
         LibraryViewer.Visibility = Visibility.Collapsed;

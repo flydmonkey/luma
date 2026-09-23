@@ -655,6 +655,15 @@
             </Grid>
         </ScrollViewer>
 
+        <Grid x:Name="BusyMask" Grid.RowSpan="2" Visibility="Collapsed" IsHitTestVisible="True"
+              Background="{ThemeResource SmokeFillColorDefaultBrush}"
+              AutomationProperties.Name="正在处理中">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12">
+                <ProgressRing x:Name="BusyRing" IsActive="False" Width="40" Height="40"/>
+                <TextBlock x:Name="BusyText" Text="正在处理中" FontSize="16" HorizontalAlignment="Center"/>
+            </StackPanel>
+        </Grid>
+
         <Grid x:Name="BannerHost" Grid.Row="1" VerticalAlignment="Top" Canvas.ZIndex="10">
             <InfoBar x:Name="HomeInfoBar" IsClosable="True" IsOpen="False"
                      Visibility="Collapsed" Margin="12,8,12,0" Closed="HomeInfoBar_Closed">

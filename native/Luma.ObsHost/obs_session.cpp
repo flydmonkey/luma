@@ -834,16 +834,20 @@ bool ObsInit(std::string& error)
     LogLine("data path %s", libobsData.c_str());
     obs_add_data_path(libobsData.c_str());
     obs_add_module_path((pluginBin + "/").c_str(), pluginData.c_str());
-    obs_load_all_modules();
-    obs_log_loaded_modules();
-    obs_post_load_modules();
-    LogHardwareEncoders();
 
+    // win-capture reads gs_get_device_type() while it loads. Without a D3D11
+    // device it marks WGC unsupported and window capture falls back to BitBlt,
+    // which only keeps the cursor on GPU-composited windows.
     if (!ResetVideoAudio(1920, 1080, 1920, 1080, 30, error))
     {
         obs_shutdown();
         return false;
     }
+
+    obs_load_all_modules();
+    obs_log_loaded_modules();
+    obs_post_load_modules();
+    LogHardwareEncoders();
 
     g_ready = true;
     g_status.encoderName = "idle";
@@ -1005,7 +1009,9 @@ SessionStatus ObsStart(const StartRequest& request)
             obs_data_set_string(settings, "monitor_id", monitorId.c_str());
         }
         obs_data_set_bool(settings, "capture_cursor", true);
-        obs_data_set_int(settings, "method", 0);
+        // DXGI DuplicateOutput1 returns DXGI_ERROR_UNSUPPORTED on this GPU.
+        // Automatic selection stays on DXGI and the recording is black.
+        obs_data_set_int(settings, "method", 2);
         obs_data_set_bool(settings, "force_sdr", true);
         g_videoSource = CreateInput("monitor_capture", "luma-display", settings);
         obs_data_release(settings);
