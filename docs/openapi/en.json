@@ -1,21 +1,41 @@
 {
   "info": {
     "title": "Luma · API",
-    "description": "Local control API for recording, settings, and the library."
+    "description": "Local control API. JSON is { ok, data, error }. Select a target, then start. The listen port cannot be changed here."
   },
   "paths": {
-    "/": { "get": { "summary": "LAN shell", "description": "Remote panel. No access key required." } },
-    "/api/v1/session": { "get": { "summary": "Session phase", "description": "Returns the current phase number." } },
-    "/api/v1/session/start": { "post": { "summary": "Start", "description": "Starts the target already chosen on the desktop." } },
-    "/api/v1/session/pause": { "post": { "summary": "Pause or resume", "description": "Toggles the active recording." } },
-    "/api/v1/session/stop": { "post": { "summary": "Stop", "description": "Ends the session and returns the saved path." } },
-    "/api/v1/targets": { "get": { "summary": "Targets", "description": "Lists displays, windows, cameras, or microphones. Does not select one." } },
-    "/api/v1/screenshot": { "get": { "summary": "Host still", "description": "One host-pixel still of the virtual desktop, with monitor and window rectangles. Saving and copying stay in the browser." } },
+    "/": { "get": { "summary": "LAN shell", "description": "Remote panel. A stored access key shows the unlock form first." } },
+    "/unlock": { "post": { "summary": "Unlock", "description": "Form field access_key. Sets the luma_lan cookie." } },
+    "/api/v1": { "get": { "summary": "Probe", "description": "data is { name: luma, control: true }." } },
+    "/api/v1/session": { "get": { "summary": "Session and target", "description": "data.session.state is idle, recording, paused, or stopping." } },
+    "/api/v1/session/start": { "post": { "summary": "Start", "description": "Starts the target from PUT /target. data is the session snapshot." } },
+    "/api/v1/session/pause": { "post": { "summary": "Pause or resume", "description": "Toggles an active recording. Idle stays idle." } },
+    "/api/v1/session/stop": { "post": { "summary": "Stop", "description": "Starts saving and returns immediately. Poll GET /session until idle." } },
+    "/api/v1/targets": { "get": { "summary": "Targets", "description": "Query kind. Items are { id, title, detail, preview }. Does not select one." } },
+    "/api/v1/targets/{kind}": { "get": { "summary": "Targets by kind", "description": "displays, windows, games, cameras, microphones, or mics. games is empty." } },
+    "/api/v1/target": { "put": { "summary": "Select target", "description": "fullscreen, region, window, or audio. Call this before start." } },
+    "/api/v1/screenshot": { "get": { "summary": "Host still", "description": "One host-pixel still. windowIndex returns that window. Saving and copying stay in the browser." } },
+    "/api/v1/screenshot/ocr": { "post": { "summary": "OCR", "description": "Body { png }. data is { text }." } },
     "/api/v1/settings": {
-      "get": { "summary": "Read settings", "description": "Returns theme, language, save folder, and LAN status. The access key is empty." },
-      "patch": { "summary": "Update settings", "description": "Updates theme, language, or save folder. The listen port cannot be changed." }
+      "get": { "summary": "Read settings", "description": "Full settings. lan.accessKey is empty or ***." },
+      "patch": { "summary": "Update settings", "description": "Writable fields only. lan, lanPort, port, and lanPlayback are rejected." },
+      "post": { "summary": "Update settings", "description": "Same as PATCH." }
     },
-    "/api/v1/library": { "get": { "summary": "Library", "description": "Lists files in the save folder." } },
-    "/api/v1/library/{id}": { "delete": { "summary": "Delete", "description": "Deletes one file when confirm=true." } }
+    "/api/v1/settings/reset": { "post": { "summary": "Reset settings", "description": "Factory settings. Keeps lan and saveFolder." } },
+    "/api/v1/library": { "get": { "summary": "Library", "description": "Items use id, name, length, duration, date, and isAudio." } },
+    "/api/v1/library/{id}": {
+      "patch": { "summary": "Rename", "description": "Body { name }." },
+      "delete": { "summary": "Delete", "description": "Deletes one file when confirm=true." }
+    },
+    "/api/v1/library/{id}/compress": { "post": { "summary": "Compress", "description": "Returns { jobId }." } },
+    "/api/v1/library/{id}/trim": { "post": { "summary": "Trim", "description": "Body startSeconds and endSeconds. Returns { jobId }." } },
+    "/api/v1/library/{id}/repair": { "post": { "summary": "Repair", "description": "Returns { jobId }." } },
+    "/api/v1/jobs/{jobId}": { "get": { "summary": "Job", "description": "status is running, done, or error." } },
+    "/media/{id}": { "get": { "summary": "Media", "description": "Recording bytes." } },
+    "/poster/{id}": { "get": { "summary": "Poster", "description": "JPEG when one exists." } },
+    "/openapi.json": { "get": { "summary": "OpenAPI", "description": "This document. Query lang selects the overlay." } },
+    "/api/docs": { "get": { "summary": "Docs", "description": "HTML API page." } },
+    "/skill": { "get": { "summary": "Skill", "description": "Control skill as HTML." } },
+    "/skill/reference.md": { "get": { "summary": "Skill reference", "description": "Verb list for the control skill." } }
   }
 }

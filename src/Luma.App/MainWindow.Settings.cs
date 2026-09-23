@@ -1037,20 +1037,22 @@ public sealed partial class MainWindow
         }
     }
 
-    private async void PrivacyCard_Click(object sender, RoutedEventArgs e) => await OpenSiteAsync($"luma/docs/legal/{DocLocale()}/privacy.html");
-    private async void TermsCard_Click(object sender, RoutedEventArgs e) => await OpenSiteAsync($"luma/docs/legal/{DocLocale()}/terms.html");
-    private async void ProjectCard_Click(object sender, RoutedEventArgs e) => await OpenSiteAsync("luma/");
-    private async void ApiDocsCard_Click(object sender, RoutedEventArgs e) => await OpenSiteAsync("luma/docs/openapi/openapi.json");
-    private async void SkillCard_Click(object sender, RoutedEventArgs e) => await OpenSiteAsync("luma-website/skill/");
+    private async void PrivacyCard_Click(object sender, RoutedEventArgs e) => await OpenLocalAsync("/legal/privacy");
+    private async void TermsCard_Click(object sender, RoutedEventArgs e) => await OpenLocalAsync("/legal/terms");
+    private async void ProjectCard_Click(object sender, RoutedEventArgs e)
+        => await Launcher.LaunchUriAsync(new Uri("https://www.github.com/flydmonkey/luma")).AsTask();
+    private async void ApiDocsCard_Click(object sender, RoutedEventArgs e) => await OpenLocalAsync("/api/docs");
+    private async void SkillCard_Click(object sender, RoutedEventArgs e) => await OpenLocalAsync("/skill");
 
-    private static string DocLocale()
+    private async Task OpenLocalAsync(string path)
     {
-        var lang = UiCopy.Lang;
-        return lang is UiLanguages.English or UiLanguages.SimplifiedChinese or UiLanguages.TraditionalChinese or UiLanguages.Japanese or UiLanguages.Korean
-            ? lang
-            : UiLanguages.English;
+        if (!Settings.Lan.Enabled || !App.LanServer.IsRunning || App.LanServer.BoundPort <= 0)
+        {
+            ShowBanner(UiCopy.T("about.docs.lanoff"), InfoBarSeverity.Warning);
+            return;
+        }
+
+        await Launcher.LaunchUriAsync(new Uri($"http://127.0.0.1:{App.LanServer.BoundPort}{path}")).AsTask();
     }
 
-    private static Task OpenSiteAsync(string relative)
-        => Launcher.LaunchUriAsync(new Uri("https://flydmonkey.github.io/" + relative)).AsTask();
 }

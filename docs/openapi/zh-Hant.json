@@ -1,21 +1,41 @@
 {
   "info": {
     "title": "Luma · API 文件",
-    "description": "本機控制介面：錄製、設定和片庫。"
+    "description": "本機控制介面。JSON 為 { ok, data, error }。先選擇目標再開始。不能在這裡修改監聽埠。"
   },
   "paths": {
-    "/": { "get": { "summary": "區域網路頁面", "description": "遠端面板。不需要存取金鑰。" } },
-    "/api/v1/session": { "get": { "summary": "工作階段", "description": "回傳目前階段編號。" } },
-    "/api/v1/session/start": { "post": { "summary": "開始", "description": "開始桌面已經選好的目標。" } },
-    "/api/v1/session/pause": { "post": { "summary": "暫停或繼續", "description": "切換正在進行的錄製。" } },
-    "/api/v1/session/stop": { "post": { "summary": "停止", "description": "結束工作階段並回傳儲存路徑。" } },
-    "/api/v1/targets": { "get": { "summary": "目標清單", "description": "列出顯示器、視窗、攝影機或麥克風。不會選取其中一項。" } },
-    "/api/v1/screenshot": { "get": { "summary": "主機靜止圖", "description": "回傳虛擬桌面的一張主機像素靜止圖，以及顯示器與視窗矩形。儲存和複製留在瀏覽器。" } },
+    "/": { "get": { "summary": "區域網路頁面", "description": "遠端面板。已設定存取金鑰時，先顯示解鎖頁。" } },
+    "/unlock": { "post": { "summary": "解鎖", "description": "表單欄位 access_key。成功後寫入 luma_lan cookie。" } },
+    "/api/v1": { "get": { "summary": "探測", "description": "data 為 { name: luma, control: true }。" } },
+    "/api/v1/session": { "get": { "summary": "工作階段和目標", "description": "data.session.state 為 idle、recording、paused 或 stopping。" } },
+    "/api/v1/session/start": { "post": { "summary": "開始", "description": "開始 PUT /target 選取的目標。data 是工作階段快照。" } },
+    "/api/v1/session/pause": { "post": { "summary": "暫停或繼續", "description": "切換正在進行的錄製。閒置時保持閒置。" } },
+    "/api/v1/session/stop": { "post": { "summary": "停止", "description": "開始儲存並立刻回傳。輪詢 GET /session，直到 idle。" } },
+    "/api/v1/targets": { "get": { "summary": "目標清單", "description": "查詢參數 kind。項目為 { id, title, detail, preview }。不會選取其中一項。" } },
+    "/api/v1/targets/{kind}": { "get": { "summary": "依種類列出目標", "description": "displays、windows、games、cameras、microphones 或 mics。games 為空。" } },
+    "/api/v1/target": { "put": { "summary": "選擇目標", "description": "fullscreen、region、window 或 audio。開始之前呼叫。" } },
+    "/api/v1/screenshot": { "get": { "summary": "主機靜止圖", "description": "一張主機像素靜止圖。windowIndex 回傳對應視窗。儲存和複製留在瀏覽器。" } },
+    "/api/v1/screenshot/ocr": { "post": { "summary": "辨識文字", "description": "請求本文 { png }。data 為 { text }。" } },
     "/api/v1/settings": {
-      "get": { "summary": "讀取設定", "description": "回傳主題、語言、儲存目錄和區域網路狀態。存取金鑰為空。" },
-      "patch": { "summary": "更新設定", "description": "更新主題、語言或儲存目錄。不能修改監聽埠。" }
+      "get": { "summary": "讀取設定", "description": "完整設定。lan.accessKey 為空或 ***。" },
+      "patch": { "summary": "更新設定", "description": "只能改允許的欄位。lan、lanPort、port 和 lanPlayback 會被拒絕。" },
+      "post": { "summary": "更新設定", "description": "與 PATCH 相同。" }
     },
-    "/api/v1/library": { "get": { "summary": "片庫", "description": "列出儲存目錄中的檔案。" } },
-    "/api/v1/library/{id}": { "delete": { "summary": "刪除", "description": "僅當 confirm=true 時刪除一條。" } }
+    "/api/v1/settings/reset": { "post": { "summary": "重設設定", "description": "恢復出廠設定，保留 lan 和 saveFolder。" } },
+    "/api/v1/library": { "get": { "summary": "片庫", "description": "欄位為 id、name、length、duration、date、isAudio。" } },
+    "/api/v1/library/{id}": {
+      "patch": { "summary": "重新命名", "description": "請求本文 { name }。" },
+      "delete": { "summary": "刪除", "description": "僅當 confirm=true 時刪除一條。" }
+    },
+    "/api/v1/library/{id}/compress": { "post": { "summary": "壓縮", "description": "回傳 { jobId }。" } },
+    "/api/v1/library/{id}/trim": { "post": { "summary": "裁剪", "description": "請求本文 startSeconds 和 endSeconds。回傳 { jobId }。" } },
+    "/api/v1/library/{id}/repair": { "post": { "summary": "修復", "description": "回傳 { jobId }。" } },
+    "/api/v1/jobs/{jobId}": { "get": { "summary": "作業", "description": "status 為 running、done 或 error。" } },
+    "/media/{id}": { "get": { "summary": "媒體檔案", "description": "錄製檔案位元組。" } },
+    "/poster/{id}": { "get": { "summary": "海報", "description": "有海報時回傳 JPEG。" } },
+    "/openapi.json": { "get": { "summary": "OpenAPI", "description": "本文件。查詢參數 lang 選擇語言。" } },
+    "/api/docs": { "get": { "summary": "介面文件頁", "description": "HTML 文件。" } },
+    "/skill": { "get": { "summary": "控制 Skill", "description": "以 HTML 顯示控制說明。" } },
+    "/skill/reference.md": { "get": { "summary": "Skill 參考", "description": "控制介面動詞表。" } }
   }
 }

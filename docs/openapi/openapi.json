@@ -3,7 +3,7 @@
   "info": {
     "title": "Luma",
     "version": "1.0.0",
-    "description": "Local LAN control API. Responses are { ok, data, error }. Factory host is http://127.0.0.1:12345. Game capture is closed. PUT /api/v1/target selects display, region, window, or audio before POST /session/start. Settings cannot change the listen port. Library compress, trim, and repair are jobs."
+    "description": "Local LAN control API. Every JSON body is { ok, data, error }. Factory host is http://127.0.0.1:12345. Choose a target with PUT /api/v1/target, then POST /session/start. Game capture is closed. Settings cannot change the listen port. Library compress, trim, and repair are jobs."
   },
   "servers": [
     { "url": "/", "description": "This LAN host" },
@@ -20,7 +20,8 @@
     { "name": "Targets" },
     { "name": "Screenshot" },
     { "name": "Settings" },
-    { "name": "Library" }
+    { "name": "Library" },
+    { "name": "Docs" }
   ],
   "components": {
     "securitySchemes": {
@@ -28,7 +29,7 @@
         "type": "apiKey",
         "in": "header",
         "name": "X-Record-Key",
-        "description": "Required on /api/v1 when an access key is stored. The HTML shell at / does not require it."
+        "description": "Required on /api/v1, /media, and /poster when an access key is stored. The HTML shell, OpenAPI, and /skill are served without it."
       },
       "bearer": {
         "type": "http",
@@ -41,7 +42,7 @@
         "name": "id",
         "in": "path",
         "required": true,
-        "description": "12 hex characters from GET /library property Id. Comparison is case-insensitive.",
+        "description": "12 hex characters from GET /library property id, or the file name. Comparison is case-insensitive.",
         "schema": { "type": "string" },
         "example": "A1B2C3D4E5F6"
       },
@@ -49,41 +50,122 @@
         "name": "kind",
         "in": "query",
         "required": false,
-        "description": "displays (default), windows, games, cameras, microphones, or mics. games is always empty.",
-        "schema": {
-          "type": "string",
-          "enum": ["displays", "windows", "games", "cameras", "microphones", "mics"]
-        }
+        "description": "displays (default), windows, games, cameras, microphones, or mics. games is always empty. Any other value lists displays.",
+        "schema": { "type": "string" }
+      },
+      "TargetKindPath": {
+        "name": "kind",
+        "in": "path",
+        "required": true,
+        "description": "displays, windows, games, cameras, microphones, or mics. games is always empty. Any other value lists displays.",
+        "schema": { "type": "string" }
       },
       "ConfirmDelete": {
         "name": "confirm",
         "in": "query",
         "required": true,
-        "description": "Must be true. Any other value returns 400.",
-        "schema": { "type": "boolean", "enum": [true] }
+        "description": "Must be true. Any other value returns 400 and 删除需要 confirm=true。",
+        "schema": { "type": "string", "enum": ["true"] }
+      },
+      "WindowIndex": {
+        "name": "windowIndex",
+        "in": "query",
+        "required": false,
+        "description": "Index into GET /api/v1/targets/windows, not the window id. When set, the still is that window's pixels.",
+        "schema": { "type": "integer", "minimum": 0 }
+      },
+      "JobId": {
+        "name": "jobId",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
       }
     },
     "schemas": {
-      "HttpError": {
+      "ApiError": {
         "type": "object",
-        "required": ["error"],
+        "required": ["ok", "error"],
         "properties": {
+          "ok": { "type": "boolean", "example": false },
+          "data": { "nullable": true },
           "error": { "type": "string" }
-        },
-        "example": { "error": "unauthorized" }
+        }
       },
-      "SessionState": {
+      "Probe": {
         "type": "object",
-        "required": ["ok", "phase"],
+        "required": ["name", "control"],
         "properties": {
-          "ok": { "type": "boolean" },
-          "phase": {
-            "type": "integer",
-            "description": "0 idle, 1 countdown, 2 recording, 3 paused, 4 processing.",
-            "enum": [0, 1, 2, 3, 4]
+          "name": { "type": "string", "example": "luma" },
+          "control": { "type": "boolean", "example": true }
+        }
+      },
+      "SessionSnapshot": {
+        "type": "object",
+        "required": ["state", "elapsed"],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": ["idle", "recording", "paused", "stopping"],
+            "description": "Countdown is reported as recording."
           },
-          "error": { "type": "string" },
-          "path": { "type": "string", "description": "Output path after stop." }
+          "elapsed": { "type": "string", "example": "00:00:00", "description": "hh:mm:ss" },
+          "lastSaved": { "$ref": "#/components/schemas/LastSaved" },
+          "encoderName": { "type": "string" },
+          "actualWidth": { "type": "integer" },
+          "actualHeight": { "type": "integer" },
+          "stopForced": { "type": "boolean" }
+        }
+      },
+      "LastSaved": {
+        "type": "object",
+        "nullable": true,
+        "properties": {
+          "name": { "type": "string", "description": "File name, not a full path." },
+          "warning": { "type": "string", "nullable": true }
+        }
+      },
+      "TargetSummary": {
+        "type": "object",
+        "required": ["mode", "monitorIndex"],
+        "properties": {
+          "mode": { "type": "string", "enum": ["fullscreen", "region", "window", "audio"] },
+          "monitorIndex": { "type": "integer" },
+          "region": { "$ref": "#/components/schemas/Region" },
+          "windowId": { "type": "string", "nullable": true },
+          "windowTitle": { "type": "string", "nullable": true }
+        }
+      },
+      "SessionView": {
+        "type": "object",
+        "required": ["session", "target"],
+        "properties": {
+          "session": { "$ref": "#/components/schemas/SessionSnapshot" },
+          "target": { "$ref": "#/components/schemas/TargetSummary" }
+        }
+      },
+      "Region": {
+        "type": "object",
+        "nullable": true,
+        "required": ["x", "y", "width", "height"],
+        "properties": {
+          "x": { "type": "integer" },
+          "y": { "type": "integer" },
+          "width": { "type": "integer", "minimum": 1 },
+          "height": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "TargetBody": {
+        "type": "object",
+        "required": ["mode"],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "description": "fullscreen, region, window, or audio. game and 3 are rejected."
+          },
+          "displayId": { "type": "string", "description": "Monitor index as text. Sets monitorIndex." },
+          "windowId": { "type": "string" },
+          "windowTitle": { "type": "string" },
+          "region": { "$ref": "#/components/schemas/Region" }
         }
       },
       "StartBody": {
@@ -91,65 +173,166 @@
         "properties": {
           "mode": {
             "type": "string",
-            "description": "Optional guard only. game or 3 is rejected. Any other value does not change the desktop target."
+            "description": "Optional guard only. game or 3 is rejected. Any other value does not change the target."
           }
         }
       },
       "TargetItem": {
         "type": "object",
-        "required": ["id", "label", "previewMissing"],
+        "required": ["id", "title", "detail"],
         "properties": {
           "id": { "type": "string" },
-          "label": { "type": "string" },
-          "previewMissing": { "type": "boolean" }
+          "title": { "type": "string" },
+          "detail": { "type": "string" },
+          "preview": {
+            "type": "string",
+            "nullable": true,
+            "description": "data:image/jpeg;base64,... or null."
+          }
         }
       },
       "Settings": {
         "type": "object",
         "properties": {
-          "theme": { "type": "string", "enum": ["Light", "Dark"] },
-          "uiLanguage": { "type": "string", "example": "zh-Hans" },
           "saveFolder": { "type": "string" },
-          "hardwareEncoding": { "type": "boolean", "readOnly": true },
-          "lanEnabled": { "type": "boolean", "readOnly": true },
-          "lanPort": { "type": "integer", "readOnly": true, "example": 12345 },
-          "accessKey": { "type": "string", "description": "Always empty on read. Cannot be set from this API.", "readOnly": true }
+          "lastMode": { "type": "string", "enum": ["Display", "Region", "Window", "Game", "AudioOnly"] },
+          "monitorIndex": { "type": "integer" },
+          "quality": { "$ref": "#/components/schemas/Quality" },
+          "recordingFormat": { "type": "string", "enum": ["mp4", "mkv", "mov", "flv"] },
+          "audio": { "$ref": "#/components/schemas/AudioSettings" },
+          "overlay": { "type": "object" },
+          "hotkeys": { "$ref": "#/components/schemas/Hotkeys" },
+          "automation": { "type": "object" },
+          "closeToTray": { "type": "boolean" },
+          "launchToTray": { "type": "boolean" },
+          "hideTrayIcon": { "type": "boolean" },
+          "showRecordingBar": { "type": "boolean" },
+          "silentMode": { "type": "boolean" },
+          "theme": { "type": "string", "enum": ["Light", "Dark"] },
+          "uiLanguage": { "type": "string", "example": "system" },
+          "resolvedLanguage": { "type": "string", "readOnly": true, "example": "zh-Hans" },
+          "lan": { "$ref": "#/components/schemas/LanSettings" }
+        }
+      },
+      "Quality": {
+        "type": "object",
+        "properties": {
+          "level": { "type": "string", "enum": ["Sd", "Hd", "ExtraHd", "FourK"] },
+          "frameRate": { "type": "integer" },
+          "bitrateKbps": { "type": "integer" },
+          "hardwareEncoding": { "type": "boolean" }
+        }
+      },
+      "AudioSettings": {
+        "type": "object",
+        "properties": {
+          "captureSystem": { "type": "boolean" },
+          "captureMicrophone": { "type": "boolean" },
+          "microphoneDeviceId": { "type": "string", "nullable": true },
+          "audioOnly": { "type": "boolean" }
+        }
+      },
+      "Hotkeys": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "start": { "type": "string" },
+          "pause": { "type": "string" },
+          "stop": { "type": "string" },
+          "screenshot": { "type": "string" }
+        }
+      },
+      "LanSettings": {
+        "type": "object",
+        "readOnly": true,
+        "properties": {
+          "enabled": { "type": "boolean" },
+          "port": { "type": "integer", "example": 12345 },
+          "accessKey": { "type": "string", "description": "Empty, or *** when a key is stored." }
         }
       },
       "SettingsPatch": {
         "type": "object",
-        "description": "Only these fields are applied. lanPort and port are rejected with 400.",
+        "description": "Only theme, saveFolder, showRecordingBar, silentMode, closeToTray, launchToTray, hideTrayIcon, monitorIndex, lastMode, quality, audio, overlay, hotkeys, automation, uiLanguage, and recordingFormat are applied. lan, lanPort, port, and lanPlayback are rejected. A successful patch clears automation.startAtLogon and automation.schedules.",
         "properties": {
-          "theme": { "type": "string", "enum": ["Light", "Dark"] },
+          "theme": { "description": "Light, Dark, 1, or 2." },
           "uiLanguage": {
             "type": "string",
             "enum": ["system", "en", "zh-Hans", "zh-Hant", "ja", "ko"]
           },
-          "saveFolder": { "type": "string" }
+          "saveFolder": { "type": "string" },
+          "showRecordingBar": { "type": "boolean" },
+          "silentMode": { "type": "boolean" },
+          "closeToTray": { "type": "boolean" },
+          "launchToTray": { "type": "boolean" },
+          "hideTrayIcon": { "type": "boolean" },
+          "monitorIndex": { "type": "integer" },
+          "lastMode": { "type": "string", "enum": ["Display", "Region", "Window", "Game", "AudioOnly"] },
+          "quality": { "$ref": "#/components/schemas/Quality" },
+          "audio": { "$ref": "#/components/schemas/AudioSettings" },
+          "overlay": { "type": "object" },
+          "hotkeys": { "$ref": "#/components/schemas/Hotkeys" },
+          "automation": { "type": "object" },
+          "recordingFormat": { "type": "string", "enum": ["mp4", "mkv", "mov", "flv"] }
         }
       },
       "LibraryItem": {
         "type": "object",
+        "required": ["id", "name", "length", "duration", "date", "isAudio"],
         "properties": {
-          "Id": { "type": "string" },
-          "Path": { "type": "string" },
-          "Name": { "type": "string" },
-          "SizeBytes": { "type": "integer" },
-          "Duration": { "type": "string" },
-          "Created": { "type": "string", "format": "date-time" },
-          "PosterPath": { "type": "string", "nullable": true },
-          "IsAudio": { "type": "boolean" },
-          "SizeText": { "type": "string" },
-          "DurationText": { "type": "string" },
-          "DateText": { "type": "string" }
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "length": { "type": "integer", "description": "Size in bytes." },
+          "duration": { "type": "string", "example": "00:00:11.8000000" },
+          "date": { "type": "string", "format": "date-time" },
+          "isAudio": { "type": "boolean" }
+        }
+      },
+      "RenameBody": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" }
+        }
+      },
+      "Deleted": {
+        "type": "object",
+        "required": ["deleted"],
+        "properties": {
+          "deleted": { "type": "string" }
+        }
+      },
+      "JobAccepted": {
+        "type": "object",
+        "required": ["jobId"],
+        "properties": {
+          "jobId": { "type": "string" }
+        }
+      },
+      "TrimBody": {
+        "type": "object",
+        "properties": {
+          "startSeconds": { "type": "number" },
+          "endSeconds": { "type": "number" }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "required": ["id", "kind", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string" },
+          "status": { "type": "string", "enum": ["running", "done", "error"] },
+          "result": { "type": "string", "nullable": true },
+          "error": { "type": "string", "nullable": true }
         }
       },
       "ScreenshotRect": {
         "type": "object",
         "required": ["x", "y", "width", "height"],
         "properties": {
-          "x": { "type": "integer", "description": "Pixels from the left of the still." },
-          "y": { "type": "integer", "description": "Pixels from the top of the still." },
+          "x": { "type": "integer" },
+          "y": { "type": "integer" },
           "width": { "type": "integer" },
           "height": { "type": "integer" }
         }
@@ -170,20 +353,26 @@
         "type": "object",
         "required": ["originX", "originY", "width", "height", "png", "monitors", "windows"],
         "properties": {
-          "originX": { "type": "integer", "description": "Virtual-desktop origin of the still, in host pixels." },
+          "originX": { "type": "integer" },
           "originY": { "type": "integer" },
-          "width": { "type": "integer", "description": "Still width in host pixels. This is not a scaled preview." },
-          "height": { "type": "integer", "description": "Still height in host pixels." },
-          "png": { "type": "string", "description": "Base64 PNG of the full still at host pixel size." },
+          "width": { "type": "integer" },
+          "height": { "type": "integer" },
+          "png": { "type": "string", "description": "Base64 PNG at host pixel size. Not a data URL." },
           "monitors": { "type": "array", "items": { "$ref": "#/components/schemas/ScreenshotRect" } },
           "windows": { "type": "array", "items": { "$ref": "#/components/schemas/ScreenshotWindow" } }
         }
       },
-      "DeleteOk": {
+      "OcrBody": {
         "type": "object",
-        "required": ["ok"],
+        "required": ["png"],
         "properties": {
-          "ok": { "type": "boolean", "example": true }
+          "png": { "type": "string", "description": "Base64 PNG." }
+        }
+      },
+      "OcrText": {
+        "type": "object",
+        "properties": {
+          "text": { "type": "string", "nullable": true }
         }
       }
     },
@@ -192,17 +381,25 @@
         "description": "Access key missing or wrong.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/HttpError" },
-            "example": { "error": "unauthorized" }
+            "schema": { "$ref": "#/components/schemas/ApiError" },
+            "example": { "ok": false, "data": null, "error": "需要访问密钥。" }
           }
         }
       },
       "NotFound": {
-        "description": "Unknown route or library id.",
+        "description": "Unknown route, missing media file, or missing job.",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/HttpError" },
-            "example": { "error": "not found" }
+            "schema": { "$ref": "#/components/schemas/ApiError" },
+            "example": { "ok": false, "data": null, "error": "未找到这个接口。" }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "The request was rejected. data is null.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ApiError" }
           }
         }
       }
@@ -213,7 +410,7 @@
       "get": {
         "tags": ["Shell"],
         "summary": "LAN shell",
-        "description": "HTML remote panel with record, library, and settings. Reachable without an access key.",
+        "description": "HTML remote panel. When an access key is stored and the request is locked, this returns the unlock form instead of the panel.",
         "security": [],
         "responses": {
           "200": {
@@ -223,18 +420,71 @@
         }
       }
     },
+    "/unlock": {
+      "post": {
+        "tags": ["Shell"],
+        "summary": "Unlock the shell",
+        "description": "Form body access_key. Used only while the request is still locked. Success sets cookie luma_lan and redirects to /.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": { "access_key": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "302": { "description": "Cookie set. Redirects to /." },
+          "200": { "description": "Wrong key. Returns the unlock form again." }
+        }
+      }
+    },
+    "/api/v1": {
+      "get": {
+        "tags": ["Shell"],
+        "summary": "Probe",
+        "responses": {
+          "200": {
+            "description": "Server is the Luma control API.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/Probe" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
     "/api/v1/session": {
       "get": {
         "tags": ["Session"],
-        "summary": "Session phase",
-        "description": "Returns the current recording phase. Does not include the selected target.",
+        "summary": "Session and target",
+        "description": "data.session.state is idle, recording, paused, or stopping. data.target is the current selection.",
         "responses": {
           "200": {
-            "description": "Current phase.",
+            "description": "Current session and target.",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SessionState" },
-                "example": { "ok": true, "phase": 0 }
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/SessionView" },
+                    "error": { "nullable": true }
+                  }
+                }
               }
             }
           },
@@ -245,8 +495,8 @@
     "/api/v1/session/start": {
       "post": {
         "tags": ["Session"],
-        "summary": "Start the desktop selection",
-        "description": "Starts the capture mode and target already chosen in the desktop app. Region and window fail until that selection exists. mode game or 3 is rejected. A session that is already active is rejected.",
+        "summary": "Start the selected target",
+        "description": "Uses the target from PUT /api/v1/target. Region needs width and height greater than 0. Window needs windowId. mode game or 3 is rejected. An active session is rejected. data is the session snapshot.",
         "requestBody": {
           "required": false,
           "content": {
@@ -255,9 +505,21 @@
         },
         "responses": {
           "200": {
-            "description": "Started, or a JSON failure with ok false.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionState" } } }
+            "description": "Started. data is the session snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/SessionSnapshot" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
           },
+          "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       }
@@ -266,11 +528,22 @@
       "post": {
         "tags": ["Session"],
         "summary": "Pause or resume",
-        "description": "Toggles pause when phase is recording or paused. Idle stays idle.",
+        "description": "Toggles when state is recording or paused. Idle stays idle and still returns 200.",
         "responses": {
           "200": {
-            "description": "Phase after the toggle.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionState" } } }
+            "description": "Session snapshot after the call.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/SessionSnapshot" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
           },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }
@@ -280,11 +553,22 @@
       "post": {
         "tags": ["Session"],
         "summary": "Stop and save",
-        "description": "Stops an active session and returns the output path.",
+        "description": "Begins saving and returns the snapshot immediately. Poll GET /api/v1/session until state is idle. lastSaved.name is then the file name. Idle is a no-op.",
         "responses": {
           "200": {
-            "description": "Idle phase and saved path.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionState" } } }
+            "description": "Snapshot taken as stop is requested.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/SessionSnapshot" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
           },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }
@@ -298,12 +582,16 @@
         "parameters": [{ "$ref": "#/components/parameters/TargetKind" }],
         "responses": {
           "200": {
-            "description": "Target array.",
+            "description": "Target array inside data.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": { "$ref": "#/components/schemas/TargetItem" }
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/TargetItem" } },
+                    "error": { "nullable": true }
+                  }
                 }
               }
             }
@@ -312,11 +600,70 @@
         }
       }
     },
+    "/api/v1/targets/{kind}": {
+      "get": {
+        "tags": ["Targets"],
+        "summary": "List targets by kind",
+        "description": "Same items as GET /api/v1/targets. games is always empty.",
+        "parameters": [{ "$ref": "#/components/parameters/TargetKindPath" }],
+        "responses": {
+          "200": {
+            "description": "Target array inside data.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/TargetItem" } },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/target": {
+      "put": {
+        "tags": ["Targets"],
+        "summary": "Select the recording target",
+        "description": "Call this before POST /api/v1/session/start. data is the target summary.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/TargetBody" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Selected target.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/TargetSummary" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
     "/api/v1/screenshot": {
       "get": {
         "tags": ["Screenshot"],
         "summary": "Host still",
-        "description": "Returns one still of the host virtual desktop at host pixel size, plus monitor and window rectangles in that still. windowIndex, matching GET /targets/windows, returns that window's own pixels instead of the desktop. Does not write a PNG, change the clipboard, or start, pause, or stop a recording. The browser crops, saves, and copies locally. There is no save or copy route.",
+        "description": "Returns one still of the host virtual desktop at host pixel size, plus monitor and window rectangles in that still. windowIndex, matching GET /targets/windows, returns that window's own pixels instead of the desktop. Does not write a PNG, change the clipboard, or start, pause, or stop a recording. The browser crops, saves, and copies locally.",
+        "parameters": [{ "$ref": "#/components/parameters/WindowIndex" }],
         "responses": {
           "200": {
             "description": "Still payload. data.png is the full host-pixel PNG.",
@@ -335,18 +682,11 @@
             }
           },
           "400": {
-            "description": "No display could be captured.",
+            "description": "No display or window could be captured.",
             "content": {
               "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": ["ok", "error"],
-                  "properties": {
-                    "ok": { "type": "boolean", "example": false },
-                    "data": { "nullable": true },
-                    "error": { "type": "string", "example": "没有可截取的显示器。" }
-                  }
-                }
+                "schema": { "$ref": "#/components/schemas/ApiError" },
+                "example": { "ok": false, "data": null, "error": "没有可截取的显示器。" }
               }
             }
           },
@@ -354,18 +694,43 @@
             "description": "Access key is stored and the client is not unlocked. No screen pixels are returned.",
             "content": {
               "application/json": {
+                "schema": { "$ref": "#/components/schemas/ApiError" },
+                "example": { "ok": false, "data": null, "error": "需要访问密钥。" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/screenshot/ocr": {
+      "post": {
+        "tags": ["Screenshot"],
+        "summary": "Read text from a still",
+        "description": "Body png is base64. An empty image is rejected. data.text may be null.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/OcrBody" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recognized text.",
+            "content": {
+              "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["ok", "error"],
                   "properties": {
-                    "ok": { "type": "boolean", "example": false },
-                    "data": { "nullable": true },
-                    "error": { "type": "string", "example": "需要访问密钥。" }
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/OcrText" },
+                    "error": { "nullable": true }
                   }
                 }
               }
             }
-          }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       }
     },
@@ -373,11 +738,22 @@
       "get": {
         "tags": ["Settings"],
         "summary": "Read settings",
-        "description": "Returns the flat settings view. accessKey is empty.",
+        "description": "Full settings object. lan.accessKey is empty or ***. resolvedLanguage is the language actually in use.",
         "responses": {
           "200": {
-            "description": "Settings.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Settings" } } }
+            "description": "Settings inside data.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Settings" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
           },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }
@@ -385,7 +761,7 @@
       "patch": {
         "tags": ["Settings"],
         "summary": "Update settings",
-        "description": "Applies theme, uiLanguage, and saveFolder. Rejects lanPort and port.",
+        "description": "Applies the writable fields. Rejects lan, lanPort, port, and lanPlayback.",
         "requestBody": {
           "required": true,
           "content": {
@@ -395,12 +771,20 @@
         "responses": {
           "200": {
             "description": "Settings after the patch.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Settings" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Settings" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
           },
-          "400": {
-            "description": "Client tried to change the listen port.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HttpError" } } }
-          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }
       },
@@ -417,11 +801,44 @@
         "responses": {
           "200": {
             "description": "Settings after the update.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Settings" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Settings" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
           },
-          "400": {
-            "description": "Client tried to change the listen port.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HttpError" } } }
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/settings/reset": {
+      "post": {
+        "tags": ["Settings"],
+        "summary": "Reset settings",
+        "description": "Restores factory settings. Keeps lan and saveFolder.",
+        "responses": {
+          "200": {
+            "description": "Settings after reset.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Settings" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
           },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }
@@ -431,15 +848,19 @@
       "get": {
         "tags": ["Library"],
         "summary": "List recordings",
-        "description": "Lists video, .m4a, and .partial.mkv files in the save folder. Property names are PascalCase.",
+        "description": "Lists recordings in the save folder. Properties are camelCase.",
         "responses": {
           "200": {
-            "description": "Library items.",
+            "description": "Library items inside data.",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": { "$ref": "#/components/schemas/LibraryItem" }
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/LibraryItem" } },
+                    "error": { "nullable": true }
+                  }
                 }
               }
             }
@@ -449,10 +870,41 @@
       }
     },
     "/api/v1/library/{id}": {
+      "patch": {
+        "tags": ["Library"],
+        "summary": "Rename a recording",
+        "description": "Body is {name}. Returns the updated item.",
+        "parameters": [{ "$ref": "#/components/parameters/LibraryId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RenameBody" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated item.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/LibraryItem" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
       "delete": {
         "tags": ["Library"],
         "summary": "Delete a recording",
-        "description": "Deletes the file and its poster when confirm=true. Rename, trim, compress, and repair are not on this API.",
+        "description": "Deletes the file and its poster when confirm=true. A missing id is 400, not 404.",
         "parameters": [
           { "$ref": "#/components/parameters/LibraryId" },
           { "$ref": "#/components/parameters/ConfirmDelete" }
@@ -460,14 +912,212 @@
         "responses": {
           "200": {
             "description": "Deleted.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeleteOk" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Deleted" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
           },
-          "400": {
-            "description": "confirm was not true.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HttpError" } } }
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/library/{id}/compress": {
+      "post": {
+        "tags": ["Library"],
+        "summary": "Compress a recording",
+        "description": "Returns a job id. Poll GET /api/v1/jobs/{jobId}.",
+        "parameters": [{ "$ref": "#/components/parameters/LibraryId" }],
+        "responses": {
+          "200": {
+            "description": "Job accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/JobAccepted" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
           },
-          "401": { "$ref": "#/components/responses/Unauthorized" },
-          "404": { "$ref": "#/components/responses/NotFound" }
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/library/{id}/trim": {
+      "post": {
+        "tags": ["Library"],
+        "summary": "Trim a recording",
+        "description": "Body startSeconds and endSeconds. Returns a job id.",
+        "parameters": [{ "$ref": "#/components/parameters/LibraryId" }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/TrimBody" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Job accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/JobAccepted" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/library/{id}/repair": {
+      "post": {
+        "tags": ["Library"],
+        "summary": "Repair a recording",
+        "description": "Returns a job id. Poll GET /api/v1/jobs/{jobId}.",
+        "parameters": [{ "$ref": "#/components/parameters/LibraryId" }],
+        "responses": {
+          "200": {
+            "description": "Job accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/JobAccepted" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/jobs/{jobId}": {
+      "get": {
+        "tags": ["Library"],
+        "summary": "Job status",
+        "description": "status is running, done, or error. result is the output path when done.",
+        "parameters": [{ "$ref": "#/components/parameters/JobId" }],
+        "responses": {
+          "200": {
+            "description": "Job.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Job" },
+                    "error": { "nullable": true }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/media/{id}": {
+      "get": {
+        "tags": ["Library"],
+        "summary": "Recording bytes",
+        "description": "Video or audio bytes for a library id.",
+        "parameters": [{ "$ref": "#/components/parameters/LibraryId" }],
+        "responses": {
+          "200": { "description": "File bytes." },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/poster/{id}": {
+      "get": {
+        "tags": ["Library"],
+        "summary": "Poster JPEG",
+        "description": "Poster image when one exists.",
+        "parameters": [{ "$ref": "#/components/parameters/LibraryId" }],
+        "responses": {
+          "200": {
+            "description": "JPEG bytes.",
+            "content": { "image/jpeg": { "schema": { "type": "string", "format": "binary" } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "tags": ["Docs"],
+        "summary": "OpenAPI document",
+        "description": "Query lang selects en, zh-Hans, zh-Hant, ja, or ko. Also served at /skill/openapi.json.",
+        "security": [],
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "OpenAPI JSON." }
+        }
+      }
+    },
+    "/api/docs": {
+      "get": {
+        "tags": ["Docs"],
+        "summary": "API docs page",
+        "security": [],
+        "responses": {
+          "200": { "description": "HTML page." }
+        }
+      }
+    },
+    "/skill": {
+      "get": {
+        "tags": ["Docs"],
+        "summary": "Control skill",
+        "security": [],
+        "responses": {
+          "200": { "description": "HTML page with SKILL.md and reference.md." }
+        }
+      }
+    },
+    "/skill/reference.md": {
+      "get": {
+        "tags": ["Docs"],
+        "summary": "Control skill reference",
+        "security": [],
+        "responses": {
+          "200": { "description": "Markdown." }
         }
       }
     }

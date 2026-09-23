@@ -36,8 +36,20 @@ public sealed class SettingsStore
                 return created;
             }
 
-            var json = File.ReadAllText(_filePath);
-            var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
+            AppSettings loaded;
+            try
+            {
+                var json = File.ReadAllText(_filePath);
+                loaded = string.IsNullOrWhiteSpace(json)
+                    ? throw new JsonException("设置文件为空。")
+                    : JsonSerializer.Deserialize<AppSettings>(json, JsonOptions)
+                      ?? throw new JsonException("设置文件没有有效内容。");
+            }
+            catch (JsonException)
+            {
+                return RecoverDefaults();
+            }
+
             loaded.Lan ??= new LanSettings();
             if (!LanPort.IsValid(loaded.Lan.Port))
             {
@@ -69,9 +81,7 @@ public sealed class SettingsStore
     {
         lock (_gate)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
-            Directory.CreateDirectory(settings.SaveFolder);
-            File.WriteAllText(_filePath, JsonSerializer.Serialize(settings, JsonOptions));
+            SaveCore(settings);
         }
     }
 
@@ -80,5 +90,42 @@ public sealed class SettingsStore
         var settings = new AppSettings();
         Save(settings);
         return settings;
+    }
+
+    private AppSettings RecoverDefaults()
+    {
+        var backup = $"{_filePath}.corrupt-{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+        try
+        {
+            File.Copy(_filePath, backup, overwrite: false);
+        }
+        catch
+        {
+            // Recreating a usable settings file takes priority over preserving the damaged copy.
+        }
+
+        var settings = new AppSettings();
+        SaveCore(settings);
+        return settings;
+    }
+
+    private void SaveCore(AppSettings settings)
+    {
+        var directory = Path.GetDirectoryName(_filePath) ?? Directory.GetCurrentDirectory();
+        Directory.CreateDirectory(directory);
+        Directory.CreateDirectory(settings.SaveFolder);
+        var temporary = Path.Combine(directory, $".{Path.GetFileName(_filePath)}.{Guid.NewGuid():N}.tmp");
+        try
+        {
+            File.WriteAllText(temporary, JsonSerializer.Serialize(settings, JsonOptions));
+            File.Move(temporary, _filePath, overwrite: true);
+        }
+        finally
+        {
+            if (File.Exists(temporary))
+            {
+                try { File.Delete(temporary); } catch { /* best-effort temporary-file cleanup */ }
+            }
+        }
     }
 }

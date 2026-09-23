@@ -155,6 +155,7 @@ public sealed class ObsHostRecordingTests
     }
 
     [Fact]
+    [Trait("Category", "LongRunning")]
     public async Task Five_minute_display_recording_stays_within_one_second()
     {
         if (ObsHostClient.FindHost() is null)

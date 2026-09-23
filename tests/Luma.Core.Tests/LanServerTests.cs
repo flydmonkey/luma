@@ -11,7 +11,7 @@ namespace Luma.Core.Tests;
 public sealed class LanServerTests
 {
     [Fact]
-    public async Task Default_port_is_12345_and_server_off_is_unreachable()
+    public void Default_port_is_12345_and_disabled_server_does_not_start()
     {
         var path = Path.Combine(Path.GetTempPath(), "luma-tests", Guid.NewGuid().ToString("N"), "settings.json");
         var store = new SettingsStore(path);
@@ -21,17 +21,8 @@ public sealed class LanServerTests
         using var server = new LanServer(store, () => settings);
         server.Start();
         Assert.False(server.IsRunning);
-
-        try
-        {
-            using var client = new HttpClient { Timeout = TimeSpan.FromMilliseconds(400) };
-            await client.GetStringAsync("http://127.0.0.1:12345/");
-            Assert.Fail("server should be unreachable");
-        }
-        catch (Exception ex)
-        {
-            Assert.True(ex is HttpRequestException or TaskCanceledException);
-        }
+        Assert.Equal(0, server.BoundPort);
+        Assert.Empty(server.BoundUrls);
     }
 
     [Fact]

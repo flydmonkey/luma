@@ -22,7 +22,7 @@ public sealed class MediaEditor
         ], ".trim.mp4", token).ConfigureAwait(false);
     }
 
-    public Task<string> MergeAsync(IReadOnlyList<string> inputs, bool replace = false, CancellationToken token = default)
+    public async Task<string> MergeAsync(IReadOnlyList<string> inputs, bool replace = false, CancellationToken token = default)
     {
         if (inputs.Count < 2)
         {
@@ -31,7 +31,14 @@ public sealed class MediaEditor
 
         var list = Path.Combine(Path.GetTempPath(), $"luma-concat-{Guid.NewGuid():N}.txt");
         File.WriteAllLines(list, inputs.Select(path => $"file '{path.Replace("'", "'\\''")}'"));
-        return RunAsync(inputs[0], replace, ["-y", "-f", "concat", "-safe", "0", "-i", list, "-c", "copy"], ".merge.mp4", token);
+        try
+        {
+            return await RunAsync(inputs[0], replace, ["-y", "-f", "concat", "-safe", "0", "-i", list, "-c", "copy"], ".merge.mp4", token).ConfigureAwait(false);
+        }
+        finally
+        {
+            try { File.Delete(list); } catch { /* best-effort temporary-file cleanup */ }
+        }
     }
 
     public Task<string> BurnSubtitlesAsync(string input, string subtitlePath, bool replace = false, CancellationToken token = default)
@@ -65,13 +72,16 @@ public sealed class MediaEditor
     private static async Task<string> RunAsync(string input, bool replace, IReadOnlyList<string> args, string suffix, CancellationToken token)
     {
         var ffmpeg = FfmpegLocator.Find() ?? throw new InvalidOperationException("未找到 FFmpeg。后期任务需要随包或 PATH 中的 ffmpeg.exe。");
-        var output = replace ? input : Path.Combine(
-            Path.GetDirectoryName(input)!,
+        var directory = Path.GetDirectoryName(input) ?? Directory.GetCurrentDirectory();
+        var output = replace
+            ? Path.Combine(directory, $".{Path.GetFileNameWithoutExtension(input)}-{Guid.NewGuid():N}.tmp{Path.GetExtension(input)}")
+            : Path.Combine(
+            directory,
             Path.GetFileNameWithoutExtension(input) + suffix);
         if (!replace && File.Exists(output))
         {
             output = Path.Combine(
-                Path.GetDirectoryName(input)!,
+                directory,
                 $"{Path.GetFileNameWithoutExtension(input)}-{DateTime.Now:yyyyMMddHHmmss}{suffix}");
         }
 
@@ -94,18 +104,47 @@ public sealed class MediaEditor
             start.ArgumentList.Add(arg);
         }
 
-        using var process = Process.Start(start) ?? throw new InvalidOperationException("无法启动 FFmpeg。");
-        var stderr = process.StandardError.ReadToEndAsync(token);
-        var stdout = process.StandardOutput.ReadToEndAsync(token);
-        await process.WaitForExitAsync(token).ConfigureAwait(false);
-        var error = await stderr.ConfigureAwait(false);
-        await stdout.ConfigureAwait(false);
-        if (process.ExitCode != 0)
+        try
         {
-            throw new InvalidOperationException(string.IsNullOrWhiteSpace(error) ? "FFmpeg 失败。" : error);
-        }
+            using var process = Process.Start(start) ?? throw new InvalidOperationException("无法启动 FFmpeg。");
+            var stderr = process.StandardError.ReadToEndAsync();
+            var stdout = process.StandardOutput.ReadToEndAsync();
+            try
+            {
+                await process.WaitForExitAsync(token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                if (!process.HasExited)
+                {
+                    try { process.Kill(entireProcessTree: true); } catch { /* process may exit concurrently */ }
+                    await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                }
 
-        return output;
+                throw;
+            }
+            var error = await stderr.ConfigureAwait(false);
+            await stdout.ConfigureAwait(false);
+            if (process.ExitCode != 0)
+            {
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(error) ? "FFmpeg 失败。" : error);
+            }
+
+            if (replace)
+            {
+                File.Move(output, input, overwrite: true);
+                return input;
+            }
+
+            return output;
+        }
+        finally
+        {
+            if (replace && File.Exists(output))
+            {
+                try { File.Delete(output); } catch { /* best-effort temporary-file cleanup */ }
+            }
+        }
     }
 
     private static string Format(TimeSpan value) => value.ToString(@"hh\:mm\:ss");

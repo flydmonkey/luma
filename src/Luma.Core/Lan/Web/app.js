@@ -1495,7 +1495,7 @@ function renderSettings() {
       </summary>
       <a class="expander-item" href="/legal/privacy" target="_blank" rel="noopener">${t("about.privacy")}</a>
       <a class="expander-item" href="/legal/terms" target="_blank" rel="noopener">${t("about.terms")}</a>
-      <a class="expander-item" href="${s.websiteUrl || "https://flydmonkey.github.io/luma/"}" target="_blank" rel="noopener">${t("about.project")}</a>
+      <a class="expander-item" href="${s.websiteUrl || "https://www.github.com/flydmonkey/luma"}" target="_blank" rel="noopener">${t("about.project")}</a>
       <a class="expander-item" href="/api/docs" target="_blank" rel="noopener">${t("about.docs")}</a>
       <a class="expander-item" href="/skill" target="_blank" rel="noopener">${t("about.skill")}</a>
     </details>

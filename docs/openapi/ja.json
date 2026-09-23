@@ -1,21 +1,41 @@
 {
   "info": {
     "title": "Luma · API",
-    "description": "録画、設定、ライブラリ向けのローカル制御 API。"
+    "description": "ローカル制御 API。JSON は { ok, data, error } です。対象を選んでから開始します。待ち受けポートは変更できません。"
   },
   "paths": {
-    "/": { "get": { "summary": "LAN ページ", "description": "リモートパネル。アクセスキーは不要です。" } },
-    "/api/v1/session": { "get": { "summary": "セッション段階", "description": "現在の段階番号を返します。" } },
-    "/api/v1/session/start": { "post": { "summary": "開始", "description": "デスクトップで選ばれている対象を開始します。" } },
-    "/api/v1/session/pause": { "post": { "summary": "一時停止または再開", "description": "進行中の録画を切り替えます。" } },
-    "/api/v1/session/stop": { "post": { "summary": "停止", "description": "セッションを終了し、保存パスを返します。" } },
-    "/api/v1/targets": { "get": { "summary": "対象一覧", "description": "ディスプレイ、ウィンドウ、カメラ、マイクを列挙します。選択はしません。" } },
-    "/api/v1/screenshot": { "get": { "summary": "ホスト静止画", "description": "仮想デスクトップのホスト画素静止画と、ディスプレイおよびウィンドウの矩形を返します。保存とコピーはブラウザー側です。" } },
+    "/": { "get": { "summary": "LAN ページ", "description": "リモートパネル。アクセスキーがあるときは、先に解除フォームを表示します。" } },
+    "/unlock": { "post": { "summary": "ロック解除", "description": "フォーム項目 access_key。成功すると luma_lan cookie を設定します。" } },
+    "/api/v1": { "get": { "summary": "疎通", "description": "data は { name: luma, control: true } です。" } },
+    "/api/v1/session": { "get": { "summary": "セッションと対象", "description": "data.session.state は idle、recording、paused、stopping です。" } },
+    "/api/v1/session/start": { "post": { "summary": "開始", "description": "PUT /target で選んだ対象を開始します。data はセッションのスナップショットです。" } },
+    "/api/v1/session/pause": { "post": { "summary": "一時停止または再開", "description": "進行中の録画を切り替えます。待機中はそのままです。" } },
+    "/api/v1/session/stop": { "post": { "summary": "停止", "description": "保存を始めてすぐ返します。idle になるまで GET /session をポーリングします。" } },
+    "/api/v1/targets": { "get": { "summary": "対象一覧", "description": "クエリ kind。項目は { id, title, detail, preview } です。選択はしません。" } },
+    "/api/v1/targets/{kind}": { "get": { "summary": "種類別の対象", "description": "displays、windows、games、cameras、microphones、mics。games は空です。" } },
+    "/api/v1/target": { "put": { "summary": "対象を選択", "description": "fullscreen、region、window、audio。開始の前に呼びます。" } },
+    "/api/v1/screenshot": { "get": { "summary": "ホスト静止画", "description": "ホスト画素の静止画。windowIndex はそのウィンドウです。保存とコピーはブラウザー側です。" } },
+    "/api/v1/screenshot/ocr": { "post": { "summary": "文字認識", "description": "本文 { png }。data は { text } です。" } },
     "/api/v1/settings": {
-      "get": { "summary": "設定の読み取り", "description": "テーマ、言語、保存先、LAN 状態を返します。アクセスキーは空です。" },
-      "patch": { "summary": "設定の更新", "description": "テーマ、言語、保存先を更新します。待ち受けポートは変更できません。" }
+      "get": { "summary": "設定の読み取り", "description": "設定全体。lan.accessKey は空または *** です。" },
+      "patch": { "summary": "設定の更新", "description": "許可された項目だけ。lan、lanPort、port、lanPlayback は拒否されます。" },
+      "post": { "summary": "設定の更新", "description": "PATCH と同じです。" }
     },
-    "/api/v1/library": { "get": { "summary": "ライブラリ", "description": "保存フォルダー内のファイルを列挙します。" } },
-    "/api/v1/library/{id}": { "delete": { "summary": "削除", "description": "confirm=true のときだけ 1 件削除します。" } }
+    "/api/v1/settings/reset": { "post": { "summary": "設定のリセット", "description": "初期設定に戻します。lan と saveFolder は残します。" } },
+    "/api/v1/library": { "get": { "summary": "ライブラリ", "description": "項目は id、name、length、duration、date、isAudio です。" } },
+    "/api/v1/library/{id}": {
+      "patch": { "summary": "名前の変更", "description": "本文 { name }。" },
+      "delete": { "summary": "削除", "description": "confirm=true のときだけ 1 件削除します。" }
+    },
+    "/api/v1/library/{id}/compress": { "post": { "summary": "圧縮", "description": "{ jobId } を返します。" } },
+    "/api/v1/library/{id}/trim": { "post": { "summary": "トリム", "description": "本文は startSeconds と endSeconds。{ jobId } を返します。" } },
+    "/api/v1/library/{id}/repair": { "post": { "summary": "修復", "description": "{ jobId } を返します。" } },
+    "/api/v1/jobs/{jobId}": { "get": { "summary": "ジョブ", "description": "status は running、done、error です。" } },
+    "/media/{id}": { "get": { "summary": "メディア", "description": "録画のバイト列。" } },
+    "/poster/{id}": { "get": { "summary": "ポスター", "description": "あるとき JPEG を返します。" } },
+    "/openapi.json": { "get": { "summary": "OpenAPI", "description": "この文書。クエリ lang で言語を選びます。" } },
+    "/api/docs": { "get": { "summary": "API ドキュメント", "description": "HTML ページ。" } },
+    "/skill": { "get": { "summary": "制御 Skill", "description": "制御手順を HTML で表示します。" } },
+    "/skill/reference.md": { "get": { "summary": "Skill リファレンス", "description": "制御 API の動詞一覧。" } }
   }
 }

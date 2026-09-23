@@ -63,4 +63,43 @@ public sealed class SettingsStoreTests
         Assert.Equal(RecordingContainers.Mkv, new SettingsStore(path).Load().RecordingFormat);
         Assert.Equal(".mkv", RecordingContainers.VideoExtension("MKV"));
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("{ not-json")]
+    public void Corrupt_settings_are_backed_up_and_replaced_with_defaults(string damaged)
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "luma-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var path = Path.Combine(folder, "settings.json");
+        File.WriteAllText(path, damaged);
+
+        var loaded = new SettingsStore(path).Load();
+
+        Assert.Equal(AppThemeMode.Dark, loaded.Theme);
+        Assert.Equal(12345, loaded.Lan.Port);
+        Assert.NotEmpty(File.ReadAllText(path));
+        Assert.NotNull(System.Text.Json.JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+        }));
+        Assert.Single(Directory.EnumerateFiles(folder, "settings.json.corrupt-*"));
+        Assert.Empty(Directory.EnumerateFiles(folder, ".settings.json.*.tmp"));
+    }
+
+    [Fact]
+    public void Save_replaces_settings_atomically_without_leaving_temporary_files()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "luma-tests", Guid.NewGuid().ToString("N"));
+        var path = Path.Combine(folder, "settings.json");
+        var store = new SettingsStore(path);
+        var settings = new AppSettings { UiLanguage = "en" };
+
+        store.Save(settings);
+        settings.UiLanguage = "ja";
+        store.Save(settings);
+
+        Assert.Equal("ja", new SettingsStore(path).Load().UiLanguage);
+        Assert.Empty(Directory.EnumerateFiles(folder, ".settings.json.*.tmp"));
+    }
 }

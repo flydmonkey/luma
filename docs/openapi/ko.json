@@ -1,21 +1,41 @@
 {
   "info": {
     "title": "Luma · API",
-    "description": "녹화, 설정, 라이브러리를 위한 로컬 제어 API."
+    "description": "로컬 제어 API. JSON은 { ok, data, error } 입니다. 대상을 고른 다음 시작합니다. 수신 포트는 여기서 바꿀 수 없습니다."
   },
   "paths": {
-    "/": { "get": { "summary": "LAN 페이지", "description": "원격 패널. 접근 키는 필요 없습니다." } },
-    "/api/v1/session": { "get": { "summary": "세션 단계", "description": "현재 단계 번호를 반환합니다." } },
-    "/api/v1/session/start": { "post": { "summary": "시작", "description": "데스크톱에서 이미 고른 대상을 시작합니다." } },
-    "/api/v1/session/pause": { "post": { "summary": "일시정지 또는 재개", "description": "진행 중인 녹화를 전환합니다." } },
-    "/api/v1/session/stop": { "post": { "summary": "정지", "description": "세션을 끝내고 저장 경로를 반환합니다." } },
-    "/api/v1/targets": { "get": { "summary": "대상 목록", "description": "디스플레이, 창, 카메라, 마이크를 나열합니다. 선택하지는 않습니다." } },
-    "/api/v1/screenshot": { "get": { "summary": "호스트 정지 화면", "description": "가상 데스크톱의 호스트 픽셀 정지 화면과 모니터, 창 사각형을 반환합니다. 저장과 복사는 브라우저에서 합니다." } },
+    "/": { "get": { "summary": "LAN 페이지", "description": "원격 패널. 접근 키가 있으면 먼저 잠금 해제 폼을 보여 줍니다." } },
+    "/unlock": { "post": { "summary": "잠금 해제", "description": "폼 필드 access_key. 성공하면 luma_lan 쿠키를 설정합니다." } },
+    "/api/v1": { "get": { "summary": "확인", "description": "data는 { name: luma, control: true } 입니다." } },
+    "/api/v1/session": { "get": { "summary": "세션과 대상", "description": "data.session.state는 idle, recording, paused, stopping 입니다." } },
+    "/api/v1/session/start": { "post": { "summary": "시작", "description": "PUT /target 으로 고른 대상을 시작합니다. data는 세션 스냅샷입니다." } },
+    "/api/v1/session/pause": { "post": { "summary": "일시정지 또는 재개", "description": "진행 중인 녹화를 전환합니다. 대기 중이면 그대로입니다." } },
+    "/api/v1/session/stop": { "post": { "summary": "정지", "description": "저장을 시작하고 바로 반환합니다. idle이 될 때까지 GET /session 을 폴링합니다." } },
+    "/api/v1/targets": { "get": { "summary": "대상 목록", "description": "쿼리 kind. 항목은 { id, title, detail, preview } 입니다. 선택하지는 않습니다." } },
+    "/api/v1/targets/{kind}": { "get": { "summary": "종류별 대상", "description": "displays, windows, games, cameras, microphones, mics. games는 비어 있습니다." } },
+    "/api/v1/target": { "put": { "summary": "대상 선택", "description": "fullscreen, region, window, audio. 시작 전에 호출합니다." } },
+    "/api/v1/screenshot": { "get": { "summary": "호스트 정지 화면", "description": "호스트 픽셀 정지 화면. windowIndex는 해당 창입니다. 저장과 복사는 브라우저에서 합니다." } },
+    "/api/v1/screenshot/ocr": { "post": { "summary": "문자 인식", "description": "본문 { png }. data는 { text } 입니다." } },
     "/api/v1/settings": {
-      "get": { "summary": "설정 읽기", "description": "테마, 언어, 저장 폴더, LAN 상태를 반환합니다. 접근 키는 비어 있습니다." },
-      "patch": { "summary": "설정 업데이트", "description": "테마, 언어, 저장 폴더를 업데이트합니다. 수신 포트는 바꿀 수 없습니다." }
+      "get": { "summary": "설정 읽기", "description": "전체 설정. lan.accessKey는 비어 있거나 *** 입니다." },
+      "patch": { "summary": "설정 업데이트", "description": "허용된 필드만. lan, lanPort, port, lanPlayback는 거부됩니다." },
+      "post": { "summary": "설정 업데이트", "description": "PATCH와 같습니다." }
     },
-    "/api/v1/library": { "get": { "summary": "라이브러리", "description": "저장 폴더의 파일을 나열합니다." } },
-    "/api/v1/library/{id}": { "delete": { "summary": "삭제", "description": "confirm=true 일 때만 한 건을 삭제합니다." } }
+    "/api/v1/settings/reset": { "post": { "summary": "설정 초기화", "description": "초기 설정으로 되돌립니다. lan과 saveFolder는 유지합니다." } },
+    "/api/v1/library": { "get": { "summary": "라이브러리", "description": "항목은 id, name, length, duration, date, isAudio 입니다." } },
+    "/api/v1/library/{id}": {
+      "patch": { "summary": "이름 바꾸기", "description": "본문 { name }." },
+      "delete": { "summary": "삭제", "description": "confirm=true 일 때만 한 건을 삭제합니다." }
+    },
+    "/api/v1/library/{id}/compress": { "post": { "summary": "압축", "description": "{ jobId }를 반환합니다." } },
+    "/api/v1/library/{id}/trim": { "post": { "summary": "자르기", "description": "본문은 startSeconds와 endSeconds. { jobId }를 반환합니다." } },
+    "/api/v1/library/{id}/repair": { "post": { "summary": "복구", "description": "{ jobId }를 반환합니다." } },
+    "/api/v1/jobs/{jobId}": { "get": { "summary": "작업", "description": "status는 running, done, error 입니다." } },
+    "/media/{id}": { "get": { "summary": "미디어", "description": "녹화 바이트." } },
+    "/poster/{id}": { "get": { "summary": "포스터", "description": "있으면 JPEG를 반환합니다." } },
+    "/openapi.json": { "get": { "summary": "OpenAPI", "description": "이 문서. 쿼리 lang으로 언어를 고릅니다." } },
+    "/api/docs": { "get": { "summary": "API 문서", "description": "HTML 페이지." } },
+    "/skill": { "get": { "summary": "제어 Skill", "description": "제어 절차를 HTML로 보여 줍니다." } },
+    "/skill/reference.md": { "get": { "summary": "Skill 참고", "description": "제어 API 동사 목록." } }
   }
 }
