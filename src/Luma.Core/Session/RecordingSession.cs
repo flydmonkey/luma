@@ -26,7 +26,7 @@ public sealed class RecordingSession
     {
         lock (_gate)
         {
-            if (_phase is SessionPhase.Recording or SessionPhase.Paused or SessionPhase.Countdown)
+            if (_phase is SessionPhase.Recording or SessionPhase.Paused or SessionPhase.Countdown or SessionPhase.Processing)
             {
                 throw new InvalidOperationException("已有录制正在进行。");
             }
@@ -88,7 +88,9 @@ public sealed class RecordingSession
         {
             lock (_gate)
             {
-                _phase = SessionPhase.Idle;
+                _phase = _engine.GetStatus().Phase == SessionPhase.Processing
+                    ? SessionPhase.Processing
+                    : SessionPhase.Idle;
             }
         }
     }

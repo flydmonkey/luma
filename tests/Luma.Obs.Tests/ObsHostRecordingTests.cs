@@ -35,7 +35,16 @@ public sealed class ObsHostRecordingTests
             });
 
             await Task.Delay(1500);
-            var result = await host.StopAsync();
+            var stopTask = host.StopAsync();
+            var sawStatus = false;
+            while (!stopTask.IsCompleted)
+            {
+                sawStatus |= await host.TryRefreshStatusAsync();
+                await Task.Delay(20);
+            }
+
+            var result = await stopTask;
+            Assert.True(sawStatus, "停录期间 status 查询没有返回。");
             Assert.True(File.Exists(result.OutputPath), "录制结束后应留下文件。");
             Assert.True(new FileInfo(result.OutputPath).Length > 1024, "成片过小，可能没有写入媒体数据。");
             Assert.False(string.Equals(result.Status.EncoderName, "hardware", StringComparison.Ordinal));

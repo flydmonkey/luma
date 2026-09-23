@@ -116,6 +116,15 @@ static int RunSelfTest(const std::wstring& pathW)
 
     Sleep(2500);
     SessionStatus stopped = ObsStop();
+    if (stopped.phase == 4 && !ObsWaitStop(120000))
+    {
+        fprintf(stderr, "stop timed out\n");
+        ObsJoinStop();
+        ObsShutdown();
+        return 13;
+    }
+    stopped = ObsStatus();
+    ObsJoinStop();
     ObsShutdown();
 
     const DWORD attr = GetFileAttributesW(pathW.c_str());
@@ -183,7 +192,9 @@ static int RunPipe()
     if (ObsStatus().phase != 0)
     {
         ObsStop();
+        ObsWaitStop(120000);
     }
+    ObsJoinStop();
     DisconnectNamedPipe(pipe);
     CloseHandle(pipe);
     ObsShutdown();

@@ -16,6 +16,7 @@ public sealed class HostStatus
     public string OutputPath { get; set; } = "";
     public string Error { get; set; } = "";
     public string Warning { get; set; } = "";
+    public bool StopForced { get; set; }
 
     public EngineStatus ToEngineStatus() => new()
     {
@@ -29,6 +30,7 @@ public sealed class HostStatus
         EncodedDuration = TimeSpan.FromSeconds(Math.Max(0, EncodedDurationSeconds)),
         Warning = string.IsNullOrWhiteSpace(Warning)
             ? (string.IsNullOrWhiteSpace(Error) ? null : Error)
-            : Warning
+            : Warning,
+        StopForced = StopForced
     };
 }

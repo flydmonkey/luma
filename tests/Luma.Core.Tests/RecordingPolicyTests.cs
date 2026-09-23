@@ -38,6 +38,22 @@ public sealed class RecordingPolicyTests
     }
 
     [Fact]
+    public void Stopping_is_visible_and_a_forced_good_file_stays_usable()
+    {
+        Assert.Equal("stopping", StopFileRules.WireState(SessionPhase.Processing));
+        Assert.Equal("recording", StopFileRules.WireState(SessionPhase.Recording));
+        Assert.Equal("paused", StopFileRules.WireState(SessionPhase.Paused));
+        Assert.Equal("idle", StopFileRules.WireState(SessionPhase.Idle));
+
+        Assert.True(StopFileRules.IsUsable(4096, TimeSpan.FromSeconds(20), TimeSpan.Zero));
+        Assert.True(StopFileRules.IsUsable(4096, TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(20.4)));
+        Assert.False(StopFileRules.IsUsable(0, TimeSpan.FromSeconds(20), TimeSpan.FromSeconds(20)));
+        Assert.False(StopFileRules.IsUsable(4096, TimeSpan.Zero, TimeSpan.FromSeconds(20)));
+        Assert.False(StopFileRules.IsUsable(4096, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(20)));
+        Assert.False(string.IsNullOrWhiteSpace(StopFileRules.ForcedWarning));
+    }
+
+    [Fact]
     public void Unsupported_system_language_falls_back_to_english()
     {
         Assert.Equal(UiLanguages.English, UiLanguages.ResolveEffective(UiLanguages.System, "fr-FR"));

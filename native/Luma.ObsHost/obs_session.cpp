@@ -27,6 +27,8 @@
 namespace
 {
 std::mutex g_mutex;
+std::atomic<bool> g_stopRunning{false};
+std::thread g_stopThread;
 bool g_ready = false;
 bool g_videoReady = false;
 int g_canvasW = 0;
@@ -155,7 +157,7 @@ void GetMonitorSize(int index, int& width, int& height, std::string& monitorId)
 
 void StopStamp();
 
-void ReleaseGraph()
+void ReleaseGraph(bool drain = true)
 {
     StopStamp();
     if (g_output)
@@ -163,9 +165,12 @@ void ReleaseGraph()
         if (obs_output_active(g_output))
         {
             obs_output_stop(g_output);
-            for (int i = 0; i < 50 && obs_output_active(g_output); i++)
+            if (drain)
             {
-                Sleep(100);
+                for (int i = 0; i < 50 && obs_output_active(g_output); i++)
+                {
+                    Sleep(100);
+                }
             }
             if (obs_output_active(g_output))
             {
@@ -481,7 +486,7 @@ void FitItem(obs_sceneitem_t* item, int width, int height)
 
 void RefreshDurationLocked()
 {
-    if (g_status.phase == 0)
+    if (g_status.phase == 0 || g_status.phase == 4)
     {
         return;
     }
@@ -520,6 +525,208 @@ SessionStatus Fail(const std::string& error)
     g_status.error = error;
     LogLine("session failed: %s", error.c_str());
     return g_status;
+}
+
+struct OutputStopSignal
+{
+    HANDLE event = nullptr;
+    volatile LONG code = 0;
+};
+
+struct StopWatchdog
+{
+    obs_output_t* output = nullptr;
+    volatile LONG stopReturned = 0;
+    volatile LONG forceRequested = 0;
+    volatile LONG refs = 0;
+};
+
+extern "C" static void OutputStopped(void* data, calldata_t* params)
+{
+    auto* signal = static_cast<OutputStopSignal*>(data);
+    InterlockedExchange(&signal->code, static_cast<LONG>(calldata_int(params, "code")));
+    if (signal->event)
+    {
+        SetEvent(signal->event);
+    }
+}
+
+bool WaitForOutputStop(obs_output_t* output, HANDLE event, DWORD timeoutMs)
+{
+    const ULONGLONG started = GetTickCount64();
+    while (GetTickCount64() - started < timeoutMs)
+    {
+        if (!obs_output_active(output))
+        {
+            return true;
+        }
+        if (event && WaitForSingleObject(event, 100) == WAIT_OBJECT_0)
+        {
+            return true;
+        }
+        if (!event)
+        {
+            Sleep(100);
+        }
+    }
+    return !obs_output_active(output) || (event && WaitForSingleObject(event, 0) == WAIT_OBJECT_0);
+}
+
+void ReleaseStopWatchdog(StopWatchdog* watchdog)
+{
+    if (watchdog && InterlockedDecrement(&watchdog->refs) == 0)
+    {
+        obs_output_release(watchdog->output);
+        delete watchdog;
+    }
+}
+
+DWORD WINAPI ForceStopWatchdog(LPVOID data)
+{
+    auto* watchdog = static_cast<StopWatchdog*>(data);
+    for (int i = 0; i < 150; ++i)
+    {
+        if (InterlockedCompareExchange(&watchdog->stopReturned, 0, 0) != 0)
+        {
+            ReleaseStopWatchdog(watchdog);
+            return 0;
+        }
+        Sleep(100);
+    }
+    LogLine("stop watchdog: obs_output_stop blocked for 15s; requesting force stop");
+    InterlockedExchange(&watchdog->forceRequested, 1);
+    obs_output_force_stop(watchdog->output);
+    LogLine("stop watchdog: force stop call returned");
+    ReleaseStopWatchdog(watchdog);
+    return 0;
+}
+
+bool DrainOutput(obs_output_t* output, bool* forced)
+{
+    OutputStopSignal signal{};
+    signal.event = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    signal_handler_t* handler = obs_output_get_signal_handler(output);
+    if (signal.event && handler)
+    {
+        signal_handler_connect(handler, "stop", OutputStopped, &signal);
+    }
+    else
+    {
+        LogLine("stop signal event unavailable; falling back to active polling");
+    }
+
+    auto* watchdog = new StopWatchdog();
+    watchdog->output = obs_output_get_ref(output);
+    watchdog->refs = 2;
+    const HANDLE thread = CreateThread(nullptr, 0, ForceStopWatchdog, watchdog, 0, nullptr);
+    if (!thread)
+    {
+        LogLine("stop watchdog: failed to create thread (%lu)", GetLastError());
+        ReleaseStopWatchdog(watchdog);
+        ReleaseStopWatchdog(watchdog);
+        watchdog = nullptr;
+    }
+    else
+    {
+        CloseHandle(thread);
+    }
+
+    const ULONGLONG started = GetTickCount64();
+    LogLine("stop: calling obs_output_stop");
+    obs_output_stop(output);
+    LogLine("stop: obs_output_stop returned after %llu ms", static_cast<unsigned long long>(GetTickCount64() - started));
+    if (watchdog)
+    {
+        if (InterlockedCompareExchange(&watchdog->forceRequested, 0, 0) != 0 && forced)
+        {
+            *forced = true;
+        }
+        InterlockedExchange(&watchdog->stopReturned, 1);
+        ReleaseStopWatchdog(watchdog);
+    }
+
+    bool stopped = WaitForOutputStop(output, signal.event, 45000);
+    if (!stopped)
+    {
+        LogLine("stop: no stop signal and output remained active for 45s; forcing stop");
+        if (forced)
+        {
+            *forced = true;
+        }
+        obs_output_force_stop(output);
+        const ULONGLONG forceStarted = GetTickCount64();
+        stopped = WaitForOutputStop(output, signal.event, 15000);
+        LogLine("stop: force-stop wait finished after %llu ms (stopped=%s)",
+            static_cast<unsigned long long>(GetTickCount64() - forceStarted), stopped ? "true" : "false");
+    }
+
+    if (handler && signal.event)
+    {
+        signal_handler_disconnect(handler, "stop", OutputStopped, &signal);
+    }
+    if (signal.event)
+    {
+        CloseHandle(signal.event);
+    }
+
+    const char* lastError = obs_output_get_last_error(output);
+    if (lastError && lastError[0])
+    {
+        LogLine("stop: output reported '%s'; deferring final success to file validation (forced=%s)",
+            lastError, forced && *forced ? "true" : "false");
+    }
+    return stopped;
+}
+
+void FinishStop()
+{
+    obs_output_t* output = nullptr;
+    {
+        std::lock_guard lock(g_mutex);
+        output = g_output;
+    }
+
+    bool forced = false;
+    const bool stopped = output && DrainOutput(output, &forced);
+    if (output)
+    {
+        Sleep(500);
+    }
+
+    std::lock_guard lock(g_mutex);
+    if (g_output && g_fps > 0)
+    {
+        const int frames = obs_output_get_total_frames(g_output);
+        if (frames > 0)
+        {
+            g_status.encodedDurationSeconds = static_cast<double>(frames) / static_cast<double>(g_fps);
+        }
+    }
+    if (g_output && obs_output_active(g_output))
+    {
+        forced = true;
+    }
+    ReleaseGraph(false);
+    g_startTick = 0;
+    g_pauseTick = 0;
+    g_status.phase = 0;
+    g_status.stopForced = forced;
+    if (!stopped)
+    {
+        g_status.ok = false;
+        g_status.error = "OBS output remained active after 45s graceful stop and 15s force-stop wait";
+        g_status.warning.clear();
+        LogLine("stop failed: output remained active");
+    }
+    else
+    {
+        g_status.ok = true;
+        g_status.error.clear();
+        g_status.warning = forced ? "OBS 正常停止超时，已强制结束；成片已通过校验" : "";
+        LogLine("recording stopped seconds=%.2f forced=%s path=%s",
+            g_status.encodedDurationSeconds, forced ? "true" : "false", g_status.outputPath.c_str());
+    }
+    g_stopRunning.store(false);
 }
 } // namespace
 
@@ -614,6 +821,13 @@ SessionStatus ObsStart(const StartRequest& request)
     if (!g_ready)
     {
         return Fail("libobs 尚未初始化。");
+    }
+    if (g_status.phase == 4)
+    {
+        SessionStatus denied = g_status;
+        denied.ok = false;
+        denied.error = "录制正在结束。";
+        return denied;
     }
     if (g_output && obs_output_active(g_output))
     {
@@ -956,6 +1170,13 @@ SessionStatus ObsStart(const StartRequest& request)
 SessionStatus ObsPause(bool pause)
 {
     std::lock_guard lock(g_mutex);
+    if (g_status.phase == 4)
+    {
+        SessionStatus denied = g_status;
+        denied.ok = false;
+        denied.error = "录制正在结束。";
+        return denied;
+    }
     if (!g_output || !obs_output_active(g_output))
     {
         g_status.ok = false;
@@ -997,6 +1218,13 @@ SessionStatus ObsPause(bool pause)
 SessionStatus ObsMute(bool muted)
 {
     std::lock_guard lock(g_mutex);
+    if (g_status.phase == 4)
+    {
+        SessionStatus denied = g_status;
+        denied.ok = false;
+        denied.error = "录制正在结束。";
+        return denied;
+    }
     if (!g_mic)
     {
         g_status.ok = true;
@@ -1011,62 +1239,90 @@ SessionStatus ObsMute(bool muted)
 
 SessionStatus ObsStop()
 {
-    std::lock_guard lock(g_mutex);
-    if (!g_output)
+    bool spawn = false;
+    SessionStatus snapshot;
     {
-        g_status.ok = false;
-        g_status.error = "当前没有正在进行的录制。";
-        g_status.phase = 0;
-        return g_status;
-    }
+        std::lock_guard lock(g_mutex);
+        if (g_status.phase == 4)
+        {
+            g_status.ok = true;
+            return g_status;
+        }
+        if (!g_output)
+        {
+            g_status.ok = false;
+            g_status.error = "当前没有正在进行的录制。";
+            g_status.phase = 0;
+            return g_status;
+        }
 
-    g_status.phase = 4;
-    obs_output_stop(g_output);
-    for (int i = 0; i < 100 && obs_output_active(g_output); i++)
+        RefreshDurationLocked();
+        g_status.phase = 4;
+        g_status.ok = true;
+        g_status.error.clear();
+        g_status.stopForced = false;
+        g_status.warning = "正在结束 OBS 输出并校验文件…";
+        spawn = !g_stopRunning.exchange(true);
+        snapshot = g_status;
+    }
+    if (spawn)
     {
+        if (g_stopThread.joinable())
+        {
+            g_stopThread.join();
+        }
+        g_stopThread = std::thread(FinishStop);
+    }
+    return snapshot;
+}
+
+bool ObsWaitStop(unsigned long timeoutMs)
+{
+    const ULONGLONG started = GetTickCount64();
+    while (GetTickCount64() - started < timeoutMs)
+    {
+        if (ObsStatus().phase != 4)
+        {
+            return ObsStatus().ok;
+        }
         Sleep(100);
     }
-    if (obs_output_active(g_output))
+    return false;
+}
+
+void ObsJoinStop()
+{
+    if (g_stopRunning.load())
     {
-        obs_output_force_stop(g_output);
+        if (g_stopThread.joinable())
+        {
+            g_stopThread.detach();
+        }
+        return;
     }
-    RefreshDurationLocked();
-
-    const std::string path = g_status.outputPath;
-    const std::string encoder = g_status.encoderName;
-    const bool hw = g_status.usedHardware;
-    const double seconds = g_status.encodedDurationSeconds;
-    const long long skipped = g_status.skippedFrames;
-    const int width = g_status.width;
-    const int height = g_status.height;
-    const double fps = g_status.effectiveFps;
-    const std::string warning = g_status.warning;
-
-    ReleaseGraph();
-    g_status = {};
-    g_status.ok = true;
-    g_status.phase = 0;
-    g_status.encoderName = encoder;
-    g_status.usedHardware = hw;
-    g_status.width = width;
-    g_status.height = height;
-    g_status.effectiveFps = fps;
-    g_status.skippedFrames = skipped;
-    g_status.encodedDurationSeconds = seconds;
-    g_status.outputPath = path;
-    g_status.warning = warning;
-    LogLine("recording stopped seconds=%.2f path=%s", seconds, path.c_str());
-    return g_status;
+    if (g_stopThread.joinable())
+    {
+        g_stopThread.join();
+    }
 }
 
 SessionStatus ObsStatus()
 {
     std::lock_guard lock(g_mutex);
+    if (g_status.phase == 4)
+    {
+        g_status.ok = true;
+        return g_status;
+    }
     RefreshDurationLocked();
-    g_status.ok = true;
+    if (g_status.phase != 0)
+    {
+        g_status.ok = true;
+    }
     if (g_output && obs_output_active(g_output) && g_status.phase == 0)
     {
         g_status.phase = obs_output_paused(g_output) ? 3 : 2;
+        g_status.ok = true;
     }
     return g_status;
 }
@@ -1085,7 +1341,8 @@ std::string StatusToJson(const SessionStatus& status)
         << ",\"encodedDurationSeconds\":" << status.encodedDurationSeconds
         << ",\"outputPath\":\"" << JsonEscape(status.outputPath) << "\""
         << ",\"error\":\"" << JsonEscape(status.error) << "\""
-        << ",\"warning\":\"" << JsonEscape(status.warning) << "\"}";
+        << ",\"warning\":\"" << JsonEscape(status.warning) << "\""
+        << ",\"stopForced\":" << (status.stopForced ? "true" : "false") << "}";
     return oss.str();
 }
 

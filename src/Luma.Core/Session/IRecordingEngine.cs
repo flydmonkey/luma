@@ -55,6 +55,7 @@ public sealed class EngineStatus
     public long SkippedFrames { get; init; }
     public TimeSpan EncodedDuration { get; init; }
     public string? Warning { get; init; }
+    public bool StopForced { get; init; }
 }
 
 public sealed class RecordingResult

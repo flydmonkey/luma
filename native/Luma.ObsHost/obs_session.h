@@ -51,6 +51,7 @@ struct SessionStatus
     std::string outputPath;
     std::string error;
     std::string warning;
+    bool stopForced = false;
 };
 
 bool ObsInit(std::string& error);
@@ -60,6 +61,8 @@ SessionStatus ObsStart(const StartRequest& request);
 SessionStatus ObsPause(bool pause);
 SessionStatus ObsMute(bool muted);
 SessionStatus ObsStop();
+bool ObsWaitStop(unsigned long timeoutMs);
+void ObsJoinStop();
 SessionStatus ObsStatus();
 std::string StatusToJson(const SessionStatus& status);
 StartRequest ParseStartRequest(const std::string& json);

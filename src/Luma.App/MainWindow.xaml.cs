@@ -1281,7 +1281,7 @@ public sealed partial class MainWindow : Window
             case "stop":
                 if (_session.Phase != SessionPhase.Idle)
                 {
-                    await StopAsync(fromLan: true);
+                    _ = StopAsync(fromLan: true);
                 }
 
                 return JsonSerializer.Deserialize<JsonElement>(LanControlApi.Ok(LanSessionSnapshot()));
@@ -1358,13 +1358,7 @@ public sealed partial class MainWindow : Window
     private object LanSessionSnapshot()
     {
         var status = _session.GetStatus();
-        var state = _session.Phase switch
-        {
-            SessionPhase.Recording => "recording",
-            SessionPhase.Paused => "paused",
-            SessionPhase.Processing or SessionPhase.Countdown => "recording",
-            _ => "idle"
-        };
+        var state = StopFileRules.WireState(_session.Phase);
         return new
         {
             state,
@@ -1372,7 +1366,8 @@ public sealed partial class MainWindow : Window
             lastSaved = string.IsNullOrWhiteSpace(_lastFile) ? null : new { name = Path.GetFileName(_lastFile), warning = (string?)null },
             encoderName = status.EncoderName,
             actualWidth = status.Width,
-            actualHeight = status.Height
+            actualHeight = status.Height,
+            stopForced = status.StopForced
         };
     }
 

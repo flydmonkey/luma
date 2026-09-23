@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Luma.Core.Session;
 using Luma.Core.Settings;
 
@@ -24,6 +26,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
     private StreamReader? _reader;
     private EngineStatus _status = new();
     private string _outputPath = "";
+    private Task<RecordingResult>? _stopInFlight;
 
     public async Task EnsureStartedAsync(CancellationToken token = default)
     {
@@ -156,28 +159,80 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
         ThrowIfFailed(status, "麦克风静音失败。");
     }
 
-    public async Task<RecordingResult> StopAsync()
+    public Task<RecordingResult> StopAsync()
     {
-        var status = await SendAsync(new { op = "stop" }).ConfigureAwait(false);
-        ThrowIfFailed(status, "停止录制失败。");
-        _status = status.ToEngineStatus();
-        var path = string.IsNullOrWhiteSpace(status.OutputPath) ? _outputPath : status.OutputPath;
-        if (path.EndsWith(".partial.mkv", StringComparison.OrdinalIgnoreCase))
+        lock (_gate)
         {
-            var finalPath = path[..^".partial.mkv".Length];
-            path = await RemuxAsync(path, finalPath).ConfigureAwait(false);
+            return _stopInFlight ??= StopCoreAsync();
         }
-        else if (path.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase))
-        {
-            path = await StripVideoAsync(path).ConfigureAwait(false);
-        }
+    }
 
-        return new RecordingResult
+    private async Task<RecordingResult> StopCoreAsync()
+    {
+        try
         {
-            OutputPath = path,
-            Duration = _status.EncodedDuration,
-            Status = _status
-        };
+            var status = await SendAsync(new { op = "stop" }).ConfigureAwait(false);
+            _status = status.ToEngineStatus();
+            var deadline = DateTime.UtcNow.AddSeconds(120);
+            while ((SessionPhase)status.Phase == SessionPhase.Processing)
+            {
+                if (DateTime.UtcNow >= deadline)
+                {
+                    throw new InvalidOperationException("录制停止超过 120 秒；控制面仍可用，但 OBS/驱动停止线程未返回，请重启 Luma 后再录制");
+                }
+
+                await Task.Delay(200).ConfigureAwait(false);
+                status = await SendAsync(new { op = "status" }).ConfigureAwait(false);
+                _status = status.ToEngineStatus();
+            }
+
+            if ((SessionPhase)status.Phase != SessionPhase.Idle && !status.Ok)
+            {
+                ThrowIfFailed(status, "停止录制失败。");
+            }
+
+            var path = string.IsNullOrWhiteSpace(status.OutputPath) ? _outputPath : status.OutputPath;
+            if (path.EndsWith(".partial.mkv", StringComparison.OrdinalIgnoreCase))
+            {
+                var finalPath = path[..^".partial.mkv".Length];
+                path = await RemuxAsync(path, finalPath).ConfigureAwait(false);
+            }
+            else if (path.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase))
+            {
+                path = await StripVideoAsync(path).ConfigureAwait(false);
+            }
+
+            var bytes = File.Exists(path) ? new FileInfo(path).Length : 0;
+            var probed = ProbeDuration(path);
+            var usable = bytes > 0 && (FindFfmpeg() is null || StopFileRules.IsUsable(bytes, probed, _status.EncodedDuration));
+            if (!usable)
+            {
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(status.Error) ? "成片未通过校验。" : status.Error);
+            }
+
+            if (status.StopForced || !status.Ok)
+            {
+                status.Ok = true;
+                status.Error = "";
+                status.StopForced = true;
+                status.Warning = StopFileRules.ForcedWarning;
+                _status = status.ToEngineStatus();
+            }
+
+            return new RecordingResult
+            {
+                OutputPath = path,
+                Duration = _status.EncodedDuration,
+                Status = _status
+            };
+        }
+        finally
+        {
+            lock (_gate)
+            {
+                _stopInFlight = null;
+            }
+        }
     }
 
     public EngineStatus GetStatus() => _status;
@@ -348,6 +403,55 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
         File.Delete(path);
         File.Move(temp, path);
         return path;
+    }
+
+    private static TimeSpan ProbeDuration(string path)
+    {
+        var ffmpeg = FindFfmpeg();
+        if (ffmpeg is null || !File.Exists(path))
+        {
+            return TimeSpan.Zero;
+        }
+
+        try
+        {
+            var start = new ProcessStartInfo(ffmpeg)
+            {
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            start.ArgumentList.Add("-hide_banner");
+            start.ArgumentList.Add("-i");
+            start.ArgumentList.Add(path);
+            using var process = Process.Start(start);
+            if (process is null)
+            {
+                return TimeSpan.Zero;
+            }
+
+            var read = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit(15000))
+            {
+                try { process.Kill(entireProcessTree: true); } catch { /* ignore */ }
+                return TimeSpan.Zero;
+            }
+
+            var text = read.GetAwaiter().GetResult();
+
+            var match = Regex.Match(text, @"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)");
+            if (!match.Success)
+            {
+                return TimeSpan.Zero;
+            }
+
+            var seconds = double.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture);
+            return new TimeSpan(int.Parse(match.Groups[1].Value), int.Parse(match.Groups[2].Value), 0) + TimeSpan.FromSeconds(seconds);
+        }
+        catch
+        {
+            return TimeSpan.Zero;
+        }
     }
 
     private static string? FindFfmpeg()
