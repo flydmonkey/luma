@@ -113,11 +113,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "$GITHUB_REF_NAME" \
-            --draft \
-            --title "Luma $GITHUB_REF_NAME" \
-            --notes "Automatic release" \
-            "dist/Luma-${APP_VERSION}-win-x64-setup.exe"
+          setup="dist/Luma-${APP_VERSION}-win-x64-setup.exe"
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" "$setup" --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --draft \
+              --title "Luma $GITHUB_REF_NAME" \
+              --notes "Automatic release" \
+              "$setup"
+          fi
 
       - name: Upload publish directory
         uses: actions/upload-artifact@v4
@@ -157,6 +162,7 @@ jobs:
       - name: Upload portable zip
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
