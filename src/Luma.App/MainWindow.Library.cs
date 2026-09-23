@@ -21,16 +21,27 @@ public sealed partial class MainWindow
         var items = _library.List(Settings.SaveFolder).ToList();
         foreach (var item in items)
         {
-            if (!_durations.TryGetValue(item.Path, out var duration))
+            if (_durations.TryGetValue(item.Path, out var duration))
             {
-                duration = MediaProbe.TryDuration(item.Path);
-                if (duration > TimeSpan.Zero)
-                {
-                    _durations[item.Path] = duration;
-                }
+                item.Duration = duration;
+                continue;
+            }
+
+            if (item.Duration > TimeSpan.Zero)
+            {
+                _durations[item.Path] = item.Duration;
+                continue;
+            }
+
+            duration = MediaProbe.TryDuration(item.Path);
+            if (duration <= TimeSpan.Zero)
+            {
+                continue;
             }
 
             item.Duration = duration;
+            _durations[item.Path] = duration;
+            LibraryFileInfo.Remember(item.Path, duration);
         }
 
         LibraryEmpty.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -47,6 +58,17 @@ public sealed partial class MainWindow
 
         UpdateLibraryCommands();
         DispatcherQueue.TryEnqueue(ApplyLibrarySelectionChrome);
+    }
+
+    private void RememberDuration(string path, TimeSpan duration)
+    {
+        if (duration <= TimeSpan.Zero || string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        _durations[path] = duration;
+        LibraryFileInfo.Remember(path, duration);
     }
 
     private void LibraryList_SelectionChanged(object sender, SelectionChangedEventArgs e)

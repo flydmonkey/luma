@@ -71,13 +71,12 @@ const I18N = {
     "sec.watermark": "Watermark", "settings.stamp": "Timestamp", "settings.wm.text": "Text mark",
     "settings.wm.text.value": "Text", "settings.wm.image.file": "Image path",
     "sec.auto": "Automation", "settings.seg": "Split files", "settings.seg.min": "Split minutes",
-    "settings.logon": "Record at sign-in", "settings.launchTray": "Start in tray",
-    "settings.sched": "Schedule",
-    "settings.sched.start": "Start time", "settings.sched.end": "End time",
-    "sec.input": "Input", "settings.hotkey": "Global hotkeys",
+    "settings.launchTray": "Start in tray",
+    "settings.launchTray.desc": "Start at sign-in in the tray, without recording",
+    "sec.system": "System", "sec.hotkeys": "Shortcuts", "settings.hotkey": "Global hotkeys",
     "settings.hotkey.start": "Start",
     "settings.hotkey.press.desc": "Click, then press keys", "settings.hotkey.pause": "Pause",
-    "settings.hotkey.stop": "Stop", "settings.tray": "Close to tray",
+    "settings.hotkey.stop": "Stop", "settings.hotkey.shot": "Screenshot", "settings.tray": "Close to tray",
     "settings.hideTray": "Hide tray icon", "settings.hideTray.desc": "Start Luma again to show the window",
     "settings.bar": "Recording toolbar", "settings.bar.desc": "Pause, stop, and mic",
     "settings.silent": "Silent mode", "settings.silent.desc": "No popups on start/stop",
@@ -151,13 +150,12 @@ const I18N = {
     "sec.watermark": "水印", "settings.stamp": "时间戳", "settings.wm.text": "文字水印",
     "settings.wm.text.value": "文字", "settings.wm.image.file": "图片水印路径",
     "sec.auto": "自动化", "settings.seg": "分段录制", "settings.seg.min": "分段分钟",
-    "settings.logon": "登录后自动开录", "settings.launchTray": "登录后进托盘",
-    "settings.sched": "定时录制",
-    "settings.sched.start": "开始时间", "settings.sched.end": "结束时间",
-    "sec.input": "输入与窗口", "settings.hotkey": "启用全局热键",
+    "settings.launchTray": "登录后进托盘",
+    "settings.launchTray.desc": "登录后启动并进入托盘，不自动开录",
+    "sec.system": "系统", "sec.hotkeys": "快捷键", "settings.hotkey": "启用全局热键",
     "settings.hotkey.start": "开始",
     "settings.hotkey.press.desc": "点击框后按下组合键", "settings.hotkey.pause": "暂停",
-    "settings.hotkey.stop": "停止", "settings.tray": "关闭时最小化到托盘",
+    "settings.hotkey.stop": "停止", "settings.hotkey.shot": "截图", "settings.tray": "关闭时最小化到托盘",
     "settings.hideTray": "隐藏托盘图标", "settings.hideTray.desc": "再开一次即可找回窗口",
     "settings.bar": "录制时显示浮动工具栏", "settings.bar.desc": "屏幕上方的暂停、停止和麦克风",
     "settings.silent": "静默模式", "settings.silent.desc": "网页开始或停止时，不弹出主窗口、浮动工具条和处理完成页",
@@ -231,13 +229,12 @@ const I18N = {
     "sec.watermark": "浮水印", "settings.stamp": "時間戳", "settings.wm.text": "文字浮水印",
     "settings.wm.text.value": "文字", "settings.wm.image.file": "圖片浮水印路徑",
     "sec.auto": "自動化", "settings.seg": "分段錄製", "settings.seg.min": "分段分鐘",
-    "settings.logon": "登入後自動開錄", "settings.launchTray": "登入後進系統匣",
-    "settings.sched": "定時錄製",
-    "settings.sched.start": "開始時間", "settings.sched.end": "結束時間",
-    "sec.input": "輸入與視窗", "settings.hotkey": "啟用全域熱鍵",
+    "settings.launchTray": "登入後進系統匣",
+    "settings.launchTray.desc": "登入後啟動並進入系統匣，不自動開錄",
+    "sec.system": "系統", "sec.hotkeys": "快捷鍵", "settings.hotkey": "啟用全域熱鍵",
     "settings.hotkey.start": "開始",
     "settings.hotkey.press.desc": "點擊框後按下組合鍵", "settings.hotkey.pause": "暫停",
-    "settings.hotkey.stop": "停止", "settings.tray": "關閉時最小化到工作列",
+    "settings.hotkey.stop": "停止", "settings.hotkey.shot": "截圖", "settings.tray": "關閉時最小化到工作列",
     "settings.hideTray": "隱藏系統匣圖示", "settings.hideTray.desc": "再開一次即可找回視窗",
     "settings.bar": "錄製時顯示浮動工具列", "settings.bar.desc": "螢幕上方的暫停、停止和麥克風",
     "settings.silent": "靜默模式", "settings.silent.desc": "開始或停止時不跳出主視窗、浮動工具列和處理完成頁",
@@ -311,13 +308,12 @@ const I18N = {
     "sec.watermark": "透かし", "settings.stamp": "タイムスタンプ", "settings.wm.text": "文字透かし",
     "settings.wm.text.value": "文字", "settings.wm.image.file": "画像のパス",
     "sec.auto": "自動化", "settings.seg": "分割録画", "settings.seg.min": "分割（分）",
-    "settings.logon": "サインイン時に開始", "settings.launchTray": "トレイで起動",
-    "settings.sched": "予約",
-    "settings.sched.start": "開始時刻", "settings.sched.end": "終了時刻",
-    "sec.input": "入力", "settings.hotkey": "グローバルホットキー",
+    "settings.launchTray": "トレイで起動",
+    "settings.launchTray.desc": "サインイン時にトレイで起動（録画しない）",
+    "sec.system": "システム", "sec.hotkeys": "ショートカット", "settings.hotkey": "グローバルホットキー",
     "settings.hotkey.start": "開始",
     "settings.hotkey.press.desc": "枠をクリックしてキーを押す", "settings.hotkey.pause": "一時停止",
-    "settings.hotkey.stop": "停止", "settings.tray": "トレイにしまう",
+    "settings.hotkey.stop": "停止", "settings.hotkey.shot": "スクショ", "settings.tray": "トレイにしまう",
     "settings.hideTray": "トレイを隠す", "settings.hideTray.desc": "もう一度起動すると窓が戻る",
     "settings.bar": "録画ツールバー", "settings.bar.desc": "一時停止・停止・マイク",
     "settings.silent": "サイレント", "settings.silent.desc": "開始・停止時に窓を出さない",
@@ -391,13 +387,12 @@ const I18N = {
     "sec.watermark": "워터마크", "settings.stamp": "타임스탬프", "settings.wm.text": "텍스트 마크",
     "settings.wm.text.value": "텍스트", "settings.wm.image.file": "이미지 경로",
     "sec.auto": "자동화", "settings.seg": "분할 녹화", "settings.seg.min": "분할(분)",
-    "settings.logon": "로그인 시 시작", "settings.launchTray": "트레이로 시작",
-    "settings.sched": "예약",
-    "settings.sched.start": "시작 시각", "settings.sched.end": "종료 시각",
-    "sec.input": "입력", "settings.hotkey": "전역 단축키",
+    "settings.launchTray": "트레이로 시작",
+    "settings.launchTray.desc": "로그인 시 트레이로 시작, 녹화 없음",
+    "sec.system": "시스템", "sec.hotkeys": "단축키", "settings.hotkey": "전역 단축키",
     "settings.hotkey.start": "시작",
     "settings.hotkey.press.desc": "상자를 클릭한 뒤 키 입력", "settings.hotkey.pause": "일시정지",
-    "settings.hotkey.stop": "중지", "settings.tray": "트레이로 닫기",
+    "settings.hotkey.stop": "중지", "settings.hotkey.shot": "캡처", "settings.tray": "트레이로 닫기",
     "settings.hideTray": "트레이 아이콘 숨기기", "settings.hideTray.desc": "다시 실행하면 창이 나타납니다",
     "settings.bar": "녹화 도구 모음", "settings.bar.desc": "일시정지, 중지, 마이크",
     "settings.silent": "무음 모드", "settings.silent.desc": "시작·중지 시 창 없음",
@@ -496,13 +491,6 @@ function applyChromeI18n() {
 
 function themeName(value) {
   return value === 1 || value === "Light" || value === "light" ? "light" : "dark";
-}
-
-function timeOnly(value) {
-  const text = String(value || "").trim();
-  if (/^\d{2}:\d{2}:\d{2}$/.test(text)) return text;
-  if (/^\d{2}:\d{2}$/.test(text)) return text + ":00";
-  return "09:00:00";
 }
 
 const QUALITY = [
@@ -1438,7 +1426,6 @@ function renderSettings() {
   const q = s.quality || {};
   const hk = s.hotkeys || {};
   const auto = s.automation || {};
-  const sch = (auto.schedules && auto.schedules[0]) || {};
   const textWm = wm(0) || {};
   const imageWm = wm(1) || {};
   const timeOn = !!(wm(2));
@@ -1483,19 +1470,18 @@ function renderSettings() {
     <div class="h">${t("sec.auto")}</div>
     ${card(t("settings.seg"), toggleControl("sSeg"))}
     ${card(t("settings.seg.min"), `<input id="sSegMin" type="number" min="1">`)}
-    ${card(t("settings.logon"), toggleControl("sLogon"))}
-    ${card(t("settings.sched"), toggleControl("sSch"))}
-    ${card(t("settings.sched.start"), `<input id="sSchStart" type="time">`)}
-    ${card(t("settings.sched.end"), `<input id="sSchEnd" type="time">`)}
-    <div class="h">${t("sec.input")}</div>
-    ${card(t("settings.hotkey"), toggleControl("sHk"))}
-    ${card(t("settings.hotkey.start"), `<input id="sHkStart" type="text" readonly>`, t("settings.hotkey.press.desc"))}
-    ${card(t("settings.hotkey.pause"), `<input id="sHkPause" type="text" readonly>`)}
-    ${card(t("settings.hotkey.stop"), `<input id="sHkStop" type="text" readonly>`)}
+    <div class="h">${t("sec.system")}</div>
+    ${card(t("settings.launchTray"), toggleControl("sLaunch"), t("settings.launchTray.desc"))}
     ${card(t("settings.tray"), toggleControl("sTray"))}
     ${card(t("settings.hideTray"), toggleControl("sHideTray"), t("settings.hideTray.desc"))}
     ${card(t("settings.bar"), toggleControl("sBar"), t("settings.bar.desc"))}
     ${card(t("settings.silent"), toggleControl("sSilent"), t("settings.silent.desc"))}
+    <div class="h">${t("sec.hotkeys")}</div>
+    ${card(t("settings.hotkey"), toggleControl("sHk"))}
+    ${card(t("settings.hotkey.start"), `<input id="sHkStart" type="text" readonly>`, t("settings.hotkey.press.desc"))}
+    ${card(t("settings.hotkey.pause"), `<input id="sHkPause" type="text" readonly>`)}
+    ${card(t("settings.hotkey.stop"), `<input id="sHkStop" type="text" readonly>`)}
+    ${card(t("settings.hotkey.shot"), `<input id="sHkShot" type="text" readonly>`)}
     <div class="h">${t("sec.reset")}</div>
     ${card(t("settings.reset.header"), `<button id="sReset" type="button">${t("settings.reset")}</button>`, t("settings.reset.desc"))}
     <div class="h">${t("sec.about")}</div>
@@ -1550,14 +1536,12 @@ function renderSettings() {
   $("sImg").value = imageWm.content || "";
   $("sSeg").checked = !!auto.segmentEnabled;
   $("sSegMin").value = String(auto.segmentMinutes || 10);
-  $("sLogon").checked = !!auto.startAtLogon;
-  $("sSch").checked = !!sch.enabled;
-  $("sSchStart").value = String(sch.start || "09:00").slice(0, 5);
-  $("sSchEnd").value = String(sch.end || "10:00").slice(0, 5);
+  $("sLaunch").checked = !!s.launchToTray;
   $("sHk").checked = hk.enabled !== false;
   $("sHkStart").value = hk.start || "";
   $("sHkPause").value = hk.pause || "";
   $("sHkStop").value = hk.stop || "";
+  $("sHkShot").value = hk.screenshot || "";
   $("sTray").checked = s.closeToTray !== false;
   $("sHideTray").checked = !!s.hideTrayIcon;
   $("sBar").checked = s.showRecordingBar !== false;
@@ -1573,6 +1557,7 @@ function renderSettings() {
   bindHotkey($("sHkStart"), "start");
   bindHotkey($("sHkPause"), "pause");
   bindHotkey($("sHkStop"), "stop");
+  bindHotkey($("sHkShot"), "screenshot");
   bindOverlayDrag();
 }
 
@@ -1688,17 +1673,12 @@ function queueSettingsSave() {
 }
 
 async function saveSettingsFromForm() {
-  const schedules = [...(state.settings.automation?.schedules || [])];
-  const first = { ...(schedules[0] || { id: "web", mode: 0 }) };
-  first.enabled = $("sSch").checked;
-  first.start = timeOnly($("sSchStart").value || "09:00");
-  first.end = timeOnly($("sSchEnd").value || "10:00");
-  schedules[0] = first;
   await patch({
     theme: $("sTheme").value,
     uiLanguage: $("sLang")?.value || "system",
     saveFolder: $("sFolder").value,
     monitorIndex: Number($("sMon").value || 0),
+    launchToTray: $("sLaunch").checked,
     closeToTray: $("sTray").checked,
     hideTrayIcon: $("sHideTray").checked,
     showRecordingBar: $("sBar").checked,
@@ -1724,14 +1704,15 @@ async function saveSettingsFromForm() {
       enabled: $("sHk").checked,
       start: $("sHkStart").value,
       pause: $("sHkPause").value,
-      stop: $("sHkStop").value
+      stop: $("sHkStop").value,
+      screenshot: $("sHkShot").value
     },
     automation: {
-      startAtLogon: $("sLogon").checked,
+      startAtLogon: false,
       segmentEnabled: $("sSeg").checked,
       segmentMinutes: Number($("sSegMin").value || 10),
       segmentMaxMegabytes: state.settings.automation?.segmentMaxMegabytes || 0,
-      schedules
+      schedules: []
     }
   });
 }

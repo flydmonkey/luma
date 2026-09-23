@@ -9,6 +9,7 @@ public sealed class LibraryCatalog
             return [];
         }
 
+        var durations = LibraryFileInfo.Read(saveFolder);
         return Directory.EnumerateFiles(saveFolder)
             .Where(path =>
                 Luma.Core.Settings.RecordingContainers.IsVideo(path)
@@ -17,13 +18,16 @@ public sealed class LibraryCatalog
             .Select(path =>
             {
                 var info = new FileInfo(path);
+                var fileName = info.Name;
                 return new LibraryItem
                 {
                     Id = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(path)))[..12],
                     Path = path,
                     Name = System.IO.Path.GetFileNameWithoutExtension(path),
                     SizeBytes = info.Length,
-                    Duration = TimeSpan.Zero,
+                    Duration = durations.TryGetValue(fileName, out var seconds) && seconds > 0
+                        ? TimeSpan.FromSeconds(seconds)
+                        : TimeSpan.Zero,
                     Created = info.CreationTimeUtc,
                     PosterPath = FindPoster(path)
                 };
@@ -34,6 +38,7 @@ public sealed class LibraryCatalog
 
     public void Delete(string path)
     {
+        LibraryFileInfo.Forget(path);
         if (File.Exists(path))
         {
             File.Delete(path);
@@ -52,6 +57,7 @@ public sealed class LibraryCatalog
         var extension = System.IO.Path.GetExtension(path);
         var dest = System.IO.Path.Combine(directory, newName + extension);
         File.Move(path, dest);
+        LibraryFileInfo.Move(path, dest);
         return dest;
     }
 

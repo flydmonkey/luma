@@ -54,17 +54,11 @@ public sealed class SettingsStore
             loaded.Hotkeys ??= new HotkeySettings();
             loaded.Hotkeys.Screenshot = Capture.StillShot.NormalizeHotkey(loaded.Hotkeys.Screenshot);
             loaded.Automation ??= new AutomationSettings();
+            loaded.Automation.StartAtLogon = false;
+            loaded.Automation.Schedules = [];
             if (loaded.LastMode == CaptureMode.Game)
             {
                 loaded.LastMode = CaptureMode.Display;
-            }
-
-            foreach (var rule in loaded.Automation.Schedules)
-            {
-                if (rule.Mode == CaptureMode.Game)
-                {
-                    rule.Mode = CaptureMode.Display;
-                }
             }
 
             return loaded;

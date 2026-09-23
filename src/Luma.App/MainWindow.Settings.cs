@@ -23,7 +23,6 @@ public sealed partial class MainWindow
         _loadingSettings = true;
         ThemeBox.SelectedIndex = Settings.Theme == AppThemeMode.Light ? 0 : 1;
         FillLanguageBox();
-        FillQuality(HomeQualityBox);
         FillFormat();
         SelectTag(FpsBox, Settings.Quality.FrameRate.ToString());
         SaveFolderText.Text = Settings.SaveFolder;
@@ -59,16 +58,7 @@ public sealed partial class MainWindow
         SegmentBox.IsOn = Settings.Automation.SegmentEnabled;
         SegmentMinutesBox.Text = Settings.Automation.SegmentMinutes.ToString();
         SegmentMbBox.Text = Settings.Automation.SegmentMaxMegabytes.ToString();
-        LogonBox.IsOn = Settings.Automation.StartAtLogon;
         LaunchToTrayBox.IsOn = Settings.LaunchToTray;
-        var rule = Settings.Automation.Schedules.FirstOrDefault();
-        ScheduleBox.IsOn = rule?.Enabled == true;
-        if (rule is not null)
-        {
-            ScheduleStartPicker.Time = rule.Start.ToTimeSpan();
-            if (rule.End is { } end) ScheduleEndPicker.Time = end.ToTimeSpan();
-            ScheduleDurationBox.Text = rule.DurationMinutes?.ToString() ?? "";
-        }
 
         HotkeyEnabledBox.IsOn = Settings.Hotkeys.Enabled;
         StartHotkeyBox.Text = Settings.Hotkeys.Start;
@@ -98,6 +88,7 @@ public sealed partial class MainWindow
         PlaceOverlayRects();
         SettingsDependents_Changed(this, new RoutedEventArgs());
         SyncModeButtons();
+        ApplyQualityCeiling();
         ApplyLanguage();
         _loadingSettings = false;
         _settingsReady = true;
@@ -129,21 +120,9 @@ public sealed partial class MainWindow
         Settings.Automation.SegmentEnabled = SegmentBox.IsOn;
         Settings.Automation.SegmentMinutes = int.TryParse(SegmentMinutesBox.Text, out var minutes) ? Math.Max(1, minutes) : 10;
         Settings.Automation.SegmentMaxMegabytes = int.TryParse(SegmentMbBox.Text, out var mb) ? Math.Max(0, mb) : 0;
-        Settings.Automation.StartAtLogon = LogonBox.IsOn;
+        Settings.Automation.StartAtLogon = false;
+        Settings.Automation.Schedules = [];
         Settings.LaunchToTray = LaunchToTrayBox.IsOn;
-        Settings.Automation.Schedules = ScheduleBox.IsOn
-            ?
-            [
-                new ScheduleRule
-                {
-                    Enabled = true,
-                    Start = ClockTime(ScheduleStartPicker, new TimeOnly(9, 0)),
-                    End = ClockTime(ScheduleEndPicker, new TimeOnly(10, 0)),
-                    DurationMinutes = int.TryParse(ScheduleDurationBox.Text, out var duration) ? duration : null,
-                    Mode = _mode
-                }
-            ]
-            : [];
         Settings.Hotkeys.Enabled = HotkeyEnabledBox.IsOn;
         Settings.Hotkeys.Start = StartHotkeyBox.Text;
         Settings.Hotkeys.Pause = PauseHotkeyBox.Text;
@@ -269,16 +248,64 @@ public sealed partial class MainWindow
     private string SelectedLanguage() =>
         LanguageBox.SelectedItem is ComboBoxItem item ? item.Tag as string ?? UiLanguages.System : UiLanguages.System;
 
-    private void FillQuality(ComboBox box)
+    private void ApplyQualityCeiling()
     {
-        var selected = Settings.Quality.Level;
-        box.Items.Clear();
-        box.Items.Add(new ComboBoxItem { Content = "720p", Tag = nameof(QualityLevel.Sd) });
-        box.Items.Add(new ComboBoxItem { Content = "1080p", Tag = nameof(QualityLevel.Hd) });
-        box.Items.Add(new ComboBoxItem { Content = "1440p", Tag = nameof(QualityLevel.ExtraHd) });
-        box.Items.Add(new ComboBoxItem { Content = "4K", Tag = nameof(QualityLevel.FourK) });
-        SelectTag(box, selected.ToString());
+        if (HomeQualityBox is null)
+        {
+            return;
+        }
+
+        var (width, height) = CurrentQualityLimit();
+        var choices = QualitySettings.ChoicesFitting(width, height);
+        var clamped = QualitySettings.Clamp(Settings.Quality.Level, width, height);
+        var loading = _loadingSettings;
+        _loadingSettings = true;
+        try
+        {
+            HomeQualityBox.Items.Clear();
+            if (choices.Length == 0)
+            {
+                HomeQualityBox.Items.Add(new ComboBoxItem { Content = $"{width}×{height}", Tag = "native" });
+                HomeQualityBox.SelectedIndex = 0;
+            }
+            else
+            {
+                foreach (var level in choices)
+                {
+                    HomeQualityBox.Items.Add(new ComboBoxItem { Content = QualityLabel(level), Tag = level.ToString() });
+                }
+
+                SelectTag(HomeQualityBox, clamped.ToString());
+            }
+        }
+        finally
+        {
+            _loadingSettings = loading;
+        }
+
+        if (choices.Length == 0 || clamped == Settings.Quality.Level)
+        {
+            return;
+        }
+
+        var frameRate = Settings.Quality.FrameRate;
+        var hardware = Settings.Quality.HardwareEncoding;
+        Settings.Quality = QualitySettings.FromLevel(clamped, frameRate);
+        Settings.Quality.HardwareEncoding = hardware;
+        if (!loading)
+        {
+            SaveSettings();
+        }
     }
+
+    private static string QualityLabel(QualityLevel level) => level switch
+    {
+        QualityLevel.Sd => "720p",
+        QualityLevel.Hd => "1080p",
+        QualityLevel.ExtraHd => "1440p",
+        QualityLevel.FourK => "4K",
+        _ => "1080p"
+    };
 
     private void FillFormat()
     {
@@ -394,25 +421,6 @@ public sealed partial class MainWindow
         }
     }
 
-    private void ScheduleTime_Changed(TimePicker sender, TimePickerSelectedValueChangedEventArgs args)
-    {
-        if (_settingsReady && !_loadingSettings)
-        {
-            PersistSettingsFromUi();
-        }
-    }
-
-    private static TimeOnly ClockTime(TimePicker picker, TimeOnly fallback)
-    {
-        var value = picker.SelectedTime;
-        if (value is not { } time || time < TimeSpan.Zero || time >= TimeSpan.FromDays(1))
-        {
-            return fallback;
-        }
-
-        return TimeOnly.FromTimeSpan(time);
-    }
-
     private string? SelectedMicId() => (MicDeviceBox.SelectedItem as ComboBoxItem)?.Tag as string;
 
     private int SelectedFps() => FpsBox.SelectedItem is ComboBoxItem item && int.TryParse(item.Tag as string, out var fps) ? fps : 30;
@@ -460,7 +468,8 @@ public sealed partial class MainWindow
         SecCamera.Text = UiCopy.T("sec.camera");
         SecWatermark.Text = UiCopy.T("sec.watermark");
         SecAuto.Text = UiCopy.T("sec.auto");
-        SecInput.Text = UiCopy.T("sec.input");
+        SecSystem.Text = UiCopy.T("sec.system");
+        SecHotkeys.Text = UiCopy.T("sec.hotkeys");
         SecReset.Text = UiCopy.T("sec.reset");
         SecAbout.Text = UiCopy.T("sec.about");
         ThemeCard.Header = UiCopy.T("settings.theme");
@@ -496,14 +505,8 @@ public sealed partial class MainWindow
         SegmentMinutesCard.Header = UiCopy.T("settings.seg.min");
         SegmentMinutesBox.PlaceholderText = UiCopy.T("settings.seg.min.ph");
         SegmentMbCard.Header = UiCopy.T("settings.seg.mb");
-        LogonCard.Header = UiCopy.T("settings.logon");
         LaunchToTrayCard.Header = UiCopy.T("settings.launchTray");
         LaunchToTrayCard.Description = UiCopy.T("settings.launchTray.desc");
-        ScheduleCard.Header = UiCopy.T("settings.sched");
-        ScheduleStartCard.Header = UiCopy.T("settings.sched.start");
-        ScheduleEndCard.Header = UiCopy.T("settings.sched.end");
-        ScheduleDurationCard.Header = UiCopy.T("settings.sched.dur");
-        ScheduleDurationBox.PlaceholderText = UiCopy.T("settings.sched.dur.ph");
         HotkeyEnabledCard.Header = UiCopy.T("settings.hotkey");
         StartHotkeyCard.Header = UiCopy.T("settings.hotkey.start");
         StartHotkeyCard.Description = UiCopy.T("settings.hotkey.press.desc");
@@ -617,33 +620,9 @@ public sealed partial class MainWindow
 
     private void LocalizeFrameworkChrome()
     {
-        var time = UiCopy.T("a11y.time");
-        NameTimePicker(ScheduleStartPicker, time);
-        NameTimePicker(ScheduleEndPicker, time);
         if (Content is DependencyObject root)
         {
             NameScrollBars(root);
-        }
-    }
-
-    private static void NameTimePicker(TimePicker picker, string name)
-    {
-        AutomationProperties.SetName(picker, name);
-        NamePickerButtons(picker, name);
-    }
-
-    private static void NamePickerButtons(DependencyObject root, string name)
-    {
-        var count = VisualTreeHelper.GetChildrenCount(root);
-        for (var i = 0; i < count; i++)
-        {
-            var child = VisualTreeHelper.GetChild(root, i);
-            if (child is Button button)
-            {
-                AutomationProperties.SetName(button, name);
-            }
-
-            NamePickerButtons(child, name);
         }
     }
 
@@ -742,6 +721,7 @@ public sealed partial class MainWindow
 
         Settings.MonitorIndex = index;
         SaveSettings();
+        ApplyQualityCeiling();
         UpdateIdleSummary();
     }
 
@@ -788,9 +768,6 @@ public sealed partial class MainWindow
         CameraHSlider.IsEnabled = true;
         SegmentMinutesBox.IsEnabled = SegmentBox.IsOn;
         SegmentMbBox.IsEnabled = SegmentBox.IsOn;
-        ScheduleStartPicker.IsEnabled = ScheduleBox.IsOn;
-        ScheduleEndPicker.IsEnabled = ScheduleBox.IsOn;
-        ScheduleDurationBox.IsEnabled = ScheduleBox.IsOn;
         if (!_loadingSettings && ReferenceEquals(sender, MicBox))
         {
             HomeMicBox.IsOn = MicBox.IsOn;

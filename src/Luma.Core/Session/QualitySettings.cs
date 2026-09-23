@@ -32,4 +32,26 @@ public sealed class QualitySettings
         QualityLevel.FourK => new QualitySettings { Level = level, FrameRate = frameRate, BitrateKbps = 35000 },
         _ => new QualitySettings { Level = QualityLevel.Hd, FrameRate = frameRate, BitrateKbps = 8000 }
     };
+
+    public static readonly QualityLevel[] Ascending = [QualityLevel.Sd, QualityLevel.Hd, QualityLevel.ExtraHd, QualityLevel.FourK];
+
+    public static bool Fits(QualityLevel level, int width, int height)
+    {
+        var (levelWidth, levelHeight) = FromLevel(level).Resolution;
+        return width >= levelWidth && height >= levelHeight;
+    }
+
+    public static QualityLevel[] ChoicesFitting(int width, int height) =>
+        Ascending.Where(level => Fits(level, width, height)).ToArray();
+
+    public static QualityLevel Clamp(QualityLevel level, int width, int height)
+    {
+        var choices = ChoicesFitting(width, height);
+        if (choices.Length == 0 || choices.Contains(level))
+        {
+            return level;
+        }
+
+        return choices[^1];
+    }
 }

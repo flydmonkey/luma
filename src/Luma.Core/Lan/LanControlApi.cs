@@ -148,6 +148,9 @@ public static class LanControlApi
             throw new InvalidOperationException("保存目录不能为空。");
         }
 
+        updated.Automation ??= new AutomationSettings();
+        updated.Automation.StartAtLogon = false;
+        updated.Automation.Schedules = [];
         return updated;
     }
 

@@ -74,6 +74,7 @@ public sealed partial class MainWindow : Window
         SetTitleBar(TitleBarDrag);
         if (AppWindow?.Presenter is OverlappedPresenter presenter)
         {
+            presenter.IsResizable = false;
             presenter.IsMaximizable = false;
         }
 
@@ -119,7 +120,7 @@ public sealed partial class MainWindow : Window
             root.Loaded += (_, _) =>
             {
                 _tray.Attach(root.XamlRoot);
-                ApplyWindowSize(520, 340);
+                ApplyWindowSize(520, 352);
                 _centerOnLaunch = false;
                 ApplyLanguage();
                 SyncTitleBarInsets();
@@ -168,11 +169,6 @@ public sealed partial class MainWindow : Window
             _tray.ApplyVisibility(App.Settings.HideTrayIcon);
             _tray.ApplyLanguage();
         });
-        if (Environment.GetCommandLineArgs().Any(arg => arg.Equals("--logon", StringComparison.OrdinalIgnoreCase))
-            && Settings.Automation.StartAtLogon)
-        {
-            DispatcherQueue.TryEnqueue(() => _ = StartAsync(fromLan: true));
-        }
     }
 
     private void OnClosing(Microsoft.UI.Windowing.AppWindow sender, Microsoft.UI.Windowing.AppWindowClosingEventArgs args)
@@ -391,7 +387,7 @@ public sealed partial class MainWindow : Window
         {
             var stopped = await _session.StopAsync();
             await Task.Run(() => MediaProbe.TryPoster(stopped.OutputPath));
-            _durations.Remove(stopped.OutputPath);
+            RememberDuration(stopped.OutputPath, stopped.Duration);
             _segmentStart = DateTime.UtcNow;
             var path = NewOutputPath();
             await _session.StartAsync(BuildRequest(path));
@@ -451,7 +447,7 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            ApplyWindowSize(520, 340);
+            ApplyWindowSize(520, 352);
         }
     }
 
@@ -555,6 +551,7 @@ public sealed partial class MainWindow : Window
 
         SaveSettings();
         SyncModeButtons();
+        ApplyQualityCeiling();
         if (_mode is CaptureMode.Region or CaptureMode.Window)
         {
             _ = PickTargetAsync();
@@ -820,6 +817,35 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private (int Width, int Height) CurrentQualityLimit()
+    {
+        var displays = DisplayCatalog.ListDisplays();
+        var display = displays.FirstOrDefault(item => item.Index == Settings.MonitorIndex) ?? displays.FirstOrDefault();
+        var width = display?.Width ?? 1920;
+        var height = display?.Height ?? 1080;
+        if (_mode == CaptureMode.Region && _target.CropWidth > 1 && _target.CropHeight > 1)
+        {
+            return (_target.CropWidth, _target.CropHeight);
+        }
+
+        if (_mode == CaptureMode.Window && !string.IsNullOrWhiteSpace(_target.WindowId))
+        {
+            var window = DisplayCatalog.ListWindows(false)
+                .FirstOrDefault(item => string.Equals(item.ObsWindowId, _target.WindowId, StringComparison.Ordinal));
+            if (window is { Width: > 1, Height: > 1 })
+            {
+                return (window.Width, window.Height);
+            }
+        }
+
+        if (_mode == CaptureMode.AudioOnly)
+        {
+            return (1280, 720);
+        }
+
+        return (width, height);
+    }
+
     private CaptureTarget CurrentTarget() => new()
     {
         Mode = _mode,
@@ -899,7 +925,7 @@ public sealed partial class MainWindow : Window
             var result = await _session.StopAsync();
             _lastFile = result.OutputPath;
             await Task.Run(() => MediaProbe.TryPoster(result.OutputPath));
-            _durations.Remove(result.OutputPath);
+            RememberDuration(result.OutputPath, result.Duration);
             SetRecordingUi(false);
             HideBar();
             RefreshLibrary();
@@ -913,14 +939,10 @@ public sealed partial class MainWindow : Window
 
             if (_hiddenForRecording && !silentLan)
             {
-                SetCloaked(false);
+                RevealWindow();
             }
 
             ShowPage("record");
-            if (_hiddenForRecording && !silentLan)
-            {
-                RevealWindow();
-            }
         }
         catch (Exception ex)
         {
@@ -1056,6 +1078,7 @@ public sealed partial class MainWindow : Window
             }
         }
 
+        ApplyQualityCeiling();
         UpdateIdleSummary();
     }
 
@@ -1351,6 +1374,7 @@ public sealed partial class MainWindow : Window
 
         AudioOnlyBox.IsOn = _mode == CaptureMode.AudioOnly;
         SyncModeButtons();
+        ApplyQualityCeiling();
         SaveSettings();
         return JsonSerializer.Deserialize<JsonElement>(LanControlApi.Ok(LanTargetSummary()));
     }

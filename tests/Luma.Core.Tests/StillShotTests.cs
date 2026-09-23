@@ -114,7 +114,7 @@ public sealed class StillShotTests
         var loaded = new SettingsStore(file).Load();
         Assert.Equal(CaptureMode.Display, loaded.LastMode);
         Assert.Equal("Ctrl+Shift+S", loaded.Hotkeys.Screenshot);
-        Assert.Equal(CaptureMode.Display, loaded.Automation.Schedules[0].Mode);
+        Assert.Empty(loaded.Automation.Schedules);
 
         var reset = new SettingsStore(file).Reset();
         Assert.Equal("Ctrl+Shift+S", reset.Hotkeys.Screenshot);

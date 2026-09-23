@@ -138,7 +138,7 @@
                 <Button x:Name="PickTargetButton" Content="选择区域 / 窗口" Click="PickTarget_Click"
                         HorizontalAlignment="Stretch" Visibility="Collapsed"/>
                 <Button x:Name="StartButton" Content="开始录制" Click="Start_Click" Height="48"
-                        HorizontalAlignment="Stretch" Style="{StaticResource AccentButtonStyle}"/>
+                        Margin="0,12,0,0" HorizontalAlignment="Stretch" Style="{StaticResource AccentButtonStyle}"/>
                 <Grid x:Name="RecordingButtons" Visibility="Collapsed">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -594,26 +594,25 @@
                 <controls:SettingsCard x:Name="SegmentMbCard" Header="分段大小 MB">
                     <TextBox x:Name="SegmentMbBox" Width="80" PlaceholderText="0" Text="0" LostFocus="SettingEdited"/>
                 </controls:SettingsCard>
-                <controls:SettingsCard x:Name="LogonCard" Header="登录后自动开录">
-                    <ToggleSwitch x:Name="LogonBox" OnContent="" OffContent="" Toggled="SettingEdited"/>
-                </controls:SettingsCard>
+
+                <TextBlock x:Name="SecSystem" Text="系统" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
                 <controls:SettingsCard x:Name="LaunchToTrayCard" Header="登录后进托盘" Description="登录后启动并进入托盘，不自动开录">
                     <ToggleSwitch x:Name="LaunchToTrayBox" OnContent="" OffContent="" Toggled="LaunchToTrayBox_Toggled"/>
                 </controls:SettingsCard>
-                <controls:SettingsCard x:Name="ScheduleCard" Header="定时录制">
-                    <ToggleSwitch x:Name="ScheduleBox" OnContent="" OffContent="" Toggled="SettingsDependents_Changed"/>
+                <controls:SettingsCard x:Name="CloseToTrayCard" Header="关闭时最小化到托盘">
+                    <ToggleSwitch x:Name="CloseToTrayBox" OnContent="" OffContent="" IsOn="True" Toggled="SettingEdited"/>
                 </controls:SettingsCard>
-                <controls:SettingsCard x:Name="ScheduleStartCard" Header="开始时间">
-                    <TimePicker x:Name="ScheduleStartPicker" ClockIdentifier="24HourClock" Width="120" SelectedTimeChanged="ScheduleTime_Changed"/>
+                <controls:SettingsCard x:Name="HideTrayIconCard" Header="隐藏托盘图标" Description="再开一次即可找回窗口">
+                    <ToggleSwitch x:Name="HideTrayIconBox" OnContent="" OffContent="" Toggled="HideTrayIconBox_Toggled"/>
                 </controls:SettingsCard>
-                <controls:SettingsCard x:Name="ScheduleEndCard" Header="结束时间">
-                    <TimePicker x:Name="ScheduleEndPicker" ClockIdentifier="24HourClock" Width="120" SelectedTimeChanged="ScheduleTime_Changed"/>
+                <controls:SettingsCard x:Name="RecordingBarCard" Header="录制时显示浮动工具栏" Description="屏幕上方的暂停、停止和麦克风">
+                    <ToggleSwitch x:Name="RecordingBarBox" OnContent="" OffContent="" IsOn="True" Toggled="RecordingBarBox_Toggled"/>
                 </controls:SettingsCard>
-                <controls:SettingsCard x:Name="ScheduleDurationCard" Header="定时时长分钟">
-                    <TextBox x:Name="ScheduleDurationBox" Width="80" PlaceholderText="可空" LostFocus="SettingEdited"/>
+                <controls:SettingsCard x:Name="SilentModeCard" Header="静默模式" Description="网页开始或停止时，不弹出主窗口、浮动工具条和处理完成页">
+                    <ToggleSwitch x:Name="SilentModeBox" OnContent="" OffContent="" Toggled="SilentModeBox_Toggled"/>
                 </controls:SettingsCard>
 
-                <TextBlock x:Name="SecInput" Text="输入与窗口" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
+                <TextBlock x:Name="SecHotkeys" Text="快捷键" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
                 <controls:SettingsCard x:Name="HotkeyEnabledCard" Header="启用全局热键">
                     <ToggleSwitch x:Name="HotkeyEnabledBox" OnContent="" OffContent="" IsOn="True" Toggled="SettingEdited"/>
                 </controls:SettingsCard>
@@ -632,18 +631,6 @@
                 <controls:SettingsCard x:Name="HotkeyStatusCard" Header="状态">
                     <TextBlock x:Name="HotkeyErrorText" TextWrapping="Wrap"
                                Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Name="CloseToTrayCard" Header="关闭时最小化到托盘">
-                    <ToggleSwitch x:Name="CloseToTrayBox" OnContent="" OffContent="" IsOn="True" Toggled="SettingEdited"/>
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Name="HideTrayIconCard" Header="隐藏托盘图标" Description="再开一次即可找回窗口">
-                    <ToggleSwitch x:Name="HideTrayIconBox" OnContent="" OffContent="" Toggled="HideTrayIconBox_Toggled"/>
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Name="RecordingBarCard" Header="录制时显示浮动工具栏" Description="屏幕上方的暂停、停止和麦克风">
-                    <ToggleSwitch x:Name="RecordingBarBox" OnContent="" OffContent="" IsOn="True" Toggled="RecordingBarBox_Toggled"/>
-                </controls:SettingsCard>
-                <controls:SettingsCard x:Name="SilentModeCard" Header="静默模式" Description="网页开始或停止时，不弹出主窗口、浮动工具条和处理完成页">
-                    <ToggleSwitch x:Name="SilentModeBox" OnContent="" OffContent="" Toggled="SilentModeBox_Toggled"/>
                 </controls:SettingsCard>
 
                 <TextBlock x:Name="SecReset" Text="重置" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
