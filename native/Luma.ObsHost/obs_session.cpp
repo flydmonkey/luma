@@ -728,6 +728,74 @@ void FinishStop()
     }
     g_stopRunning.store(false);
 }
+
+bool EncoderRegistered(const char* wanted)
+{
+    const char* id = nullptr;
+    for (size_t index = 0; obs_enum_encoder_types(index, &id); ++index)
+    {
+        if (!id || strcmp(id, wanted) != 0)
+        {
+            continue;
+        }
+        const uint32_t caps = obs_get_encoder_caps(id);
+        const char* codec = obs_get_encoder_codec(id);
+        return obs_get_encoder_type(id) == OBS_ENCODER_VIDEO
+            && codec
+            && strcmp(codec, "h264") == 0
+            && (caps & (OBS_ENCODER_CAP_DEPRECATED | OBS_ENCODER_CAP_INTERNAL)) == 0;
+    }
+    return false;
+}
+
+std::string EncoderUnavailableReason(const char* wanted)
+{
+    if (strcmp(wanted, "obs_qsv11") == 0)
+    {
+        return "OBS encoder id obs_qsv11 is deprecated; use obs_qsv11_v2";
+    }
+    if (strncmp(wanted, "obs_qsv11", 9) == 0)
+    {
+        return "Intel QSV H.264 was not registered; verify an enabled Intel GPU and its media driver";
+    }
+    if (strcmp(wanted, "jim_nvenc") == 0 || strcmp(wanted, "ffmpeg_nvenc") == 0)
+    {
+        HMODULE nvenc = LoadLibraryA("nvEncodeAPI64.dll");
+        if (!nvenc)
+        {
+            return "NVIDIA NVENC driver API nvEncodeAPI64.dll is unavailable";
+        }
+        FreeLibrary(nvenc);
+        return "NVIDIA driver API loaded but OBS registered no compatible H.264 NVENC encoder";
+    }
+    if (strcmp(wanted, "h264_texture_amf") == 0)
+    {
+        HMODULE amf = LoadLibraryA("amfrt64.dll");
+        if (!amf)
+        {
+            return "AMD AMF driver runtime amfrt64.dll is unavailable";
+        }
+        FreeLibrary(amf);
+        return "AMD AMF runtime loaded but OBS registered no compatible H.264 AMF encoder";
+    }
+    return std::string("OBS encoder ") + wanted + " was not registered for H.264 on this system";
+}
+
+void LogHardwareEncoders()
+{
+    const char* ids[] = {"obs_qsv11_v2", "h264_texture_amf", "jim_nvenc", "ffmpeg_nvenc", "obs_qsv11"};
+    for (const char* id : ids)
+    {
+        if (EncoderRegistered(id))
+        {
+            LogLine("encoder %s available", id);
+        }
+        else
+        {
+            LogLine("encoder %s unavailable: %s", id, EncoderUnavailableReason(id).c_str());
+        }
+    }
+}
 } // namespace
 
 bool ObsInit(std::string& error)
@@ -769,6 +837,7 @@ bool ObsInit(std::string& error)
     obs_load_all_modules();
     obs_log_loaded_modules();
     obs_post_load_modules();
+    LogHardwareEncoders();
 
     if (!ResetVideoAudio(1920, 1080, 1920, 1080, 30, error))
     {
@@ -1029,12 +1098,25 @@ SessionStatus ObsStart(const StartRequest& request)
     std::string encoderId;
     bool usedHardware = false;
     std::vector<const char*> encoderIds;
+    std::string hardwareFailure;
     if (request.hardware)
     {
-        encoderIds.push_back("h264_texture_amf");
-        encoderIds.push_back("jim_nvenc");
-        encoderIds.push_back("ffmpeg_nvenc");
-        encoderIds.push_back("obs_qsv11");
+        const char* hardwareIds[] = {"h264_texture_amf", "jim_nvenc", "ffmpeg_nvenc", "obs_qsv11_v2"};
+        for (const char* id : hardwareIds)
+        {
+            if (EncoderRegistered(id))
+            {
+                encoderIds.push_back(id);
+            }
+            else
+            {
+                if (!hardwareFailure.empty())
+                {
+                    hardwareFailure += " ";
+                }
+                hardwareFailure += std::string(id) + ": " + EncoderUnavailableReason(id);
+            }
+        }
     }
     encoderIds.push_back("obs_x264");
 
@@ -1136,9 +1218,20 @@ SessionStatus ObsStart(const StartRequest& request)
             started = true;
             if (strcmp(id, "obs_x264") == 0 && request.hardware)
             {
-                Warn("硬件编码不可用，已回退 obs_x264。");
+                if (hardwareFailure.empty())
+                {
+                    hardwareFailure = "no hardware encoder produced an active output";
+                }
+                Warn("硬件编码不可用，已回退 obs_x264。" + hardwareFailure);
+                LogLine("encoder fallback obs_x264: %s", hardwareFailure.c_str());
             }
             break;
+        }
+        if (strcmp(id, "obs_x264") != 0)
+        {
+            const std::string failed = std::string(id) + " failed: " + error;
+            hardwareFailure = hardwareFailure.empty() ? failed : failed + " " + hardwareFailure;
+            LogLine("encoder %s failed: %s", id, error.c_str());
         }
     }
     if (!started)
@@ -1150,20 +1243,18 @@ SessionStatus ObsStart(const StartRequest& request)
     g_status.ok = true;
     g_status.phase = 2;
     g_status.encoderName = encoderId;
-    if (const char* display = obs_encoder_get_display_name(encoderId.c_str()))
-    {
-        if (display[0])
-        {
-            g_status.encoderName = display;
-        }
-    }
-    g_status.usedHardware = usedHardware;
+    const char* displayName = obs_encoder_get_display_name(encoderId.c_str());
+    g_status.usedHardware = usedHardware && encoderId != "obs_x264";
     g_status.width = encW;
     g_status.height = encH;
     g_status.effectiveFps = request.fps;
     g_status.outputPath = livePath;
     g_status.encodedDurationSeconds = 0;
-    LogLine("recording started encoder=%s path=%s", g_status.encoderName.c_str(), request.outputPath.c_str());
+    LogLine("recording started encoder=%s display=%s hardware=%s path=%s",
+        encoderId.c_str(),
+        displayName && displayName[0] ? displayName : encoderId.c_str(),
+        g_status.usedHardware ? "true" : "false",
+        request.outputPath.c_str());
     return g_status;
 }
 

@@ -49,6 +49,17 @@ public sealed class ObsHostRecordingTests
             Assert.True(new FileInfo(result.OutputPath).Length > 1024, "成片过小，可能没有写入媒体数据。");
             Assert.False(string.Equals(result.Status.EncoderName, "hardware", StringComparison.Ordinal));
             Assert.False(string.IsNullOrWhiteSpace(result.Status.EncoderName));
+            Assert.NotEqual("obs_qsv11", result.Status.EncoderName);
+            if (result.Status.UsedHardware)
+            {
+                Assert.Contains(result.Status.EncoderName, new[] { "h264_texture_amf", "jim_nvenc", "ffmpeg_nvenc", "obs_qsv11_v2" });
+                Assert.DoesNotContain("回退", result.Status.Warning ?? "");
+            }
+            else
+            {
+                Assert.Equal("obs_x264", result.Status.EncoderName);
+                Assert.Contains("回退", result.Status.Warning ?? "");
+            }
             Assert.True(result.Duration.TotalSeconds > 0.3);
             Assert.Equal(30, result.Status.EffectiveFps, 0);
             var fileDuration = MediaProbe.TryDuration(result.OutputPath);
