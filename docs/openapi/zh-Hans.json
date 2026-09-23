@@ -1,0 +1,20 @@
+{
+  "info": {
+    "title": "Luma · API 文档",
+    "description": "本机控制接口：录制、设置和片库。"
+  },
+  "paths": {
+    "/": { "get": { "summary": "局域网页面", "description": "远程面板。不需要访问密钥。" } },
+    "/api/v1/session": { "get": { "summary": "会话阶段", "description": "返回当前阶段编号。" } },
+    "/api/v1/session/start": { "post": { "summary": "开始", "description": "开始桌面已经选好的目标。" } },
+    "/api/v1/session/pause": { "post": { "summary": "暂停或继续", "description": "切换正在进行的录制。" } },
+    "/api/v1/session/stop": { "post": { "summary": "停止", "description": "结束会话并返回保存路径。" } },
+    "/api/v1/targets": { "get": { "summary": "目标列表", "description": "列出显示器、窗口、摄像头或麦克风。不会选中其中一项。" } },
+    "/api/v1/settings": {
+      "get": { "summary": "读取设置", "description": "返回主题、语言、保存目录和局域网状态。访问密钥为空。" },
+      "patch": { "summary": "更新设置", "description": "更新主题、语言或保存目录。不能修改监听端口。" }
+    },
+    "/api/v1/library": { "get": { "summary": "片库", "description": "列出保存目录中的文件。" } },
+    "/api/v1/library/{id}": { "delete": { "summary": "删除", "description": "仅当 confirm=true 时删除一条。" } }
+  }
+}

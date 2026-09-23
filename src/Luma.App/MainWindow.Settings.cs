@@ -1062,7 +1062,7 @@ public sealed partial class MainWindow
 
     private async void PrivacyCard_Click(object sender, RoutedEventArgs e) => await ShowTextAsync(UiCopy.T("about.privacy"), UiCopy.T("about.privacy.body"));
     private async void TermsCard_Click(object sender, RoutedEventArgs e) => await ShowTextAsync(UiCopy.T("about.terms"), UiCopy.T("about.terms.body"));
-    private async void ProjectCard_Click(object sender, RoutedEventArgs e) => await Launcher.LaunchUriAsync(new Uri("https://github.com/obsproject/obs-studio"));
+    private async void ProjectCard_Click(object sender, RoutedEventArgs e) => await Launcher.LaunchUriAsync(new Uri("https://github.com/flydmonkey/luma"));
     private async void ApiDocsCard_Click(object sender, RoutedEventArgs e) => await ShowTextAsync(UiCopy.T("about.docs"), UiCopy.T("about.docs.body"));
     private async void SkillCard_Click(object sender, RoutedEventArgs e) => await ShowTextAsync(UiCopy.T("about.skill"), UiCopy.T("about.skill.body"));
 

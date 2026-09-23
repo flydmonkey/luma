@@ -1,0 +1,20 @@
+{
+  "info": {
+    "title": "Luma · API",
+    "description": "녹화, 설정, 라이브러리를 위한 로컬 제어 API."
+  },
+  "paths": {
+    "/": { "get": { "summary": "LAN 페이지", "description": "원격 패널. 접근 키는 필요 없습니다." } },
+    "/api/v1/session": { "get": { "summary": "세션 단계", "description": "현재 단계 번호를 반환합니다." } },
+    "/api/v1/session/start": { "post": { "summary": "시작", "description": "데스크톱에서 이미 고른 대상을 시작합니다." } },
+    "/api/v1/session/pause": { "post": { "summary": "일시정지 또는 재개", "description": "진행 중인 녹화를 전환합니다." } },
+    "/api/v1/session/stop": { "post": { "summary": "정지", "description": "세션을 끝내고 저장 경로를 반환합니다." } },
+    "/api/v1/targets": { "get": { "summary": "대상 목록", "description": "디스플레이, 창, 카메라, 마이크를 나열합니다. 선택하지는 않습니다." } },
+    "/api/v1/settings": {
+      "get": { "summary": "설정 읽기", "description": "테마, 언어, 저장 폴더, LAN 상태를 반환합니다. 접근 키는 비어 있습니다." },
+      "patch": { "summary": "설정 업데이트", "description": "테마, 언어, 저장 폴더를 업데이트합니다. 수신 포트는 바꿀 수 없습니다." }
+    },
+    "/api/v1/library": { "get": { "summary": "라이브러리", "description": "저장 폴더의 파일을 나열합니다." } },
+    "/api/v1/library/{id}": { "delete": { "summary": "삭제", "description": "confirm=true 일 때만 한 건을 삭제합니다." } }
+  }
+}

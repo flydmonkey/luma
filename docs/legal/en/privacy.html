@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Privacy · Luma</title>
+</head>
+<body>
+<h1>Privacy policy</h1>
+<p>Effective 23 September 2026. Luma is a local Windows app from flydmonkey. You can use it without an account, sign-in, or membership.</p>
+<h2>What stays on this PC</h2>
+<p>Recordings are written to the save folder you choose. The default is <code>Videos\Recordings</code>. Screenshots are PNG files you save or copy. Settings, including the optional LAN access key, are stored in <code>%LOCALAPPDATA%\Luma\settings.json</code> on this computer.</p>
+<p>Normal use does not upload recordings, screenshots, or that settings file to a vendor cloud. This build does not include an account service or an analytics client.</p>
+<h2>When capture happens</h2>
+<p>Screen, window, region, system audio, microphone, and camera capture run only after you start those features, or after a schedule you created starts them. Luma does not begin a recording by itself before that. Live capture and encoding stay on this PC through libobs.</p>
+<p>A screenshot is taken only when you use the screenshot control or its hotkey. Text recognition uses the Windows OCR engine on this device. The recognized text is not sent to a Luma server. Copying an image or that text uses the Windows clipboard on this PC.</p>
+<h2>LAN access</h2>
+<p>LAN access is off until you turn it on. It listens on your network, at port 12345 unless you change it on the desktop. Devices that can reach that address can open the remote panel. If you set an access key, control routes require that key. The web API does not return the key and cannot change the listen port.</p>
+<p>LAN control does not send files to Luma’s servers. Anyone on a network you expose, or anyone who has the key, can start the recording you already armed and can list file names in the save folder. Treat the key like a password and keep it off shared machines.</p>
+<h2>What this policy does not cover</h2>
+<p>Files you later copy to another app, a shared folder, or a cloud drive are handled by that destination. Windows itself may apply its own screen, microphone, and camera permissions.</p>
+</body>
+</html>

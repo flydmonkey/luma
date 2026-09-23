@@ -251,7 +251,8 @@ public sealed class LanServer : IDisposable
                 }
 
                 var id = path["/api/v1/library/".Length..];
-                var item = _library.List(settings.SaveFolder).FirstOrDefault(x => x.Id == id);
+                var item = _library.List(settings.SaveFolder).FirstOrDefault(x =>
+                    string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
                 if (item is null)
                 {
                     await WriteAsync(context.Response, 404, """{"error":"not found"}""").ConfigureAwait(false);

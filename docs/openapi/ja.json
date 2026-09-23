@@ -1,0 +1,20 @@
+{
+  "info": {
+    "title": "Luma · API",
+    "description": "録画、設定、ライブラリ向けのローカル制御 API。"
+  },
+  "paths": {
+    "/": { "get": { "summary": "LAN ページ", "description": "リモートパネル。アクセスキーは不要です。" } },
+    "/api/v1/session": { "get": { "summary": "セッション段階", "description": "現在の段階番号を返します。" } },
+    "/api/v1/session/start": { "post": { "summary": "開始", "description": "デスクトップで選ばれている対象を開始します。" } },
+    "/api/v1/session/pause": { "post": { "summary": "一時停止または再開", "description": "進行中の録画を切り替えます。" } },
+    "/api/v1/session/stop": { "post": { "summary": "停止", "description": "セッションを終了し、保存パスを返します。" } },
+    "/api/v1/targets": { "get": { "summary": "対象一覧", "description": "ディスプレイ、ウィンドウ、カメラ、マイクを列挙します。選択はしません。" } },
+    "/api/v1/settings": {
+      "get": { "summary": "設定の読み取り", "description": "テーマ、言語、保存先、LAN 状態を返します。アクセスキーは空です。" },
+      "patch": { "summary": "設定の更新", "description": "テーマ、言語、保存先を更新します。待ち受けポートは変更できません。" }
+    },
+    "/api/v1/library": { "get": { "summary": "ライブラリ", "description": "保存フォルダー内のファイルを列挙します。" } },
+    "/api/v1/library/{id}": { "delete": { "summary": "削除", "description": "confirm=true のときだけ 1 件削除します。" } }
+  }
+}

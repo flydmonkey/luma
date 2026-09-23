@@ -1,0 +1,20 @@
+{
+  "info": {
+    "title": "Luma · API 文件",
+    "description": "本機控制介面：錄製、設定和片庫。"
+  },
+  "paths": {
+    "/": { "get": { "summary": "區域網路頁面", "description": "遠端面板。不需要存取金鑰。" } },
+    "/api/v1/session": { "get": { "summary": "工作階段", "description": "回傳目前階段編號。" } },
+    "/api/v1/session/start": { "post": { "summary": "開始", "description": "開始桌面已經選好的目標。" } },
+    "/api/v1/session/pause": { "post": { "summary": "暫停或繼續", "description": "切換正在進行的錄製。" } },
+    "/api/v1/session/stop": { "post": { "summary": "停止", "description": "結束工作階段並回傳儲存路徑。" } },
+    "/api/v1/targets": { "get": { "summary": "目標清單", "description": "列出顯示器、視窗、攝影機或麥克風。不會選取其中一項。" } },
+    "/api/v1/settings": {
+      "get": { "summary": "讀取設定", "description": "回傳主題、語言、儲存目錄和區域網路狀態。存取金鑰為空。" },
+      "patch": { "summary": "更新設定", "description": "更新主題、語言或儲存目錄。不能修改監聽埠。" }
+    },
+    "/api/v1/library": { "get": { "summary": "片庫", "description": "列出儲存目錄中的檔案。" } },
+    "/api/v1/library/{id}": { "delete": { "summary": "刪除", "description": "僅當 confirm=true 時刪除一條。" } }
+  }
+}

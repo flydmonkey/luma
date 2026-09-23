@@ -1,0 +1,20 @@
+{
+  "info": {
+    "title": "Luma · API",
+    "description": "Local control API for recording, settings, and the library."
+  },
+  "paths": {
+    "/": { "get": { "summary": "LAN shell", "description": "Remote panel. No access key required." } },
+    "/api/v1/session": { "get": { "summary": "Session phase", "description": "Returns the current phase number." } },
+    "/api/v1/session/start": { "post": { "summary": "Start", "description": "Starts the target already chosen on the desktop." } },
+    "/api/v1/session/pause": { "post": { "summary": "Pause or resume", "description": "Toggles the active recording." } },
+    "/api/v1/session/stop": { "post": { "summary": "Stop", "description": "Ends the session and returns the saved path." } },
+    "/api/v1/targets": { "get": { "summary": "Targets", "description": "Lists displays, windows, cameras, or microphones. Does not select one." } },
+    "/api/v1/settings": {
+      "get": { "summary": "Read settings", "description": "Returns theme, language, save folder, and LAN status. The access key is empty." },
+      "patch": { "summary": "Update settings", "description": "Updates theme, language, or save folder. The listen port cannot be changed." }
+    },
+    "/api/v1/library": { "get": { "summary": "Library", "description": "Lists files in the save folder." } },
+    "/api/v1/library/{id}": { "delete": { "summary": "Delete", "description": "Deletes one file when confirm=true." } }
+  }
+}

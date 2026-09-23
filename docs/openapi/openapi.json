@@ -1,0 +1,382 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Luma",
+    "version": "1.0.0",
+    "description": "Local LAN control API for this Luma build. Session routes return {ok, phase, error?, path?}. Settings and library routes return their payload directly. Errors from the HTTP layer are {error}. Send X-Record-Key or Authorization: Bearer when an access key is stored. Factory host is http://127.0.0.1:12345. Start records the target already selected on the desktop; there is no target-select route."
+  },
+  "servers": [
+    { "url": "/", "description": "This LAN host" },
+    { "url": "http://127.0.0.1:12345", "description": "Factory loopback" }
+  ],
+  "security": [
+    { "accessKey": [] },
+    { "bearer": [] },
+    {}
+  ],
+  "tags": [
+    { "name": "Shell" },
+    { "name": "Session" },
+    { "name": "Targets" },
+    { "name": "Settings" },
+    { "name": "Library" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "accessKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Record-Key",
+        "description": "Required on /api/v1 when an access key is stored. The HTML shell at / does not require it."
+      },
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Same value as X-Record-Key."
+      }
+    },
+    "parameters": {
+      "LibraryId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "12 hex characters from GET /library property Id. Comparison is case-insensitive.",
+        "schema": { "type": "string" },
+        "example": "A1B2C3D4E5F6"
+      },
+      "TargetKind": {
+        "name": "kind",
+        "in": "query",
+        "required": false,
+        "description": "displays (default), windows, games, cameras, microphones, or mics. games is always empty.",
+        "schema": {
+          "type": "string",
+          "enum": ["displays", "windows", "games", "cameras", "microphones", "mics"]
+        }
+      },
+      "ConfirmDelete": {
+        "name": "confirm",
+        "in": "query",
+        "required": true,
+        "description": "Must be true. Any other value returns 400.",
+        "schema": { "type": "boolean", "enum": [true] }
+      }
+    },
+    "schemas": {
+      "HttpError": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": { "type": "string" }
+        },
+        "example": { "error": "unauthorized" }
+      },
+      "SessionState": {
+        "type": "object",
+        "required": ["ok", "phase"],
+        "properties": {
+          "ok": { "type": "boolean" },
+          "phase": {
+            "type": "integer",
+            "description": "0 idle, 1 countdown, 2 recording, 3 paused, 4 processing.",
+            "enum": [0, 1, 2, 3, 4]
+          },
+          "error": { "type": "string" },
+          "path": { "type": "string", "description": "Output path after stop." }
+        }
+      },
+      "StartBody": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "description": "Optional guard only. game or 3 is rejected. Any other value does not change the desktop target."
+          }
+        }
+      },
+      "TargetItem": {
+        "type": "object",
+        "required": ["id", "label", "previewMissing"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "previewMissing": { "type": "boolean" }
+        }
+      },
+      "Settings": {
+        "type": "object",
+        "properties": {
+          "theme": { "type": "string", "enum": ["Light", "Dark"] },
+          "uiLanguage": { "type": "string", "example": "zh-Hans" },
+          "saveFolder": { "type": "string" },
+          "hardwareEncoding": { "type": "boolean", "readOnly": true },
+          "lanEnabled": { "type": "boolean", "readOnly": true },
+          "lanPort": { "type": "integer", "readOnly": true, "example": 12345 },
+          "accessKey": { "type": "string", "description": "Always empty on read. Cannot be set from this API.", "readOnly": true }
+        }
+      },
+      "SettingsPatch": {
+        "type": "object",
+        "description": "Only these fields are applied. lanPort and port are rejected with 400.",
+        "properties": {
+          "theme": { "type": "string", "enum": ["Light", "Dark"] },
+          "uiLanguage": {
+            "type": "string",
+            "enum": ["system", "en", "zh-Hans", "zh-Hant", "ja", "ko"]
+          },
+          "saveFolder": { "type": "string" }
+        }
+      },
+      "LibraryItem": {
+        "type": "object",
+        "properties": {
+          "Id": { "type": "string" },
+          "Path": { "type": "string" },
+          "Name": { "type": "string" },
+          "SizeBytes": { "type": "integer" },
+          "Duration": { "type": "string" },
+          "Created": { "type": "string", "format": "date-time" },
+          "PosterPath": { "type": "string", "nullable": true },
+          "IsAudio": { "type": "boolean" },
+          "SizeText": { "type": "string" },
+          "DurationText": { "type": "string" },
+          "DateText": { "type": "string" }
+        }
+      },
+      "DeleteOk": {
+        "type": "object",
+        "required": ["ok"],
+        "properties": {
+          "ok": { "type": "boolean", "example": true }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Access key missing or wrong.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/HttpError" },
+            "example": { "error": "unauthorized" }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Unknown route or library id.",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/HttpError" },
+            "example": { "error": "not found" }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "tags": ["Shell"],
+        "summary": "LAN shell",
+        "description": "HTML remote panel with record, library, and settings. Reachable without an access key.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "HTML page.",
+            "content": { "text/html": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/api/v1/session": {
+      "get": {
+        "tags": ["Session"],
+        "summary": "Session phase",
+        "description": "Returns the current recording phase. Does not include the selected target.",
+        "responses": {
+          "200": {
+            "description": "Current phase.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SessionState" },
+                "example": { "ok": true, "phase": 0 }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/session/start": {
+      "post": {
+        "tags": ["Session"],
+        "summary": "Start the desktop selection",
+        "description": "Starts the capture mode and target already chosen in the desktop app. Region and window fail until that selection exists. mode game or 3 is rejected. A session that is already active is rejected.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/StartBody" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Started, or a JSON failure with ok false.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionState" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/session/pause": {
+      "post": {
+        "tags": ["Session"],
+        "summary": "Pause or resume",
+        "description": "Toggles pause when phase is recording or paused. Idle stays idle.",
+        "responses": {
+          "200": {
+            "description": "Phase after the toggle.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionState" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/session/stop": {
+      "post": {
+        "tags": ["Session"],
+        "summary": "Stop and save",
+        "description": "Stops an active session and returns the output path.",
+        "responses": {
+          "200": {
+            "description": "Idle phase and saved path.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SessionState" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/targets": {
+      "get": {
+        "tags": ["Targets"],
+        "summary": "List targets",
+        "description": "Lists displays, windows, cameras, or microphones. The list does not select a recording target.",
+        "parameters": [{ "$ref": "#/components/parameters/TargetKind" }],
+        "responses": {
+          "200": {
+            "description": "Target array.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/TargetItem" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/settings": {
+      "get": {
+        "tags": ["Settings"],
+        "summary": "Read settings",
+        "description": "Returns the flat settings view. accessKey is empty.",
+        "responses": {
+          "200": {
+            "description": "Settings.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Settings" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "patch": {
+        "tags": ["Settings"],
+        "summary": "Update settings",
+        "description": "Applies theme, uiLanguage, and saveFolder. Rejects lanPort and port.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/SettingsPatch" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Settings after the patch.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Settings" } } }
+          },
+          "400": {
+            "description": "Client tried to change the listen port.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HttpError" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Settings"],
+        "summary": "Update settings",
+        "description": "Same behavior as PATCH.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/SettingsPatch" } }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Settings after the update.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Settings" } } }
+          },
+          "400": {
+            "description": "Client tried to change the listen port.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HttpError" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/library": {
+      "get": {
+        "tags": ["Library"],
+        "summary": "List recordings",
+        "description": "Lists video, .m4a, and .partial.mkv files in the save folder. Property names are PascalCase.",
+        "responses": {
+          "200": {
+            "description": "Library items.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/LibraryItem" }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/library/{id}": {
+      "delete": {
+        "tags": ["Library"],
+        "summary": "Delete a recording",
+        "description": "Deletes the file and its poster when confirm=true. Rename, trim, compress, and repair are not on this API.",
+        "parameters": [
+          { "$ref": "#/components/parameters/LibraryId" },
+          { "$ref": "#/components/parameters/ConfirmDelete" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DeleteOk" } } }
+          },
+          "400": {
+            "description": "confirm was not true.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HttpError" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    }
+  }
+}
