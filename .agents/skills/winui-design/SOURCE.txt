@@ -1,0 +1,3 @@
+﻿source: https://github.com/microsoft/win-dev-skills
+path: plugins/winui/agent-plugin/skills/winui-design
+commit: f94bab1

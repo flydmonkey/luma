@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>Luma.App</RootNamespace>
+    <AssemblyName>Luma</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <ApplicationTitle>Luma</ApplicationTitle>
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.250402" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250205002" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.3.1" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Luma.Core\Luma.Core.csproj" />
+    <ProjectReference Include="..\Luma.Obs\Luma.Obs.csproj" />
+    <ProjectReference Include="..\Luma.Media\Luma.Media.csproj" />
+  </ItemGroup>
+
+  <Target Name="StageObsRuntime" AfterTargets="Build">
+    <PropertyGroup>
+      <_StageScript>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\tools\stage-obs-runtime.ps1'))</_StageScript>
+      <_StageDest>$([System.IO.Path]::GetFullPath('$(TargetDir)').TrimEnd('\'))</_StageDest>
+    </PropertyGroup>
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(_StageScript)&quot; -Dest &quot;$(_StageDest)&quot;" />
+  </Target>
+</Project>
+

@@ -1,0 +1,676 @@
+<Window
+    x:Class="Luma.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:shapes="using:Microsoft.UI.Xaml.Shapes"
+    xmlns:lib="using:Luma.Core.Library"
+    xmlns:local="using:Luma.App"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+    Title="Luma">
+    <Grid Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="AppTitleBar" Background="Transparent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Button x:Name="BackButton" Click="Back_Click" Width="40" Height="36" Margin="4,0,0,0"
+                    Padding="0" Background="Transparent" BorderThickness="0" Visibility="Collapsed"
+                    ToolTipService.ToolTip="返回">
+                <FontIcon Glyph="&#xE72B;" FontSize="14"/>
+            </Button>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,0,0" Spacing="8">
+                <shapes:Ellipse x:Name="TitleRecBadge" Width="8" Height="8" Visibility="Collapsed"
+                         Fill="{ThemeResource SystemFillColorCriticalBrush}"/>
+                <TextBlock x:Name="TitleText" Text="录制" VerticalAlignment="Center"
+                           Style="{StaticResource CaptionTextBlockStyle}" FontSize="14"/>
+            </StackPanel>
+            <Rectangle x:Name="TitleBarDrag" Grid.Column="2" Fill="Transparent"/>
+            <Button x:Name="LibraryButton" Grid.Column="3" Click="LibraryNav_Click" Width="40" Height="36"
+                    Padding="0" Background="Transparent" BorderThickness="0"
+                    ToolTipService.ToolTip="我的视频" AutomationProperties.Name="我的视频">
+                <FontIcon Glyph="&#xE8B7;" FontSize="14"/>
+            </Button>
+            <Button x:Name="SettingsButton" Grid.Column="4" Click="SettingsNav_Click" Width="40" Height="36"
+                    Padding="0" Background="Transparent" BorderThickness="0"
+                    ToolTipService.ToolTip="设置" AutomationProperties.Name="设置">
+                <FontIcon Glyph="&#xE713;" FontSize="14"/>
+            </Button>
+            <Border x:Name="TitleBarRightPad" Grid.Column="5" Width="0"/>
+        </Grid>
+
+        <Grid x:Name="RecordPage" Grid.Row="1" Padding="16,0,16,8">
+            <StackPanel x:Name="RecordStack" Spacing="6">
+                <TextBlock x:Name="ElapsedText" Text="00:00:00" FontSize="36" FontWeight="SemiLight"
+                           HorizontalAlignment="Center" Margin="0,0,0,8" Visibility="Collapsed"/>
+                <TextBlock x:Name="StatusText" Text="选择模式后即可开始录制" FontSize="12"
+                           HorizontalAlignment="Center" TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+                <Border x:Name="ModeRow" CornerRadius="10" Padding="4"
+                        Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                    <Border.Resources>
+                        <Style x:Key="ModeTileStyle" TargetType="ToggleButton">
+                            <Setter Property="MinWidth" Value="0"/>
+                            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+                            <Setter Property="VerticalAlignment" Value="Stretch"/>
+                            <Setter Property="Height" Value="64"/>
+                            <Setter Property="Padding" Value="2,8"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="CornerRadius" Value="7"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                        </Style>
+                    </Border.Resources>
+                    <Grid ColumnSpacing="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <ToggleButton x:Name="ModeFullButton" Style="{StaticResource ModeTileStyle}"
+                                      Click="ModeButton_Click" Tag="0" ToolTipService.ToolTip="显示器">
+                            <StackPanel Spacing="4">
+                                <FontIcon Glyph="&#xE7F8;" FontSize="16" HorizontalAlignment="Center"/>
+                                <TextBlock Text="显示器" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ToggleButton>
+                        <ToggleButton x:Name="ModeRegionButton" Grid.Column="1" Style="{StaticResource ModeTileStyle}"
+                                      Click="ModeButton_Click" Tag="1" ToolTipService.ToolTip="区域">
+                            <StackPanel Spacing="4">
+                                <FontIcon Glyph="&#xE7A8;" FontSize="16" HorizontalAlignment="Center"/>
+                                <TextBlock Text="区域" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ToggleButton>
+                        <ToggleButton x:Name="ModeWindowButton" Grid.Column="2" Style="{StaticResource ModeTileStyle}"
+                                      Click="ModeButton_Click" Tag="2" ToolTipService.ToolTip="窗口">
+                            <StackPanel Spacing="4">
+                                <FontIcon Glyph="&#xE8A7;" FontSize="16" HorizontalAlignment="Center"/>
+                                <TextBlock Text="窗口" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ToggleButton>
+                        <ToggleButton x:Name="ModeGameButton" Grid.Column="3" Style="{StaticResource ModeTileStyle}"
+                                      Click="ModeButton_Click" Tag="3" ToolTipService.ToolTip="游戏">
+                            <StackPanel Spacing="4">
+                                <FontIcon Glyph="&#xE7FC;" FontSize="16" HorizontalAlignment="Center"/>
+                                <TextBlock Text="游戏" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ToggleButton>
+                        <ToggleButton x:Name="ModeAudioButton" Grid.Column="4" Style="{StaticResource ModeTileStyle}"
+                                      Click="ModeButton_Click" Tag="audio" ToolTipService.ToolTip="只录音，不录画面">
+                            <StackPanel Spacing="4">
+                                <FontIcon Glyph="&#xE189;" FontSize="16" HorizontalAlignment="Center"/>
+                                <TextBlock Text="录音" FontSize="11" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </ToggleButton>
+                    </Grid>
+                </Border>
+                <Grid x:Name="QuickRow" ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <ToggleSwitch x:Name="HomeSystemAudioBox" Header="系统声" Toggled="HomeQuick_Changed"/>
+                    <ToggleSwitch x:Name="HomeMicBox" Grid.Column="1" Header="麦" Toggled="HomeQuick_Changed"/>
+                    <ComboBox x:Name="HomeQualityBox" Grid.Column="2" Header="清晰度" HorizontalAlignment="Stretch" SelectionChanged="HomeQuality_Changed"/>
+                </Grid>
+
+                <ComboBox x:Name="ModeBox" Visibility="Collapsed" SelectionChanged="ModeBox_SelectionChanged">
+                    <ComboBoxItem Content="显示器"/>
+                    <ComboBoxItem Content="区域"/>
+                    <ComboBoxItem Content="窗口"/>
+                    <ComboBoxItem Content="游戏"/>
+                </ComboBox>
+
+                <ComboBox x:Name="HomeMonitorBox" PlaceholderText="选择显示器" HorizontalAlignment="Stretch"
+                          SelectionChanged="HomeMonitor_Changed" Visibility="Collapsed"/>
+                <Button x:Name="PickTargetButton" Content="选择区域 / 窗口" Click="PickTarget_Click"
+                        HorizontalAlignment="Stretch" Visibility="Collapsed"/>
+                <Button x:Name="StartButton" Content="开始录制" Click="Start_Click" Height="48"
+                        HorizontalAlignment="Stretch" Style="{StaticResource AccentButtonStyle}"/>
+                <Grid x:Name="RecordingButtons" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="PauseButton" Content="暂停" Click="Pause_Click" Height="48" HorizontalAlignment="Stretch"/>
+                    <Button x:Name="StopButton" Grid.Column="1" Content="停止" Click="Stop_Click" Height="48" Margin="8,0,0,0" HorizontalAlignment="Stretch"/>
+                </Grid>
+                <TextBlock x:Name="MessageText" Visibility="Collapsed"/>
+            </StackPanel>
+            <Grid x:Name="CountdownOverlay" Visibility="Collapsed" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                <StackPanel x:Name="CountdownPanel" VerticalAlignment="Center" Spacing="12">
+                    <TextBlock x:Name="CountdownText" Text="3" FontSize="48" HorizontalAlignment="Center"/>
+                    <Button x:Name="CountdownCancelButton" Content="取消" Click="CancelCountdown_Click" HorizontalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel x:Name="ProcessingPanel" VerticalAlignment="Center" Spacing="12" Visibility="Collapsed"
+                            AutomationProperties.Name="正在处理中">
+                    <ProgressRing x:Name="ProcessingRing" IsActive="False" Width="40" Height="40" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="ProcessingText" Text="正在处理中" FontSize="16" HorizontalAlignment="Center"/>
+                </StackPanel>
+                <StackPanel x:Name="SavedPanel" VerticalAlignment="Center" Spacing="12" Visibility="Collapsed"
+                            AutomationProperties.Name="已保存">
+                    <TextBlock x:Name="SavedTitleText" Text="已保存" FontSize="28" FontWeight="SemiLight" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="SavedFileText" FontSize="12" HorizontalAlignment="Center"
+                               TextAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock x:Name="SavedWarningText" FontSize="12" HorizontalAlignment="Center"
+                               TextAlignment="Center" TextWrapping="Wrap" MaxWidth="360" Visibility="Collapsed"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                        <Button x:Name="SavedPreviewButton" Content="预览" Click="PreviewSaved_Click"
+                                Style="{StaticResource AccentButtonStyle}"/>
+                        <Button x:Name="SavedCloseButton" Content="关闭" Click="DismissSavedOverlay_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <Grid x:Name="LibraryPage" Grid.Row="1" Visibility="Collapsed">
+            <Grid x:Name="LibraryListPane">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <CommandBar DefaultLabelPosition="Right" OverflowButtonVisibility="Collapsed"
+                            Background="{ThemeResource ControlFillColorTransparentBrush}">
+                    <CommandBar.Resources>
+                        <StaticResource x:Key="CommandBarBackgroundOpen" ResourceKey="ControlFillColorTransparentBrush"/>
+                    </CommandBar.Resources>
+                    <AppBarButton x:Name="PreviewBarButton" Label="预览" Click="Preview_Click" IsEnabled="False">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE768;"/>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton x:Name="RenameBarButton" Label="重命名" Click="Rename_Click" IsEnabled="False">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE8AC;"/>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton x:Name="DeleteBarButton" Label="删除" Click="Delete_Click" IsEnabled="False">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE74D;"/>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton x:Name="FolderBarButton" Label="打开目录" Click="OpenFolder_Click">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE8B7;"/>
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton x:Name="MoreBarButton" ToolTipService.ToolTip="更多" AutomationProperties.Name="更多">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE712;"/>
+                        </AppBarButton.Icon>
+                        <AppBarButton.Flyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem x:Name="RepairBarButton" Text="修复" Click="Repair_Click" IsEnabled="False"/>
+                                <MenuFlyoutItem x:Name="MergeMenuItem" Text="合并" Click="Merge_Click" IsEnabled="False"/>
+                                <MenuFlyoutItem x:Name="SubtitleBarButton" Text="字幕" Click="Subtitle_Click" IsEnabled="False"/>
+                                <MenuFlyoutItem x:Name="MusicBarButton" Text="配乐" Click="Music_Click" IsEnabled="False"/>
+                                <MenuFlyoutSeparator/>
+                                <MenuFlyoutItem x:Name="RefreshMetadataItem" Text="刷新" Click="RefreshMetadata_Click"/>
+                            </MenuFlyout>
+                        </AppBarButton.Flyout>
+                    </AppBarButton>
+                </CommandBar>
+                <Grid Grid.Row="1">
+                    <StackPanel x:Name="LibraryEmpty" VerticalAlignment="Center" Spacing="12" Visibility="Collapsed">
+                        <FontIcon Glyph="&#xE8B7;" FontSize="32" HorizontalAlignment="Center" Opacity="0.55"/>
+                        <TextBlock x:Name="LibraryEmptyTitle" Text="还没有成片" HorizontalAlignment="Center"
+                                   Style="{StaticResource SubtitleTextBlockStyle}"/>
+                        <TextBlock x:Name="LibraryEmptyDesc" Text="录完的视频会出现在这里" HorizontalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <Button x:Name="LibraryEmptyStartButton" Content="开始录制" Click="EmptyStart_Click" HorizontalAlignment="Center"
+                                Style="{StaticResource AccentButtonStyle}"/>
+                        <Button x:Name="LibraryEmptyFolderButton" Content="打开目录" Click="OpenFolder_Click" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    <Grid x:Name="LibraryListHost">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid x:Name="LibraryHeader" Margin="56,8,24,4" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="112"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="72"/>
+                                <ColumnDefinition Width="48"/>
+                                <ColumnDefinition Width="132"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="LibraryColName" Grid.Column="1" Text="名称" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock x:Name="LibraryColSize" Grid.Column="2" Text="大小" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock x:Name="LibraryColDuration" Grid.Column="3" Text="时长" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <TextBlock x:Name="LibraryColDate" Grid.Column="4" Text="日期" FontSize="12"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </Grid>
+                        <ListView x:Name="LibraryList" Grid.Row="1" SelectionMode="Multiple" Padding="8,0,8,12"
+                                  DoubleTapped="LibraryList_DoubleTapped" SelectionChanged="LibraryList_SelectionChanged"
+                                  ContainerContentChanging="LibraryList_ContainerContentChanging"
+                                  KeyDown="LibraryList_KeyDown">
+                            <ListView.Resources>
+                                <SolidColorBrush x:Key="ListViewItemBackgroundSelected"
+                                                 Color="{ThemeResource SystemAccentColor}" Opacity="0.22"/>
+                                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPointerOver"
+                                                 Color="{ThemeResource SystemAccentColor}" Opacity="0.30"/>
+                                <SolidColorBrush x:Key="ListViewItemBackgroundSelectedPressed"
+                                                 Color="{ThemeResource SystemAccentColor}" Opacity="0.16"/>
+                            </ListView.Resources>
+                            <ListView.ItemTemplate>
+                                <DataTemplate x:DataType="lib:LibraryItem">
+                                    <Grid Padding="0,8" ColumnSpacing="12" MinHeight="68">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="112"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="72"/>
+                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="132"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid Width="112" Height="63">
+                                            <Border CornerRadius="6"
+                                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                                                <FontIcon Glyph="&#xE8B2;" FontSize="18"
+                                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                            </Border>
+                                            <Image Stretch="UniformToFill" Source="{x:Bind local:MainWindow.PosterSource(PosterPath), Mode=OneWay}"/>
+                                        </Grid>
+                                        <TextBlock Grid.Column="1" Text="{x:Bind Name, Mode=OneWay}" FontWeight="SemiBold"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="2" Text="{x:Bind SizeText, Mode=OneWay}" FontSize="12"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        <TextBlock Grid.Column="3" Text="{x:Bind DurationText, Mode=OneWay}" FontSize="12"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        <TextBlock Grid.Column="4" Text="{x:Bind DateText, Mode=OneWay}" FontSize="12"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </Grid>
+                </Grid>
+            </Grid>
+            <Grid x:Name="LibraryViewer" Visibility="Collapsed" Background="{ThemeResource LayerFillColorDefaultBrush}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock x:Name="PreviewTitle" Margin="20,12,20,8" TextTrimming="CharacterEllipsis"
+                           Style="{StaticResource SubtitleTextBlockStyle}"/>
+                <MediaPlayerElement x:Name="PreviewPlayer" Grid.Row="1" AreTransportControlsEnabled="True"
+                                    AutoPlay="True" Stretch="Uniform" Margin="20,0,20,8"/>
+                <CommandBar Grid.Row="2" DefaultLabelPosition="Right">
+                    <AppBarButton x:Name="PreviewFullScreenButton" Label="全屏" Click="PreviewFullScreen_Click"
+                                  ToolTipService.ToolTip="全屏预览"/>
+                    <AppBarButton x:Name="TrimBarButton" Label="剪切" Click="Trim_Click"/>
+                    <AppBarButton x:Name="CompressBarButton" Label="压缩" Click="Compress_Click"/>
+                </CommandBar>
+            </Grid>
+        </Grid>
+
+        <ScrollViewer x:Name="SettingsPage" Grid.Row="1" Visibility="Collapsed"
+                      Padding="20,12,20,16" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+            <Grid HorizontalAlignment="Stretch">
+            <StackPanel x:Name="SettingsHost" MaxWidth="560" HorizontalAlignment="Stretch" Spacing="2">
+                <TextBlock x:Name="SecAppearance" Text="外观" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,4,0,8"/>
+                <controls:SettingsCard x:Name="ThemeCard" Header="应用主题" Description="默认深色，也可改成浅色">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE790;"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <ComboBox x:Name="ThemeBox" MinWidth="120" SelectionChanged="ThemeBox_Changed">
+                        <ComboBoxItem x:Name="ThemeLightItem" Content="浅色" Tag="Light"/>
+                        <ComboBoxItem x:Name="ThemeDarkItem" Content="深色" Tag="Dark"/>
+                    </ComboBox>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="LanguageCard" Header="界面语言" Description="默认跟随系统">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8C1;"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <ComboBox x:Name="LanguageBox" MinWidth="140" SelectionChanged="LanguageBox_Changed"/>
+                </controls:SettingsCard>
+
+                <TextBlock x:Name="SecFiles" Text="文件" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,8"/>
+                <controls:SettingsCard x:Name="SaveFolderCard" Header="保存位置">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8B7;"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <controls:SettingsCard.Description>
+                        <TextBlock x:Name="SaveFolderText" TextWrapping="Wrap"/>
+                    </controls:SettingsCard.Description>
+                    <Button x:Name="ChangeFolderButton" Content="更改" Click="ChangeFolder_Click"/>
+                </controls:SettingsCard>
+
+                <TextBlock x:Name="SecLan" Text="局域网" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,8"/>
+                <controls:SettingsCard x:Name="LanCard" Header="局域网访问" Description="同一网络可控制录制、改设置并回放成片">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE774;"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch x:Name="LanPlaybackBox" OnContent="" OffContent="" Toggled="LanPlaybackBox_Toggled"/>
+                </controls:SettingsCard>
+                                <controls:SettingsCard x:Name="LanPortCard" Header="监听端口" Description="出厂默认 12345，范围 1–65535">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8A7;"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox x:Name="LanPortBox" Width="90" LostFocus="LanPortBox_LostFocus"/>
+                        <Button x:Name="LanPortApplyButton" Content="应用" Click="LanPortApply_Click"/>
+                    </StackPanel>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="LanKeyCard" Header="访问密钥">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE72E;"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <controls:SettingsCard.Description>
+                        <TextBlock x:Name="LanKeyDesc" Text="不填则同一网络均可查看" TextWrapping="Wrap"/>
+                    </controls:SettingsCard.Description>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <PasswordBox x:Name="LanKeyBox" Width="140" PlaceholderText="可选"
+                                     PasswordRevealMode="Hidden" PasswordChanged="LanKeyBox_Changed"/>
+                        <Button x:Name="LanKeyRevealButton" Content="查看" Click="LanKeyReveal_Click"
+                                ToolTipService.ToolTip="查看访问密钥"/>
+                    </StackPanel>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="LanAddressCard" Header="访问地址">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE71B;"/>
+                    </controls:SettingsCard.HeaderIcon>
+                    <controls:SettingsCard.Description>
+                        <TextBlock x:Name="LanAddressText" Text="未开启" TextWrapping="Wrap"/>
+                    </controls:SettingsCard.Description>
+                    <Button x:Name="LanCopyButton" Content="复制" Click="LanCopy_Click"/>
+                </controls:SettingsCard>
+
+                <TextBlock x:Name="SecAudio" Text="声音" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
+                <controls:SettingsCard x:Name="SystemAudioCard" Header="电脑播放声">
+                    <ToggleSwitch x:Name="SystemAudioBox" OnContent="" OffContent="" IsOn="True" Toggled="SettingsDependents_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="MicCard" Header="麦克风">
+                    <ToggleSwitch x:Name="MicBox" OnContent="" OffContent="" Toggled="SettingsDependents_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="MicDeviceCard" Header="麦克风设备">
+                    <ComboBox x:Name="MicDeviceBox" MinWidth="140" PlaceholderText="默认麦克风" SelectionChanged="DeviceBox_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="AudioOnlyCard" Header="只录声音" Description="不录画面，导出音频文件">
+                    <ToggleSwitch x:Name="AudioOnlyBox" OnContent="" OffContent="" Toggled="SettingsDependents_Changed"/>
+                </controls:SettingsCard>
+
+                <TextBlock x:Name="SecQuality" Text="画质" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
+                <controls:SettingsCard x:Name="QualityCard" Header="清晰度" Description="最高清晰度受当前显示器限制">
+                    <ComboBox x:Name="QualityBox" MinWidth="120" SelectionChanged="QualityBox_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="FpsCard" Header="帧率" Description="全屏默认 30fps；60fps 为高级选项">
+                    <ComboBox x:Name="FpsBox" MinWidth="140" SelectionChanged="FpsBox_Changed">
+                        <ComboBoxItem Content="10 fps" Tag="10"/>
+                        <ComboBoxItem Content="15 fps" Tag="15"/>
+                        <ComboBoxItem Content="30 fps" Tag="30"/>
+                        <ComboBoxItem x:Name="Fps60Item" Content="60 fps（高级）" Tag="60"/>
+                    </ComboBox>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="HardwareCard" Header="硬件加速">
+                    <ToggleSwitch x:Name="HardwareBox" OnContent="" OffContent="" IsOn="True" Toggled="SettingEdited"/>
+                </controls:SettingsCard>
+
+                <TextBlock x:Name="SecCamera" Text="摄像头" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
+                <controls:SettingsCard x:Name="CameraCard" Header="嵌入摄像头">
+                    <ToggleSwitch x:Name="CameraBox" OnContent="" OffContent="" Toggled="SettingsDependents_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="CameraDeviceCard" Header="设备">
+                    <ComboBox x:Name="CameraDeviceBox" MinWidth="140" PlaceholderText="默认摄像头" SelectionChanged="DeviceBox_Changed"/>
+                </controls:SettingsCard>
+                <TextBlock x:Name="PipTitle" Text="画中画预览" HorizontalAlignment="Center" Margin="0,12,0,2"
+                           Style="{StaticResource CaptionTextBlockStyle}"/>
+                <TextBlock x:Name="PipHint" Text="直接拖动摄像头或水印方块" HorizontalAlignment="Center" Margin="0,0,0,8"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                <Border x:Name="PipFrame" HorizontalAlignment="Stretch" Height="252" SizeChanged="PipFrame_SizeChanged"
+                        CornerRadius="8"
+                        Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                    <Grid x:Name="OverlayCanvas" Background="Transparent"
+                          PointerMoved="OverlayCanvas_Moved" PointerReleased="OverlayCanvas_Released"
+                          PointerCaptureLost="OverlayCanvas_Released"
+                          SizeChanged="OverlayCanvas_SizeChanged">
+                        <Border x:Name="WatermarkPreviewRect" Width="72" Height="28"
+                                Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" BorderThickness="1"
+                                HorizontalAlignment="Left" VerticalAlignment="Top"
+                                ManipulationMode="None" PointerPressed="WatermarkRect_Pressed">
+                            <TextBlock x:Name="OverlayMarkText" Text="水印" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       IsHitTestVisible="False"/>
+                        </Border>
+                        <Border x:Name="CameraPreviewRect" Width="108" Height="60"
+                                Background="{ThemeResource AccentFillColorDefaultBrush}" Opacity="0.85"
+                                HorizontalAlignment="Left" VerticalAlignment="Top"
+                                ManipulationMode="None" PointerPressed="CameraRect_Pressed">
+                            <TextBlock x:Name="OverlayCameraText" Text="摄像头" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       IsHitTestVisible="False"/>
+                        </Border>
+                    </Grid>
+                </Border>
+                <Border Padding="16,10" CornerRadius="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="88"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="CameraXLabel" Text="水平位置" VerticalAlignment="Center"/>
+                        <Slider x:Name="CameraXSlider" Grid.Column="1" Width="120" HorizontalAlignment="Right" Minimum="0" Maximum="100" Value="50" VerticalAlignment="Center" ValueChanged="OverlaySlider_Changed"/>
+                    </Grid>
+                </Border>
+                <Border Padding="16,10" CornerRadius="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="88"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="CameraYLabel" Text="垂直位置" VerticalAlignment="Center"/>
+                        <Slider x:Name="CameraYSlider" Grid.Column="1" Width="120" HorizontalAlignment="Right" Minimum="0" Maximum="100" Value="50" VerticalAlignment="Center" ValueChanged="OverlaySlider_Changed"/>
+                    </Grid>
+                </Border>
+                <Border Padding="16,10" CornerRadius="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="88"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="CameraWLabel" Text="宽度" VerticalAlignment="Center"/>
+                        <Slider x:Name="CameraWSlider" Grid.Column="1" Width="120" HorizontalAlignment="Right" Minimum="10" Maximum="50" Value="24" VerticalAlignment="Center" ValueChanged="OverlaySlider_Changed"/>
+                    </Grid>
+                </Border>
+                <Border Padding="16,10" CornerRadius="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="88"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="CameraHLabel" Text="高度" VerticalAlignment="Center"/>
+                        <Slider x:Name="CameraHSlider" Grid.Column="1" Width="120" HorizontalAlignment="Right" Minimum="10" Maximum="50" Value="24" VerticalAlignment="Center" ValueChanged="OverlaySlider_Changed"/>
+                    </Grid>
+                </Border>
+
+                <TextBlock x:Name="SecWatermark" Text="水印" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
+                <controls:SettingsCard x:Name="TimestampCard" Header="时间戳">
+                    <ToggleSwitch x:Name="TimestampBox" OnContent="" OffContent="" Toggled="SettingEdited"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="TextWatermarkCard" Header="文字水印">
+                    <ToggleSwitch x:Name="TextWatermarkBox" OnContent="" OffContent="" Toggled="SettingsDependents_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="TextWatermarkTextCard" Header="文字">
+                    <TextBox x:Name="TextWatermarkText" Width="140" PlaceholderText="水印文字" Text="Luma" LostFocus="SettingEdited"/>
+                </controls:SettingsCard>
+                <Border Padding="16,10" CornerRadius="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="88"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="TextOpacityLabel" Text="文字透明度" VerticalAlignment="Center"/>
+                        <Slider x:Name="TextOpacitySlider" Grid.Column="1" Width="120" HorizontalAlignment="Right" Minimum="20" Maximum="100" Value="100" VerticalAlignment="Center" ValueChanged="OpacitySlider_Changed"/>
+                    </Grid>
+                </Border>
+                <controls:SettingsCard x:Name="ImageWatermarkCard" Header="图片水印">
+                    <ToggleSwitch x:Name="ImageWatermarkBox" OnContent="" OffContent="" Toggled="SettingsDependents_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="ImageWatermarkPickCard" Header="图片">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="PickImageWatermarkButton" Content="选择" Click="PickImageWatermark_Click"/>
+                        <TextBlock x:Name="ImageWatermarkPathText" MaxWidth="140" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </controls:SettingsCard>
+                <Border Padding="16,10" CornerRadius="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="88"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="ImageOpacityLabel" Text="图片透明度" VerticalAlignment="Center"/>
+                        <Slider x:Name="ImageOpacitySlider" Grid.Column="1" Width="120" HorizontalAlignment="Right" Minimum="10" Maximum="100" Value="90" VerticalAlignment="Center" ValueChanged="OpacitySlider_Changed"/>
+                    </Grid>
+                </Border>
+                <Border Padding="16,10" CornerRadius="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="88"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="WatermarkXLabel" Text="水平位置" VerticalAlignment="Center"/>
+                        <Slider x:Name="WatermarkXSlider" Grid.Column="1" Width="120" HorizontalAlignment="Right" Minimum="0" Maximum="100" Value="2" VerticalAlignment="Center" ValueChanged="OverlaySlider_Changed"/>
+                    </Grid>
+                </Border>
+                <Border Padding="16,10" CornerRadius="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="88"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="WatermarkYLabel" Text="垂直位置" VerticalAlignment="Center"/>
+                        <Slider x:Name="WatermarkYSlider" Grid.Column="1" Width="120" HorizontalAlignment="Right" Minimum="0" Maximum="100" Value="10" VerticalAlignment="Center" ValueChanged="OverlaySlider_Changed"/>
+                    </Grid>
+                </Border>
+                <Border Padding="16,10" CornerRadius="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="88"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="WatermarkWLabel" Text="宽度" VerticalAlignment="Center"/>
+                        <Slider x:Name="WatermarkWSlider" Grid.Column="1" Width="120" HorizontalAlignment="Right" Minimum="10" Maximum="50" Value="16" VerticalAlignment="Center" ValueChanged="OverlaySlider_Changed"/>
+                    </Grid>
+                </Border>
+                <Border Padding="16,10" CornerRadius="4" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="88"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="WatermarkHLabel" Text="高度" VerticalAlignment="Center"/>
+                        <Slider x:Name="WatermarkHSlider" Grid.Column="1" Width="120" HorizontalAlignment="Right" Minimum="10" Maximum="50" Value="11" VerticalAlignment="Center" ValueChanged="OverlaySlider_Changed"/>
+                    </Grid>
+                </Border>
+
+                <TextBlock x:Name="SecAuto" Text="自动化" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
+                <controls:SettingsCard x:Name="SegmentCard" Header="分段录制">
+                    <ToggleSwitch x:Name="SegmentBox" OnContent="" OffContent="" Toggled="SettingsDependents_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="SegmentMinutesCard" Header="分段分钟">
+                    <TextBox x:Name="SegmentMinutesBox" Width="80" PlaceholderText="分钟" Text="10" LostFocus="SettingEdited"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="SegmentMbCard" Header="分段大小 MB">
+                    <TextBox x:Name="SegmentMbBox" Width="80" PlaceholderText="0" Text="0" LostFocus="SettingEdited"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="LogonCard" Header="登录后自动开录">
+                    <ToggleSwitch x:Name="LogonBox" OnContent="" OffContent="" Toggled="SettingEdited"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="LaunchToTrayCard" Header="登录后进托盘" Description="登录后启动并进入托盘，不自动开录">
+                    <ToggleSwitch x:Name="LaunchToTrayBox" OnContent="" OffContent="" Toggled="LaunchToTrayBox_Toggled"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="ScheduleCard" Header="定时录制">
+                    <ToggleSwitch x:Name="ScheduleBox" OnContent="" OffContent="" Toggled="SettingsDependents_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="ScheduleStartCard" Header="开始时间">
+                    <TimePicker x:Name="ScheduleStartPicker" ClockIdentifier="24HourClock" Width="120" SelectedTimeChanged="ScheduleTime_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="ScheduleEndCard" Header="结束时间">
+                    <TimePicker x:Name="ScheduleEndPicker" ClockIdentifier="24HourClock" Width="120" SelectedTimeChanged="ScheduleTime_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="ScheduleDurationCard" Header="定时时长分钟">
+                    <TextBox x:Name="ScheduleDurationBox" Width="80" PlaceholderText="可空" LostFocus="SettingEdited"/>
+                </controls:SettingsCard>
+
+                <TextBlock x:Name="SecInput" Text="输入与窗口" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
+                <controls:SettingsCard x:Name="HotkeyEnabledCard" Header="启用全局热键">
+                    <ToggleSwitch x:Name="HotkeyEnabledBox" OnContent="" OffContent="" IsOn="True" Toggled="SettingEdited"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="StartHotkeyCard" Header="开始" Description="点击框后按下组合键">
+                    <TextBox x:Name="StartHotkeyBox" Width="140" PlaceholderText="按下组合键" IsReadOnly="True" KeyDown="HotkeyBox_KeyDown"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="PauseHotkeyCard" Header="暂停">
+                    <TextBox x:Name="PauseHotkeyBox" Width="140" PlaceholderText="按下组合键" IsReadOnly="True" KeyDown="HotkeyBox_KeyDown"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="StopHotkeyCard" Header="停止">
+                    <TextBox x:Name="StopHotkeyBox" Width="140" PlaceholderText="按下组合键" IsReadOnly="True" KeyDown="HotkeyBox_KeyDown"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="HotkeyStatusCard" Header="状态">
+                    <TextBlock x:Name="HotkeyErrorText" TextWrapping="Wrap"
+                               Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="CloseToTrayCard" Header="关闭时最小化到托盘">
+                    <ToggleSwitch x:Name="CloseToTrayBox" OnContent="" OffContent="" IsOn="True" Toggled="SettingEdited"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="HideTrayIconCard" Header="隐藏托盘图标" Description="再开一次即可找回窗口">
+                    <ToggleSwitch x:Name="HideTrayIconBox" OnContent="" OffContent="" Toggled="HideTrayIconBox_Toggled"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="RecordingBarCard" Header="录制时显示浮动工具栏" Description="屏幕上方的暂停、停止和麦克风">
+                    <ToggleSwitch x:Name="RecordingBarBox" OnContent="" OffContent="" IsOn="True" Toggled="RecordingBarBox_Toggled"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="SilentModeCard" Header="静默模式" Description="网页开始或停止时，不弹出主窗口、浮动工具条和处理完成页">
+                    <ToggleSwitch x:Name="SilentModeBox" OnContent="" OffContent="" Toggled="SilentModeBox_Toggled"/>
+                </controls:SettingsCard>
+
+                <TextBlock x:Name="SecReset" Text="重置" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
+                <controls:SettingsCard x:Name="ResetCard" Header="恢复默认设置" Description="主题、热键、声音和工具栏等都会回到初始值">
+                    <Button x:Name="ResetButton" Content="恢复默认" Click="ResetDefaults_Click"/>
+                </controls:SettingsCard>
+
+                <TextBlock x:Name="SecAbout" Text="关于" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
+                <controls:SettingsExpander x:Name="AboutExpander" Header="Luma" Description="1.0.0">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE946;"/>
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Name="PrivacyCard" Header="隐私协议" IsClickEnabled="True" Click="PrivacyCard_Click"/>
+                        <controls:SettingsCard x:Name="TermsCard" Header="使用条款" IsClickEnabled="True" Click="TermsCard_Click"/>
+                        <controls:SettingsCard x:Name="ProjectCard" Header="项目主页" IsClickEnabled="True" Click="ProjectCard_Click"/>
+                        <controls:SettingsCard x:Name="ApiDocsCard" Header="API 文档" IsClickEnabled="True" Click="ApiDocsCard_Click"/>
+                        <controls:SettingsCard x:Name="SkillCard" Header="SKILL" IsClickEnabled="True" Click="SkillCard_Click"/>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+            </StackPanel>
+            </Grid>
+        </ScrollViewer>
+
+        <Grid x:Name="BannerHost" Grid.Row="1" VerticalAlignment="Top" Canvas.ZIndex="10">
+            <InfoBar x:Name="HomeInfoBar" IsClosable="True" IsOpen="False"
+                     Visibility="Collapsed" Margin="12,8,12,0" Closed="HomeInfoBar_Closed">
+                <InfoBar.ActionButton>
+                    <Button x:Name="PreviewSavedButton" Content="预览" Click="PreviewSaved_Click" Visibility="Collapsed"/>
+                </InfoBar.ActionButton>
+            </InfoBar>
+        </Grid>
+    </Grid>
+</Window>

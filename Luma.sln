@@ -1,0 +1,64 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C71894BE-ED72-4641-B06B-652DFACADB9A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Luma.App", "src\Luma.App\Luma.App.csproj", "{18C1EEA0-B920-4C02-8D2C-C89A4A6F850C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Luma.Core", "src\Luma.Core\Luma.Core.csproj", "{C538C8CA-5161-49FA-9A2E-02E32368C7C9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Luma.Obs", "src\Luma.Obs\Luma.Obs.csproj", "{0E793874-B75F-4755-A13E-F21ACD899716}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Luma.Media", "src\Luma.Media\Luma.Media.csproj", "{61C8A1D4-0F16-4E78-883A-0B191EF51B4F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{F736509F-38A9-41AA-9B16-29A7F9E40FF1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Luma.Core.Tests", "tests\Luma.Core.Tests\Luma.Core.Tests.csproj", "{A5CC195D-0750-4556-AD66-9ADCDF27093F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Luma.Obs.Tests", "tests\Luma.Obs.Tests\Luma.Obs.Tests.csproj", "{EF77B91C-84E6-4237-99C1-883D4880CC0D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{18C1EEA0-B920-4C02-8D2C-C89A4A6F850C}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{18C1EEA0-B920-4C02-8D2C-C89A4A6F850C}.Debug|Any CPU.Build.0 = Debug|x64
+		{18C1EEA0-B920-4C02-8D2C-C89A4A6F850C}.Release|Any CPU.ActiveCfg = Release|x64
+		{18C1EEA0-B920-4C02-8D2C-C89A4A6F850C}.Release|Any CPU.Build.0 = Release|x64
+		{C538C8CA-5161-49FA-9A2E-02E32368C7C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C538C8CA-5161-49FA-9A2E-02E32368C7C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C538C8CA-5161-49FA-9A2E-02E32368C7C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C538C8CA-5161-49FA-9A2E-02E32368C7C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0E793874-B75F-4755-A13E-F21ACD899716}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E793874-B75F-4755-A13E-F21ACD899716}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0E793874-B75F-4755-A13E-F21ACD899716}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0E793874-B75F-4755-A13E-F21ACD899716}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61C8A1D4-0F16-4E78-883A-0B191EF51B4F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61C8A1D4-0F16-4E78-883A-0B191EF51B4F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61C8A1D4-0F16-4E78-883A-0B191EF51B4F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61C8A1D4-0F16-4E78-883A-0B191EF51B4F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A5CC195D-0750-4556-AD66-9ADCDF27093F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A5CC195D-0750-4556-AD66-9ADCDF27093F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A5CC195D-0750-4556-AD66-9ADCDF27093F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A5CC195D-0750-4556-AD66-9ADCDF27093F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF77B91C-84E6-4237-99C1-883D4880CC0D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF77B91C-84E6-4237-99C1-883D4880CC0D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF77B91C-84E6-4237-99C1-883D4880CC0D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF77B91C-84E6-4237-99C1-883D4880CC0D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{18C1EEA0-B920-4C02-8D2C-C89A4A6F850C} = {C71894BE-ED72-4641-B06B-652DFACADB9A}
+		{C538C8CA-5161-49FA-9A2E-02E32368C7C9} = {C71894BE-ED72-4641-B06B-652DFACADB9A}
+		{0E793874-B75F-4755-A13E-F21ACD899716} = {C71894BE-ED72-4641-B06B-652DFACADB9A}
+		{61C8A1D4-0F16-4E78-883A-0B191EF51B4F} = {C71894BE-ED72-4641-B06B-652DFACADB9A}
+		{A5CC195D-0750-4556-AD66-9ADCDF27093F} = {F736509F-38A9-41AA-9B16-29A7F9E40FF1}
+		{EF77B91C-84E6-4237-99C1-883D4880CC0D} = {F736509F-38A9-41AA-9B16-29A7F9E40FF1}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,25 @@
+# Third-party notices
+
+This file will list licenses and source locations for bundled components.
+
+## libobs / OBS Studio
+
+- Project: OBS Studio
+- License: GNU General Public License version 2
+- Source: https://github.com/obsproject/obs-studio
+- Use: realtime capture, mixing, hardware encoding, and muxing
+
+Luma links libobs. The application is therefore distributed under a
+GPL-2.0-compatible license. See LICENSE and COPYING.
+
+## FFmpeg
+
+- Project: FFmpeg
+- License: LGPL / GPL as shipped with the selected build
+- Source: https://ffmpeg.org/
+- Use: library post-processing only (trim, merge, compress, repair,
+  subtitles, soundtrack). FFmpeg is not the live recording encoder.
+
+Pinned runtime: OBS Studio 31.1.2 Windows x64, fetched by
+`tools/fetch-obs-runtime.ps1` into `third_party/obs`. The official
+`obs64.exe` frontend is stripped from the runtime.

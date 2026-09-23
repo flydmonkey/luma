@@ -1,0 +1,1109 @@
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+
+#include "obs_session.h"
+#include "json_util.h"
+
+#include <obs.h>
+#include <util/base.h>
+
+#include <windows.h>
+
+#include <atomic>
+#include <cstdarg>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
+#include <fstream>
+#include <thread>
+#include <mutex>
+#include <sstream>
+#include <vector>
+
+namespace
+{
+std::mutex g_mutex;
+bool g_ready = false;
+bool g_videoReady = false;
+int g_canvasW = 0;
+int g_canvasH = 0;
+int g_fps = 30;
+
+obs_scene_t* g_scene = nullptr;
+obs_source_t* g_videoSource = nullptr;
+obs_source_t* g_systemAudio = nullptr;
+obs_source_t* g_mic = nullptr;
+std::vector<obs_source_t*> g_extra;
+obs_source_t* g_stamp = nullptr;
+std::atomic<bool> g_stampRun{false};
+std::thread g_stampThread;
+obs_encoder_t* g_venc = nullptr;
+obs_encoder_t* g_aenc = nullptr;
+obs_output_t* g_output = nullptr;
+
+SessionStatus g_status{};
+ULONGLONG g_startTick = 0;
+double g_pauseAccum = 0;
+ULONGLONG g_pauseTick = 0;
+
+std::ofstream g_log;
+
+std::string WideToUtf8(const wchar_t* wide)
+{
+    if (!wide || !wide[0])
+    {
+        return {};
+    }
+    const int n = WideCharToMultiByte(CP_UTF8, 0, wide, -1, nullptr, 0, nullptr, nullptr);
+    if (n <= 1)
+    {
+        return {};
+    }
+    std::string out(static_cast<size_t>(n - 1), 0);
+    WideCharToMultiByte(CP_UTF8, 0, wide, -1, out.data(), n, nullptr, nullptr);
+    return out;
+}
+
+std::wstring Utf8ToWide(const std::string& utf8)
+{
+    if (utf8.empty())
+    {
+        return {};
+    }
+    const int n = MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, nullptr, 0);
+    if (n <= 1)
+    {
+        return {};
+    }
+    std::wstring out(static_cast<size_t>(n - 1), 0);
+    MultiByteToWideChar(CP_UTF8, 0, utf8.c_str(), -1, out.data(), n);
+    return out;
+}
+
+std::string HostDirUtf8()
+{
+    wchar_t path[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, path, MAX_PATH);
+    if (wchar_t* slash = wcsrchr(path, L'\\'))
+    {
+        *slash = 0;
+    }
+    return WideToUtf8(path);
+}
+
+void LogLine(const char* fmt, ...)
+{
+    char buf[2048];
+    va_list args;
+    va_start(args, fmt);
+    vsprintf_s(buf, fmt, args);
+    va_end(args);
+    if (g_log)
+    {
+        g_log << buf << std::endl;
+        g_log.flush();
+    }
+}
+
+void ObsLogHandler(int level, const char* format, va_list args, void*)
+{
+    char buf[4096];
+    vsnprintf(buf, sizeof(buf), format, args);
+    const char* tag = level >= LOG_ERROR ? "E" : level >= LOG_WARNING ? "W" : "I";
+    LogLine("[obs %s] %s", tag, buf);
+}
+
+void OpenLog()
+{
+    wchar_t appdata[MAX_PATH]{};
+    if (GetEnvironmentVariableW(L"LOCALAPPDATA", appdata, MAX_PATH) == 0)
+    {
+        return;
+    }
+    std::wstring dir = std::wstring(appdata) + L"\\Luma";
+    CreateDirectoryW(dir.c_str(), nullptr);
+    g_log.open((dir + L"\\obs-host.log").c_str(), std::ios::out | std::ios::trunc);
+}
+
+int Even(int value)
+{
+    return value < 2 ? 2 : (value & ~1);
+}
+
+void GetMonitorSize(int index, int& width, int& height, std::string& monitorId)
+{
+    width = GetSystemMetrics(SM_CXSCREEN);
+    height = GetSystemMetrics(SM_CYSCREEN);
+    DISPLAY_DEVICEW device{};
+    device.cb = sizeof(device);
+    if (EnumDisplayDevicesW(nullptr, static_cast<DWORD>(index < 0 ? 0 : index), &device, 0))
+    {
+        monitorId = WideToUtf8(device.DeviceName);
+        DEVMODEW mode{};
+        mode.dmSize = sizeof(mode);
+        if (EnumDisplaySettingsW(device.DeviceName, ENUM_CURRENT_SETTINGS, &mode))
+        {
+            width = static_cast<int>(mode.dmPelsWidth);
+            height = static_cast<int>(mode.dmPelsHeight);
+        }
+    }
+}
+
+void StopStamp();
+
+void ReleaseGraph()
+{
+    StopStamp();
+    if (g_output)
+    {
+        if (obs_output_active(g_output))
+        {
+            obs_output_stop(g_output);
+            for (int i = 0; i < 50 && obs_output_active(g_output); i++)
+            {
+                Sleep(100);
+            }
+            if (obs_output_active(g_output))
+            {
+                obs_output_force_stop(g_output);
+            }
+        }
+        obs_output_release(g_output);
+        g_output = nullptr;
+    }
+    if (g_venc)
+    {
+        obs_encoder_release(g_venc);
+        g_venc = nullptr;
+    }
+    if (g_aenc)
+    {
+        obs_encoder_release(g_aenc);
+        g_aenc = nullptr;
+    }
+    obs_set_output_source(0, nullptr);
+    if (g_scene)
+    {
+        obs_scene_release(g_scene);
+        g_scene = nullptr;
+    }
+    if (g_videoSource)
+    {
+        obs_source_release(g_videoSource);
+        g_videoSource = nullptr;
+    }
+    if (g_systemAudio)
+    {
+        obs_source_release(g_systemAudio);
+        g_systemAudio = nullptr;
+    }
+    if (g_mic)
+    {
+        obs_source_release(g_mic);
+        g_mic = nullptr;
+    }
+    for (obs_source_t* source : g_extra)
+    {
+        obs_source_release(source);
+    }
+    g_extra.clear();
+}
+
+void StopStamp()
+{
+    g_stampRun = false;
+    if (g_stampThread.joinable())
+    {
+        g_stampThread.join();
+    }
+    g_stamp = nullptr;
+}
+
+bool ResetVideoAudio(int canvasW, int canvasH, int outW, int outH, int fps, std::string& error)
+{
+    canvasW = Even(canvasW);
+    canvasH = Even(canvasH);
+    outW = Even(outW);
+    outH = Even(outH);
+    if (fps < 1)
+    {
+        fps = 30;
+    }
+
+    obs_video_info ovi{};
+    ovi.graphics_module = "libobs-d3d11";
+    ovi.fps_num = static_cast<uint32_t>(fps);
+    ovi.fps_den = 1;
+    ovi.base_width = static_cast<uint32_t>(canvasW);
+    ovi.base_height = static_cast<uint32_t>(canvasH);
+    ovi.output_width = static_cast<uint32_t>(outW);
+    ovi.output_height = static_cast<uint32_t>(outH);
+    ovi.output_format = VIDEO_FORMAT_NV12;
+    ovi.adapter = 0;
+    ovi.gpu_conversion = true;
+    ovi.colorspace = VIDEO_CS_709;
+    ovi.range = VIDEO_RANGE_PARTIAL;
+    ovi.scale_type = OBS_SCALE_BICUBIC;
+
+    const int vr = obs_reset_video(&ovi);
+    if (vr != OBS_VIDEO_SUCCESS)
+    {
+        std::ostringstream oss;
+        oss << "obs_reset_video 失败，代码 " << vr;
+        error = oss.str();
+        LogLine("%s", error.c_str());
+        return false;
+    }
+
+    obs_audio_info oai{};
+    oai.samples_per_sec = 48000;
+    oai.speakers = SPEAKERS_STEREO;
+    if (!obs_reset_audio(&oai))
+    {
+        error = "obs_reset_audio 失败。";
+        LogLine("%s", error.c_str());
+        return false;
+    }
+
+    g_canvasW = canvasW;
+    g_canvasH = canvasH;
+    g_fps = fps;
+    g_videoReady = true;
+    return true;
+}
+
+obs_source_t* CreateInput(const char* unversionedId, const char* name, obs_data_t* settings)
+{
+    const char* id = obs_get_latest_input_type_id(unversionedId);
+    if (!id || !id[0])
+    {
+        id = unversionedId;
+    }
+    LogLine("create source %s (%s)", id, name);
+    return obs_source_create(id, name, settings, nullptr);
+}
+
+void ApplyCommonEncoderSettings(obs_data_t* settings, const StartRequest& request)
+{
+    obs_data_set_string(settings, "rate_control", "CBR");
+    obs_data_set_int(settings, "bitrate", request.bitrateKbps);
+    obs_data_set_int(settings, "max_bitrate", request.bitrateKbps);
+    obs_data_set_int(settings, "keyint_sec", 2);
+    obs_data_set_string(settings, "preset", "p5");
+    obs_data_set_string(settings, "profile", "high");
+    obs_data_set_string(settings, "tune", "zerolatency");
+    obs_data_set_bool(settings, "psycho_aq", false);
+}
+
+obs_encoder_t* CreateVideoEncoderById(const char* id, const StartRequest& request)
+{
+    obs_data_t* settings = obs_data_create();
+    ApplyCommonEncoderSettings(settings, request);
+    if (strcmp(id, "obs_x264") == 0)
+    {
+        obs_data_set_string(settings, "preset", "veryfast");
+    }
+    obs_encoder_t* enc = obs_video_encoder_create(id, "luma-video", settings, nullptr);
+    obs_data_release(settings);
+    return enc;
+}
+
+void Warn(const std::string& text)
+{
+    if (g_status.warning.empty())
+    {
+        g_status.warning = text;
+    }
+    else
+    {
+        g_status.warning += " ";
+        g_status.warning += text;
+    }
+}
+
+void PlaceItem(obs_source_t* source, int canvasW, int canvasH, double nx, double ny, double nw, double nh)
+{
+    if (!source || !g_scene)
+    {
+        return;
+    }
+    obs_sceneitem_t* item = obs_scene_add(g_scene, source);
+    if (!item)
+    {
+        return;
+    }
+    struct vec2 pos{};
+    pos.x = static_cast<float>(canvasW * nx);
+    pos.y = static_cast<float>(canvasH * ny);
+    obs_sceneitem_set_pos(item, &pos);
+    struct vec2 bounds{};
+    bounds.x = static_cast<float>(canvasW * nw < 32 ? 32 : canvasW * nw);
+    bounds.y = static_cast<float>(canvasH * nh < 32 ? 32 : canvasH * nh);
+    obs_sceneitem_set_bounds_type(item, OBS_BOUNDS_SCALE_INNER);
+    obs_sceneitem_set_bounds(item, &bounds);
+}
+
+obs_source_t* MakeText(const char* name, const char* text)
+{
+    obs_data_t* settings = obs_data_create();
+    obs_data_set_string(settings, "text", text);
+    obs_data_set_int(settings, "color", 0xFFFFFFFF);
+    obs_data_t* font = obs_data_create();
+    obs_data_set_string(font, "face", "Segoe UI");
+    obs_data_set_int(font, "size", 36);
+    obs_data_set_obj(settings, "font", font);
+    obs_data_release(font);
+    obs_source_t* source = CreateInput("text_gdiplus", name, settings);
+    if (!source)
+    {
+        source = CreateInput("text_gdiplus_v2", name, settings);
+    }
+    if (!source)
+    {
+        source = CreateInput("text_ft2_source", name, settings);
+    }
+    obs_data_release(settings);
+    if (source)
+    {
+        g_extra.push_back(source);
+    }
+    return source;
+}
+
+void StampLoop()
+{
+    while (g_stampRun)
+    {
+        Sleep(1000);
+        if (!g_stampRun || !g_stamp)
+        {
+            continue;
+        }
+        std::time_t now = std::time(nullptr);
+        std::tm local{};
+        localtime_s(&local, &now);
+        char text[32]{};
+        std::strftime(text, sizeof(text), "%Y-%m-%d %H:%M:%S", &local);
+        obs_data_t* settings = obs_data_create();
+        obs_data_set_string(settings, "text", text);
+        obs_source_update(g_stamp, settings);
+        obs_data_release(settings);
+    }
+}
+
+void AddOverlays(const StartRequest& request, int canvasW, int canvasH)
+{
+    if (request.camera)
+    {
+        obs_data_t* settings = obs_data_create();
+        if (!request.cameraId.empty() && request.cameraId != "default")
+        {
+            obs_data_set_string(settings, "video_device_id", request.cameraId.c_str());
+        }
+        obs_data_set_int(settings, "audio_output_mode", 0);
+        obs_source_t* source = CreateInput("dshow_input", "luma-camera", settings);
+        obs_data_release(settings);
+        if (source)
+        {
+            g_extra.push_back(source);
+            PlaceItem(source, canvasW, canvasH, request.cameraX, request.cameraY, request.cameraW, request.cameraH);
+        }
+        else
+        {
+            Warn("摄像头不可用。");
+        }
+    }
+
+    if (!request.textMark.empty())
+    {
+        obs_source_t* source = MakeText("luma-text", request.textMark.c_str());
+        if (source)
+        {
+            PlaceItem(source, canvasW, canvasH, request.markX, request.markY, request.markW, request.markH);
+        }
+        else
+        {
+            Warn("文字水印不可用。");
+        }
+    }
+
+    if (!request.imagePath.empty())
+    {
+        obs_data_t* settings = obs_data_create();
+        obs_data_set_string(settings, "file", request.imagePath.c_str());
+        obs_source_t* source = CreateInput("image_source", "luma-image", settings);
+        obs_data_release(settings);
+        if (source)
+        {
+            g_extra.push_back(source);
+            PlaceItem(source, canvasW, canvasH, request.markX, request.markY, request.markW, request.markH);
+        }
+        else
+        {
+            Warn("图片水印不可用。");
+        }
+    }
+
+    if (request.timestamp)
+    {
+        obs_source_t* source = MakeText("luma-stamp", "--");
+        if (source)
+        {
+            g_stamp = source;
+            PlaceItem(source, canvasW, canvasH, request.markX, request.markY + 0.08, 0.28, 0.06);
+            g_stampRun = true;
+            g_stampThread = std::thread(StampLoop);
+        }
+        else
+        {
+            Warn("时间戳不可用。");
+        }
+    }
+}
+
+void FitItem(obs_sceneitem_t* item, int width, int height)
+{
+    if (!item)
+    {
+        return;
+    }
+    struct vec2 bounds{};
+    bounds.x = static_cast<float>(width);
+    bounds.y = static_cast<float>(height);
+    obs_sceneitem_set_bounds_type(item, OBS_BOUNDS_SCALE_INNER);
+    obs_sceneitem_set_bounds_alignment(item, OBS_ALIGN_CENTER);
+    obs_sceneitem_set_bounds(item, &bounds);
+}
+
+void RefreshDurationLocked()
+{
+    if (g_status.phase == 0)
+    {
+        return;
+    }
+    if (g_output)
+    {
+        const int frames = obs_output_get_total_frames(g_output);
+        const int dropped = obs_output_get_frames_dropped(g_output);
+        if (g_fps > 0 && frames > 0)
+        {
+            g_status.encodedDurationSeconds = static_cast<double>(frames) / static_cast<double>(g_fps);
+        }
+        g_status.skippedFrames = dropped;
+        g_status.effectiveFps = static_cast<double>(g_fps);
+    }
+    if (g_status.encodedDurationSeconds <= 0 && g_startTick != 0)
+    {
+        ULONGLONG now = GetTickCount64();
+        double live = (now - g_startTick) / 1000.0 - g_pauseAccum;
+        if (g_status.phase == 3 && g_pauseTick != 0)
+        {
+            live -= (now - g_pauseTick) / 1000.0;
+        }
+        if (live < 0)
+        {
+            live = 0;
+        }
+        g_status.encodedDurationSeconds = live;
+    }
+}
+
+SessionStatus Fail(const std::string& error)
+{
+    ReleaseGraph();
+    g_status = {};
+    g_status.ok = false;
+    g_status.error = error;
+    LogLine("session failed: %s", error.c_str());
+    return g_status;
+}
+} // namespace
+
+bool ObsInit(std::string& error)
+{
+    std::lock_guard lock(g_mutex);
+    if (g_ready)
+    {
+        return true;
+    }
+
+    OpenLog();
+    const std::string host = HostDirUtf8();
+    LogLine("host dir %s", host.c_str());
+
+    const std::wstring hostW = Utf8ToWide(host);
+    SetCurrentDirectoryW(hostW.c_str());
+    SetDllDirectoryW(hostW.c_str());
+
+    base_set_log_handler(ObsLogHandler, nullptr);
+
+    wchar_t appdata[MAX_PATH]{};
+    GetEnvironmentVariableW(L"LOCALAPPDATA", appdata, MAX_PATH);
+    std::string config = WideToUtf8(appdata) + "/Luma/obs-config";
+    CreateDirectoryW((std::wstring(appdata) + L"\\Luma\\obs-config").c_str(), nullptr);
+
+    if (!obs_startup("en-US", config.c_str(), nullptr))
+    {
+        error = "obs_startup 失败。";
+        LogLine("%s", error.c_str());
+        return false;
+    }
+
+    const std::string pluginBin = host + "/obs-plugins/64bit";
+    const std::string pluginData = host + "/data/obs-plugins/%module%/";
+    const std::string libobsData = host + "/data/libobs/";
+    LogLine("data path %s", libobsData.c_str());
+    obs_add_data_path(libobsData.c_str());
+    obs_add_module_path((pluginBin + "/").c_str(), pluginData.c_str());
+    obs_load_all_modules();
+    obs_log_loaded_modules();
+    obs_post_load_modules();
+
+    if (!ResetVideoAudio(1920, 1080, 1920, 1080, 30, error))
+    {
+        obs_shutdown();
+        return false;
+    }
+
+    g_ready = true;
+    g_status.encoderName = "idle";
+    LogLine("libobs ready");
+    return true;
+}
+
+void ObsShutdown()
+{
+    std::lock_guard lock(g_mutex);
+    ReleaseGraph();
+    if (g_ready)
+    {
+        obs_shutdown();
+        g_ready = false;
+        g_videoReady = false;
+    }
+    g_log.close();
+}
+
+bool ObsReady()
+{
+    std::lock_guard lock(g_mutex);
+    return g_ready;
+}
+
+SessionStatus ObsStart(const StartRequest& request)
+{
+    std::lock_guard lock(g_mutex);
+    if (!g_ready)
+    {
+        return Fail("libobs 尚未初始化。");
+    }
+    if (g_output && obs_output_active(g_output))
+    {
+        return Fail("已有录制正在进行。");
+    }
+
+    ReleaseGraph();
+    g_status = {};
+    g_status.ok = true;
+    g_pauseAccum = 0;
+    g_pauseTick = 0;
+
+    if (request.outputPath.empty())
+    {
+        return Fail("缺少输出路径。");
+    }
+
+    std::string livePath = request.outputPath;
+    if (livePath.size() >= 4 && livePath.compare(livePath.size() - 4, 4, ".mp4") == 0)
+    {
+        livePath += ".partial.mkv";
+    }
+    const std::wstring outputWide = Utf8ToWide(livePath);
+    if (const wchar_t* slash = wcsrchr(outputWide.c_str(), L'\\'))
+    {
+        std::wstring dir(outputWide.c_str(), slash);
+        CreateDirectoryW(dir.c_str(), nullptr);
+    }
+
+    int monitorW = 1920;
+    int monitorH = 1080;
+    std::string monitorId;
+    GetMonitorSize(request.monitorIndex, monitorW, monitorH, monitorId);
+
+    int canvasW = monitorW;
+    int canvasH = monitorH;
+    if (request.mode == "Region" && request.cropWidth > 0 && request.cropHeight > 0)
+    {
+        canvasW = request.cropWidth;
+        canvasH = request.cropHeight;
+    }
+    if (request.mode == "AudioOnly")
+    {
+        canvasW = 1280;
+        canvasH = 720;
+    }
+
+    int encW = request.width > 0 ? request.width : canvasW;
+    int encH = request.height > 0 ? request.height : canvasH;
+    if (encW > canvasW)
+    {
+        encW = canvasW;
+    }
+    if (encH > canvasH)
+    {
+        encH = canvasH;
+    }
+
+    std::string error;
+    if (!ResetVideoAudio(canvasW, canvasH, encW, encH, request.fps, error))
+    {
+        return Fail(error);
+    }
+
+    g_scene = obs_scene_create("luma");
+    if (!g_scene)
+    {
+        return Fail("无法创建内部 scene。");
+    }
+
+    const std::string mode = request.mode.empty() ? "Display" : request.mode;
+    if (mode == "AudioOnly")
+    {
+        obs_data_t* color = obs_data_create();
+        obs_data_set_int(color, "width", canvasW);
+        obs_data_set_int(color, "height", canvasH);
+        obs_data_set_int(color, "color", 0xFF101010);
+        g_videoSource = CreateInput("color_source", "luma-color", color);
+        obs_data_release(color);
+    }
+    else if (mode == "Window" || mode == "Game")
+    {
+        if (request.windowId.empty() || request.windowId == "pending")
+        {
+            return Fail("请先选择窗口或游戏目标。");
+        }
+        obs_data_t* settings = obs_data_create();
+        obs_data_set_string(settings, "window", request.windowId.c_str());
+        obs_data_set_bool(settings, "capture_cursor", true);
+        obs_data_set_int(settings, "priority", 2);
+        obs_data_set_int(settings, "method", mode == "Window" ? 2 : 0);
+        obs_data_set_int(settings, "capture_mode", 0);
+        g_videoSource = CreateInput(mode == "Game" ? "game_capture" : "window_capture", "luma-video", settings);
+        obs_data_release(settings);
+    }
+    else
+    {
+        obs_data_t* settings = obs_data_create();
+        obs_data_set_int(settings, "monitor", request.monitorIndex);
+        if (!monitorId.empty())
+        {
+            obs_data_set_string(settings, "monitor_id", monitorId.c_str());
+        }
+        obs_data_set_bool(settings, "capture_cursor", true);
+        obs_data_set_int(settings, "method", 0);
+        obs_data_set_bool(settings, "force_sdr", true);
+        g_videoSource = CreateInput("monitor_capture", "luma-display", settings);
+        obs_data_release(settings);
+        if (mode == "Region" && request.cropWidth > 0 && request.cropHeight > 0)
+        {
+            // Crop is applied after the item exists.
+        }
+    }
+
+    if (!g_videoSource)
+    {
+        return Fail("无法创建采集源。");
+    }
+
+    obs_sceneitem_t* item = obs_scene_add(g_scene, g_videoSource);
+    FitItem(item, canvasW, canvasH);
+    if (mode == "Region" && request.cropWidth > 0 && request.cropHeight > 0 && item)
+    {
+        obs_sceneitem_crop crop{};
+        crop.left = request.cropX;
+        crop.top = request.cropY;
+        crop.right = (monitorW - request.cropX - request.cropWidth);
+        crop.bottom = (monitorH - request.cropY - request.cropHeight);
+        if (crop.right < 0)
+        {
+            crop.right = 0;
+        }
+        if (crop.bottom < 0)
+        {
+            crop.bottom = 0;
+        }
+        obs_sceneitem_set_crop(item, &crop);
+    }
+
+    if (request.systemAudio)
+    {
+        obs_data_t* settings = obs_data_create();
+        obs_data_set_string(settings, "device_id", "default");
+        g_systemAudio = CreateInput("wasapi_output_capture", "luma-system-audio", settings);
+        obs_data_release(settings);
+        if (g_systemAudio)
+        {
+            obs_scene_add(g_scene, g_systemAudio);
+        }
+        else
+        {
+            g_status.warning = "系统声采集不可用。";
+        }
+    }
+
+    if (request.microphone)
+    {
+        obs_data_t* settings = obs_data_create();
+        obs_data_set_string(settings, "device_id", request.micId.empty() ? "default" : request.micId.c_str());
+        g_mic = CreateInput("wasapi_input_capture", "luma-mic", settings);
+        obs_data_release(settings);
+        if (g_mic)
+        {
+            obs_scene_add(g_scene, g_mic);
+        }
+        else if (g_status.warning.empty())
+        {
+            g_status.warning = "麦克风不可用。";
+        }
+        else
+        {
+            g_status.warning += " 麦克风不可用。";
+        }
+    }
+
+    if (mode == "Game")
+    {
+        uint32_t captured = 0;
+        for (int i = 0; i < 12 && captured == 0; i++)
+        {
+            Sleep(200);
+            captured = obs_source_get_width(g_videoSource);
+        }
+        if (captured == 0)
+        {
+            return Fail("游戏采集没有画面。若游戏是独占全屏，请改成无边框窗口后再试。");
+        }
+    }
+
+    AddOverlays(request, canvasW, canvasH);
+
+    obs_source_t* sceneSource = obs_scene_get_source(g_scene);
+    obs_set_output_source(0, sceneSource);
+
+    std::string encoderId;
+    bool usedHardware = false;
+    std::vector<const char*> encoderIds;
+    if (request.hardware)
+    {
+        encoderIds.push_back("h264_texture_amf");
+        encoderIds.push_back("jim_nvenc");
+        encoderIds.push_back("ffmpeg_nvenc");
+        encoderIds.push_back("obs_qsv11");
+    }
+    encoderIds.push_back("obs_x264");
+
+    auto tryStart = [&](const char* id) -> bool {
+        if (g_venc)
+        {
+            obs_encoder_release(g_venc);
+            g_venc = nullptr;
+        }
+        if (g_aenc)
+        {
+            obs_encoder_release(g_aenc);
+            g_aenc = nullptr;
+        }
+        if (g_output)
+        {
+            obs_output_release(g_output);
+            g_output = nullptr;
+        }
+
+        if (id && id[0])
+        {
+            g_venc = CreateVideoEncoderById(id, request);
+            if (!g_venc)
+            {
+                error = std::string("无法创建编码器 ") + id;
+                LogLine("%s", error.c_str());
+                return false;
+            }
+            encoderId = id;
+            usedHardware = strcmp(id, "obs_x264") != 0;
+            obs_encoder_set_video(g_venc, obs_get_video());
+        }
+        else
+        {
+            encoderId = "aac";
+            usedHardware = false;
+        }
+
+        obs_data_t* aac = obs_data_create();
+        obs_data_set_int(aac, "bitrate", 160);
+        g_aenc = obs_audio_encoder_create("ffmpeg_aac", "luma-audio", aac, 0, nullptr);
+        obs_data_release(aac);
+        if (!g_aenc)
+        {
+            error = "无法创建 AAC 编码器。";
+            return false;
+        }
+        obs_encoder_set_audio(g_aenc, obs_get_audio());
+
+        obs_data_t* mux = obs_data_create();
+        obs_data_set_string(mux, "path", livePath.c_str());
+        obs_data_set_string(mux, "directory", "");
+        g_output = obs_output_create("ffmpeg_muxer", "luma-file", mux, nullptr);
+        if (!g_output)
+        {
+            g_output = obs_output_create("mp4_output", "luma-file", mux, nullptr);
+        }
+        obs_data_release(mux);
+        if (!g_output)
+        {
+            error = "无法创建 ffmpeg_muxer / mp4_output。";
+            return false;
+        }
+
+        if (g_venc)
+        {
+            obs_output_set_video_encoder(g_output, g_venc);
+        }
+        obs_output_set_audio_encoder(g_output, g_aenc, 0);
+        const char* label = id && id[0] ? id : "aac";
+        if (!obs_output_start(g_output))
+        {
+            const char* last = obs_output_get_last_error(g_output);
+            error = last && last[0] ? last : (std::string(label) + " 启动失败");
+            LogLine("output start failed (%s): %s", label, error.c_str());
+            return false;
+        }
+
+        for (int i = 0; i < 40 && !obs_output_active(g_output); i++)
+        {
+            Sleep(50);
+        }
+        if (!obs_output_active(g_output))
+        {
+            const char* last = obs_output_get_last_error(g_output);
+            error = last && last[0] ? last : "输出没有进入活动状态。";
+            return false;
+        }
+        LogLine("using encoder %s", encoderId.c_str());
+        return true;
+    };
+
+    bool started = false;
+    for (const char* id : encoderIds)
+    {
+        if (tryStart(id))
+        {
+            started = true;
+            if (strcmp(id, "obs_x264") == 0 && request.hardware)
+            {
+                Warn("硬件编码不可用，已回退 obs_x264。");
+            }
+            break;
+        }
+    }
+    if (!started)
+    {
+        return Fail(error.empty() ? "无法开始输出。" : error);
+    }
+
+    g_startTick = GetTickCount64();
+    g_status.ok = true;
+    g_status.phase = 2;
+    g_status.encoderName = encoderId;
+    if (const char* display = obs_encoder_get_display_name(encoderId.c_str()))
+    {
+        if (display[0])
+        {
+            g_status.encoderName = display;
+        }
+    }
+    g_status.usedHardware = usedHardware;
+    g_status.width = encW;
+    g_status.height = encH;
+    g_status.effectiveFps = request.fps;
+    g_status.outputPath = livePath;
+    g_status.encodedDurationSeconds = 0;
+    LogLine("recording started encoder=%s path=%s", g_status.encoderName.c_str(), request.outputPath.c_str());
+    return g_status;
+}
+
+SessionStatus ObsPause(bool pause)
+{
+    std::lock_guard lock(g_mutex);
+    if (!g_output || !obs_output_active(g_output))
+    {
+        g_status.ok = false;
+        g_status.error = "当前没有正在进行的录制。";
+        return g_status;
+    }
+    if (!obs_output_can_pause(g_output))
+    {
+        g_status.ok = false;
+        g_status.error = "当前输出不支持暂停。";
+        return g_status;
+    }
+    if (!obs_output_pause(g_output, pause))
+    {
+        g_status.ok = false;
+        g_status.error = pause ? "暂停失败。" : "恢复失败。";
+        return g_status;
+    }
+    if (pause)
+    {
+        g_pauseTick = GetTickCount64();
+        g_status.phase = 3;
+    }
+    else
+    {
+        if (g_pauseTick != 0)
+        {
+            g_pauseAccum += (GetTickCount64() - g_pauseTick) / 1000.0;
+            g_pauseTick = 0;
+        }
+        g_status.phase = 2;
+    }
+    g_status.ok = true;
+    g_status.error.clear();
+    RefreshDurationLocked();
+    return g_status;
+}
+
+SessionStatus ObsMute(bool muted)
+{
+    std::lock_guard lock(g_mutex);
+    if (!g_mic)
+    {
+        g_status.ok = true;
+        g_status.warning = "当前没有麦克风轨道。";
+        return g_status;
+    }
+    obs_source_set_muted(g_mic, muted);
+    g_status.ok = true;
+    g_status.error.clear();
+    return g_status;
+}
+
+SessionStatus ObsStop()
+{
+    std::lock_guard lock(g_mutex);
+    if (!g_output)
+    {
+        g_status.ok = false;
+        g_status.error = "当前没有正在进行的录制。";
+        g_status.phase = 0;
+        return g_status;
+    }
+
+    g_status.phase = 4;
+    obs_output_stop(g_output);
+    for (int i = 0; i < 100 && obs_output_active(g_output); i++)
+    {
+        Sleep(100);
+    }
+    if (obs_output_active(g_output))
+    {
+        obs_output_force_stop(g_output);
+    }
+    RefreshDurationLocked();
+
+    const std::string path = g_status.outputPath;
+    const std::string encoder = g_status.encoderName;
+    const bool hw = g_status.usedHardware;
+    const double seconds = g_status.encodedDurationSeconds;
+    const long long skipped = g_status.skippedFrames;
+    const int width = g_status.width;
+    const int height = g_status.height;
+    const double fps = g_status.effectiveFps;
+    const std::string warning = g_status.warning;
+
+    ReleaseGraph();
+    g_status = {};
+    g_status.ok = true;
+    g_status.phase = 0;
+    g_status.encoderName = encoder;
+    g_status.usedHardware = hw;
+    g_status.width = width;
+    g_status.height = height;
+    g_status.effectiveFps = fps;
+    g_status.skippedFrames = skipped;
+    g_status.encodedDurationSeconds = seconds;
+    g_status.outputPath = path;
+    g_status.warning = warning;
+    LogLine("recording stopped seconds=%.2f path=%s", seconds, path.c_str());
+    return g_status;
+}
+
+SessionStatus ObsStatus()
+{
+    std::lock_guard lock(g_mutex);
+    RefreshDurationLocked();
+    g_status.ok = true;
+    if (g_output && obs_output_active(g_output) && g_status.phase == 0)
+    {
+        g_status.phase = obs_output_paused(g_output) ? 3 : 2;
+    }
+    return g_status;
+}
+
+std::string StatusToJson(const SessionStatus& status)
+{
+    std::ostringstream oss;
+    oss << "{\"ok\":" << (status.ok ? "true" : "false")
+        << ",\"phase\":" << status.phase
+        << ",\"encoderName\":\"" << JsonEscape(status.encoderName) << "\""
+        << ",\"usedHardware\":" << (status.usedHardware ? "true" : "false")
+        << ",\"width\":" << status.width
+        << ",\"height\":" << status.height
+        << ",\"effectiveFps\":" << status.effectiveFps
+        << ",\"skippedFrames\":" << status.skippedFrames
+        << ",\"encodedDurationSeconds\":" << status.encodedDurationSeconds
+        << ",\"outputPath\":\"" << JsonEscape(status.outputPath) << "\""
+        << ",\"error\":\"" << JsonEscape(status.error) << "\""
+        << ",\"warning\":\"" << JsonEscape(status.warning) << "\"}";
+    return oss.str();
+}
+
+StartRequest ParseStartRequest(const std::string& json)
+{
+    StartRequest request;
+    request.outputPath = JsonString(json, "outputPath");
+    request.mode = JsonString(json, "mode", "Display");
+    request.monitorIndex = static_cast<int>(JsonInt(json, "monitorIndex", 0));
+    request.windowId = JsonString(json, "windowId");
+    request.cropX = static_cast<int>(JsonInt(json, "cropX", 0));
+    request.cropY = static_cast<int>(JsonInt(json, "cropY", 0));
+    request.cropWidth = static_cast<int>(JsonInt(json, "cropWidth", 0));
+    request.cropHeight = static_cast<int>(JsonInt(json, "cropHeight", 0));
+    request.width = static_cast<int>(JsonInt(json, "width", 1920));
+    request.height = static_cast<int>(JsonInt(json, "height", 1080));
+    request.fps = static_cast<int>(JsonInt(json, "fps", 30));
+    request.bitrateKbps = static_cast<int>(JsonInt(json, "bitrateKbps", 8000));
+    request.hardware = JsonBool(json, "hardware", true);
+    request.systemAudio = JsonBool(json, "systemAudio", true);
+    request.microphone = JsonBool(json, "microphone", false);
+    request.micId = JsonString(json, "micId");
+    request.camera = JsonBool(json, "camera", false);
+    request.cameraId = JsonString(json, "cameraId");
+    request.cameraX = JsonDouble(json, "cameraX", 0.5);
+    request.cameraY = JsonDouble(json, "cameraY", 0.5);
+    request.cameraW = JsonDouble(json, "cameraW", 0.24);
+    request.cameraH = JsonDouble(json, "cameraH", 0.24);
+    request.textMark = JsonString(json, "textMark");
+    request.textOpacity = JsonDouble(json, "textOpacity", 1);
+    request.imagePath = JsonString(json, "imagePath");
+    request.imageOpacity = JsonDouble(json, "imageOpacity", 0.9);
+    request.timestamp = JsonBool(json, "timestamp", false);
+    request.markX = JsonDouble(json, "markX", 0.02);
+    request.markY = JsonDouble(json, "markY", 0.02);
+    request.markW = JsonDouble(json, "markW", 0.2);
+    request.markH = JsonDouble(json, "markH", 0.08);
+    return request;
+}

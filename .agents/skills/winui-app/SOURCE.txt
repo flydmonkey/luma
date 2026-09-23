@@ -1,0 +1,3 @@
+﻿source: https://github.com/openai/skills
+path: skills/.curated/winui-app
+commit: 49f948f

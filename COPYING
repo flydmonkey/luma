@@ -1,0 +1,15 @@
+Luma
+Copyright (C) 2026 Luma contributors
+
+This program links libobs (OBS Studio core) and ships selected OBS
+Windows plugins for capture, encoding, and muxing.
+
+libobs and OBS Studio are Copyright (C) OBS Project contributors
+and are licensed under the GNU General Public License, version 2.
+Source: https://github.com/obsproject/obs-studio
+
+Because this program is linked with libobs, Luma is distributed under
+GPL-2.0-or-later. See LICENSE for the full license text.
+
+Third-party notices for OBS, FFmpeg, and other bundled components
+are listed in ThirdPartyNotices.

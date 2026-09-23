@@ -1,0 +1,24 @@
+<Window
+    x:Class="Luma.App.Views.RegionPickerWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Select region">
+    <Grid x:Name="Root" Background="Transparent" IsTabStop="True"
+          PointerPressed="OnPressed" PointerMoved="OnMoved" PointerReleased="OnReleased" DoubleTapped="OnDoubleTapped">
+        <Image x:Name="DesktopImage" Stretch="Fill"/>
+        <Rectangle Fill="#22000000" IsHitTestVisible="False"/>
+        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center" Background="{ThemeResource LayerFillColorDefaultBrush}" Padding="12" PointerPressed="Toolbar_PointerPressed">
+            <TextBlock x:Name="HintText" Text="Drag to select. OK or double-click."/>
+            <TextBlock x:Name="SizeText" Margin="0,4,0,0"/>
+            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                <Button x:Name="ConfirmButton" Content="OK" Click="Confirm_Click"/>
+                <Button x:Name="CancelButton" Content="Cancel" Click="Cancel_Click"/>
+            </StackPanel>
+        </StackPanel>
+        <Rectangle x:Name="Rubber" HorizontalAlignment="Left" VerticalAlignment="Top"
+                   Stroke="{ThemeResource AccentFillColorDefaultBrush}" StrokeThickness="2"
+                   Fill="#3300BFFF" Visibility="Collapsed" IsHitTestVisible="False"/>
+        <TextBlock x:Name="RubberSize" HorizontalAlignment="Left" VerticalAlignment="Top"
+                   Visibility="Collapsed" IsHitTestVisible="False"/>
+    </Grid>
+</Window>
