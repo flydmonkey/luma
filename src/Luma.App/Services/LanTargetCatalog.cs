@@ -9,7 +9,7 @@ public static class LanTargetCatalog
         return (kind ?? "displays").ToLowerInvariant() switch
         {
             "windows" => Windows(false),
-            "games" => Windows(true),
+            "games" => Array.Empty<object>(),
             "cameras" => Devices(DeviceClass.VideoCapture),
             "microphones" or "mics" => Devices(DeviceClass.AudioCapture),
             _ => DisplayCatalog.ListDisplays().Select(display => new

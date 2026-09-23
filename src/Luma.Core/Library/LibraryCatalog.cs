@@ -11,7 +11,7 @@ public sealed class LibraryCatalog
 
         return Directory.EnumerateFiles(saveFolder)
             .Where(path =>
-                path.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase)
+                Luma.Core.Settings.RecordingContainers.IsVideo(path)
                 || path.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith(".partial.mkv", StringComparison.OrdinalIgnoreCase))
             .Select(path =>

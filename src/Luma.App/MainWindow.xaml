@@ -98,13 +98,15 @@
                                 <TextBlock Text="窗口" FontSize="11" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </ToggleButton>
-                        <ToggleButton x:Name="ModeGameButton" Grid.Column="3" Style="{StaticResource ModeTileStyle}"
-                                      Click="ModeButton_Click" Tag="3" ToolTipService.ToolTip="游戏">
+                        <Button x:Name="ScreenshotButton" Grid.Column="3" Click="Screenshot_Click"
+                                MinWidth="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                Height="64" Padding="2,8" BorderThickness="0" CornerRadius="7"
+                                Background="Transparent" AutomationProperties.Name="截图" ToolTipService.ToolTip="截图">
                             <StackPanel Spacing="4">
-                                <FontIcon Glyph="&#xE7FC;" FontSize="16" HorizontalAlignment="Center"/>
-                                <TextBlock Text="游戏" FontSize="11" HorizontalAlignment="Center"/>
+                                <FontIcon Glyph="&#xE722;" FontSize="16" HorizontalAlignment="Center"/>
+                                <TextBlock Text="截图" FontSize="11" HorizontalAlignment="Center"/>
                             </StackPanel>
-                        </ToggleButton>
+                        </Button>
                         <ToggleButton x:Name="ModeAudioButton" Grid.Column="4" Style="{StaticResource ModeTileStyle}"
                                       Click="ModeButton_Click" Tag="audio" ToolTipService.ToolTip="只录音，不录画面">
                             <StackPanel Spacing="4">
@@ -129,7 +131,6 @@
                     <ComboBoxItem Content="显示器"/>
                     <ComboBoxItem Content="区域"/>
                     <ComboBoxItem Content="窗口"/>
-                    <ComboBoxItem Content="游戏"/>
                 </ComboBox>
 
                 <ComboBox x:Name="HomeMonitorBox" PlaceholderText="选择显示器" HorizontalAlignment="Stretch"
@@ -411,8 +412,8 @@
                 </controls:SettingsCard>
 
                 <TextBlock x:Name="SecQuality" Text="画质" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
-                <controls:SettingsCard x:Name="QualityCard" Header="清晰度" Description="最高清晰度受当前显示器限制">
-                    <ComboBox x:Name="QualityBox" MinWidth="120" SelectionChanged="QualityBox_Changed"/>
+                <controls:SettingsCard x:Name="FormatCard" Header="录制格式" Description="只录音时仍是 m4a">
+                    <ComboBox x:Name="FormatBox" MinWidth="120" SelectionChanged="FormatBox_Changed"/>
                 </controls:SettingsCard>
                 <controls:SettingsCard x:Name="FpsCard" Header="帧率" Description="全屏默认 30fps；60fps 为高级选项">
                     <ComboBox x:Name="FpsBox" MinWidth="140" SelectionChanged="FpsBox_Changed">
@@ -624,6 +625,9 @@
                 </controls:SettingsCard>
                 <controls:SettingsCard x:Name="StopHotkeyCard" Header="停止">
                     <TextBox x:Name="StopHotkeyBox" Width="140" PlaceholderText="按下组合键" IsReadOnly="True" KeyDown="HotkeyBox_KeyDown"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="ScreenshotHotkeyCard" Header="截图">
+                    <TextBox x:Name="ScreenshotHotkeyBox" Width="140" PlaceholderText="按下组合键" IsReadOnly="True" KeyDown="HotkeyBox_KeyDown"/>
                 </controls:SettingsCard>
                 <controls:SettingsCard x:Name="HotkeyStatusCard" Header="状态">
                     <TextBlock x:Name="HotkeyErrorText" TextWrapping="Wrap"

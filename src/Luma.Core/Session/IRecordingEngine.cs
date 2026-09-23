@@ -27,7 +27,8 @@ public sealed class CaptureTarget
         CaptureMode.Display => true,
         CaptureMode.AudioOnly => true,
         CaptureMode.Region => CropWidth > 0 && CropHeight > 0,
-        CaptureMode.Window or CaptureMode.Game => !string.IsNullOrWhiteSpace(WindowId),
+        CaptureMode.Window => !string.IsNullOrWhiteSpace(WindowId),
+        CaptureMode.Game => false,
         _ => false
     };
 }
@@ -65,8 +66,27 @@ public sealed class RecordingResult
 
 public static class SessionStartRules
 {
-    public static string? Reject(CaptureTarget target) =>
-        target.IsReady ? null : "请先选择录制目标。";
+    public static string? Reject(CaptureTarget target)
+    {
+        if (target.Mode == CaptureMode.Game || IsGameMode(target.Mode.ToString()))
+        {
+            return "游戏录制已关闭。";
+        }
+
+        return target.IsReady ? null : "请先选择录制目标。";
+    }
+
+    public static bool IsGameMode(string? mode)
+    {
+        if (string.IsNullOrWhiteSpace(mode))
+        {
+            return false;
+        }
+
+        var text = mode.Trim();
+        return text.Equals("game", StringComparison.OrdinalIgnoreCase)
+            || text.Equals("3", StringComparison.Ordinal);
+    }
 }
 
 public interface IRecordingEngine

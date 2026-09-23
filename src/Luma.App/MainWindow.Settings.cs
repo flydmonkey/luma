@@ -23,8 +23,8 @@ public sealed partial class MainWindow
         _loadingSettings = true;
         ThemeBox.SelectedIndex = Settings.Theme == AppThemeMode.Light ? 0 : 1;
         FillLanguageBox();
-        FillQuality(HomeQualityBox, true);
-        FillQuality(QualityBox, false);
+        FillQuality(HomeQualityBox);
+        FillFormat();
         SelectTag(FpsBox, Settings.Quality.FrameRate.ToString());
         SaveFolderText.Text = Settings.SaveFolder;
         LanPlaybackBox.IsOn = Settings.Lan.Enabled;
@@ -74,13 +74,19 @@ public sealed partial class MainWindow
         StartHotkeyBox.Text = Settings.Hotkeys.Start;
         PauseHotkeyBox.Text = Settings.Hotkeys.Pause;
         StopHotkeyBox.Text = Settings.Hotkeys.Stop;
+        ScreenshotHotkeyBox.Text = Settings.Hotkeys.Screenshot;
         CloseToTrayBox.IsOn = Settings.CloseToTray;
         HideTrayIconBox.IsOn = Settings.HideTrayIcon;
         RecordingBarBox.IsOn = Settings.ShowRecordingBar;
         SilentModeBox.IsOn = Settings.SilentMode;
+        if (Settings.LastMode == CaptureMode.Game)
+        {
+            Settings.LastMode = CaptureMode.Display;
+        }
+
         _mode = Settings.LastMode;
         _target = new CaptureTarget { Mode = _mode };
-        ModeBox.SelectedIndex = _mode is CaptureMode.Display or CaptureMode.Region or CaptureMode.Window or CaptureMode.Game
+        ModeBox.SelectedIndex = _mode is CaptureMode.Display or CaptureMode.Region or CaptureMode.Window
             ? (int)_mode
             : 0;
         if (HomeMonitorBox.Items.Count > 0)
@@ -105,6 +111,7 @@ public sealed partial class MainWindow
         Settings.UiLanguage = SelectedLanguage();
         Settings.Quality.HardwareEncoding = HardwareBox.IsOn;
         Settings.Quality.FrameRate = SelectedFps();
+        Settings.RecordingFormat = SelectedFormat();
         if (HomeQualityBox.SelectedItem is ComboBoxItem home && Enum.TryParse<QualityLevel>(home.Tag as string, out var level))
         {
             var fps = Settings.Quality.FrameRate;
@@ -141,6 +148,7 @@ public sealed partial class MainWindow
         Settings.Hotkeys.Start = StartHotkeyBox.Text;
         Settings.Hotkeys.Pause = PauseHotkeyBox.Text;
         Settings.Hotkeys.Stop = StopHotkeyBox.Text;
+        Settings.Hotkeys.Screenshot = ScreenshotHotkeyBox.Text;
         Settings.CloseToTray = CloseToTrayBox.IsOn;
         Settings.HideTrayIcon = HideTrayIconBox.IsOn;
         _tray.ApplyVisibility(Settings.HideTrayIcon);
@@ -261,16 +269,33 @@ public sealed partial class MainWindow
     private string SelectedLanguage() =>
         LanguageBox.SelectedItem is ComboBoxItem item ? item.Tag as string ?? UiLanguages.System : UiLanguages.System;
 
-    private void FillQuality(ComboBox box, bool shortName)
+    private void FillQuality(ComboBox box)
     {
         var selected = Settings.Quality.Level;
         box.Items.Clear();
-        box.Items.Add(new ComboBoxItem { Content = shortName ? "720p" : "720p", Tag = nameof(QualityLevel.Sd) });
-        box.Items.Add(new ComboBoxItem { Content = shortName ? "1080p" : "1080p", Tag = nameof(QualityLevel.Hd) });
-        box.Items.Add(new ComboBoxItem { Content = shortName ? "1440p" : "1440p", Tag = nameof(QualityLevel.ExtraHd) });
-        box.Items.Add(new ComboBoxItem { Content = shortName ? "4K" : "4K", Tag = nameof(QualityLevel.FourK) });
+        box.Items.Add(new ComboBoxItem { Content = "720p", Tag = nameof(QualityLevel.Sd) });
+        box.Items.Add(new ComboBoxItem { Content = "1080p", Tag = nameof(QualityLevel.Hd) });
+        box.Items.Add(new ComboBoxItem { Content = "1440p", Tag = nameof(QualityLevel.ExtraHd) });
+        box.Items.Add(new ComboBoxItem { Content = "4K", Tag = nameof(QualityLevel.FourK) });
         SelectTag(box, selected.ToString());
     }
+
+    private void FillFormat()
+    {
+        var selected = RecordingContainers.Normalize(Settings.RecordingFormat);
+        FormatBox.Items.Clear();
+        foreach (var format in RecordingContainers.Choices)
+        {
+            FormatBox.Items.Add(new ComboBoxItem { Content = format.ToUpperInvariant(), Tag = format });
+        }
+
+        SelectTag(FormatBox, selected);
+    }
+
+    private string SelectedFormat() =>
+        FormatBox.SelectedItem is ComboBoxItem item
+            ? RecordingContainers.Normalize(item.Tag as string)
+            : RecordingContainers.Mp4;
 
     private void FillMonitors()
     {
@@ -416,7 +441,7 @@ public sealed partial class MainWindow
         SetTile(ModeFullButton, UiCopy.T("home.mode.display"));
         SetTile(ModeRegionButton, UiCopy.T("home.mode.region"));
         SetTile(ModeWindowButton, UiCopy.T("home.mode.window"));
-        SetTile(ModeGameButton, UiCopy.T("home.mode.game"));
+        SetTile(ScreenshotButton, UiCopy.T("home.mode.shot"));
         SetTile(ModeAudioButton, UiCopy.T("home.mode.audio"));
         StartButton.Content = UiCopy.T("home.start");
         PauseButton.Content = UiCopy.T("home.pause");
@@ -456,8 +481,8 @@ public sealed partial class MainWindow
         MicDeviceCard.Header = UiCopy.T("settings.audio.micdev");
         AudioOnlyCard.Header = UiCopy.T("settings.audio.only");
         AudioOnlyCard.Description = UiCopy.T("settings.audio.only.desc");
-        QualityCard.Header = UiCopy.T("settings.quality");
-        QualityCard.Description = UiCopy.T("settings.quality.desc");
+        FormatCard.Header = UiCopy.T("settings.format");
+        FormatCard.Description = UiCopy.T("settings.format.desc");
         FpsCard.Header = UiCopy.T("settings.fps");
         FpsCard.Description = UiCopy.T("settings.fps.desc");
         HardwareCard.Header = UiCopy.T("settings.hw");
@@ -487,6 +512,8 @@ public sealed partial class MainWindow
         PauseHotkeyBox.PlaceholderText = UiCopy.T("settings.hotkey.press");
         StopHotkeyCard.Header = UiCopy.T("settings.hotkey.stop");
         StopHotkeyBox.PlaceholderText = UiCopy.T("settings.hotkey.press");
+        ScreenshotHotkeyCard.Header = UiCopy.T("settings.hotkey.shot");
+        ScreenshotHotkeyBox.PlaceholderText = UiCopy.T("settings.hotkey.press");
         HotkeyStatusCard.Header = UiCopy.T("settings.hotkey.status");
         CloseToTrayCard.Header = UiCopy.T("settings.tray");
         HideTrayIconCard.Header = UiCopy.T("settings.hideTray");
@@ -519,14 +546,14 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(ModeFullButton, UiCopy.T("home.mode.display"));
         ToolTipService.SetToolTip(ModeRegionButton, UiCopy.T("home.mode.region"));
         ToolTipService.SetToolTip(ModeWindowButton, UiCopy.T("home.mode.window"));
-        ToolTipService.SetToolTip(ModeGameButton, UiCopy.T("home.mode.game"));
+        ToolTipService.SetToolTip(ScreenshotButton, UiCopy.T("home.mode.shot"));
+        AutomationProperties.SetName(ScreenshotButton, UiCopy.T("home.mode.shot"));
         ToolTipService.SetToolTip(ModeAudioButton, UiCopy.T("home.mode.audio.tip"));
-        if (ModeBox.Items.Count >= 4)
+        if (ModeBox.Items.Count >= 3)
         {
             if (ModeBox.Items[0] is ComboBoxItem display) display.Content = UiCopy.T("home.mode.display");
             if (ModeBox.Items[1] is ComboBoxItem region) region.Content = UiCopy.T("home.mode.region");
             if (ModeBox.Items[2] is ComboBoxItem window) window.Content = UiCopy.T("home.mode.window");
-            if (ModeBox.Items[3] is ComboBoxItem game) game.Content = UiCopy.T("home.mode.game");
         }
 
         PreviewSavedButton.Content = UiCopy.T("home.preview");
@@ -645,6 +672,14 @@ public sealed partial class MainWindow
         }
     }
 
+    private static void SetTile(Button button, string label)
+    {
+        if (button.Content is StackPanel panel && panel.Children.Count > 1 && panel.Children[1] is TextBlock text)
+        {
+            text.Text = label;
+        }
+    }
+
     private static void SetTile(ToggleButton button, string label)
     {
         if (button.Content is StackPanel panel && panel.Children.Count > 1 && panel.Children[1] is TextBlock text)
@@ -680,20 +715,15 @@ public sealed partial class MainWindow
         if (Enum.TryParse<QualityLevel>(tag, out var level))
         {
             Settings.Quality = QualitySettings.FromLevel(level, SelectedFps());
-            SelectTag(QualityBox, level.ToString());
             SaveSettings();
         }
     }
 
-    private void QualityBox_Changed(object sender, SelectionChangedEventArgs e)
+    private void FormatBox_Changed(object sender, SelectionChangedEventArgs e)
     {
-        if (_loadingSettings || QualityBox.SelectedItem is not ComboBoxItem item || item.Tag is not string tag) return;
-        if (Enum.TryParse<QualityLevel>(tag, out var level))
-        {
-            Settings.Quality = QualitySettings.FromLevel(level, SelectedFps());
-            SelectTag(HomeQualityBox, level.ToString());
-            SaveSettings();
-        }
+        if (_loadingSettings) return;
+        Settings.RecordingFormat = SelectedFormat();
+        SaveSettings();
     }
 
     private void FpsBox_Changed(object sender, SelectionChangedEventArgs e)

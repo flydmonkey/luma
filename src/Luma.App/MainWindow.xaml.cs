@@ -49,6 +49,7 @@ public sealed partial class MainWindow : Window
     private bool _dropMic;
     private readonly Dictionary<string, TimeSpan> _durations = new(StringComparer.OrdinalIgnoreCase);
     private RecordingBarWindow? _bar;
+    private SnipSession? _snip;
     private DateTime _segmentStart;
     private bool _hiddenForRecording;
     private bool _centerOnLaunch = true;
@@ -89,6 +90,7 @@ public sealed partial class MainWindow : Window
         _hotkeys.StartPressed += () => DispatcherQueue.TryEnqueue(() => _ = StartWithCountdownAsync());
         _hotkeys.PausePressed += () => DispatcherQueue.TryEnqueue(() => _ = PauseAsync());
         _hotkeys.StopPressed += () => DispatcherQueue.TryEnqueue(() => _ = StopAsync());
+        _hotkeys.ScreenshotPressed += () => DispatcherQueue.TryEnqueue(() => _ = BeginScreenshotAsync());
         FillMonitors();
         FillDevices();
         LoadSettingsIntoUi();
@@ -527,7 +529,6 @@ public sealed partial class MainWindow : Window
         {
             "1" => CaptureMode.Region,
             "2" => CaptureMode.Window,
-            "3" => CaptureMode.Game,
             "audio" => CaptureMode.AudioOnly,
             _ => CaptureMode.Display
         };
@@ -541,7 +542,7 @@ public sealed partial class MainWindow : Window
 
         SaveSettings();
         SyncModeButtons();
-        if (_mode is CaptureMode.Region or CaptureMode.Window or CaptureMode.Game)
+        if (_mode is CaptureMode.Region or CaptureMode.Window)
         {
             _ = PickTargetAsync();
         }
@@ -550,7 +551,7 @@ public sealed partial class MainWindow : Window
     private void ModeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_loadingSettings) return;
-        _mode = (CaptureMode)Math.Clamp(ModeBox.SelectedIndex, 0, 3);
+        _mode = (CaptureMode)Math.Clamp(ModeBox.SelectedIndex, 0, 2);
         SyncModeButtons();
     }
 
@@ -559,9 +560,8 @@ public sealed partial class MainWindow : Window
         ModeFullButton.IsChecked = _mode == CaptureMode.Display;
         ModeRegionButton.IsChecked = _mode == CaptureMode.Region;
         ModeWindowButton.IsChecked = _mode == CaptureMode.Window;
-        ModeGameButton.IsChecked = _mode == CaptureMode.Game;
         ModeAudioButton.IsChecked = _mode == CaptureMode.AudioOnly;
-        PickTargetButton.Visibility = _mode is CaptureMode.Region or CaptureMode.Window or CaptureMode.Game
+        PickTargetButton.Visibility = _mode is CaptureMode.Region or CaptureMode.Window
             ? Visibility.Visible
             : Visibility.Collapsed;
         HomeMonitorBox.Visibility = _mode == CaptureMode.Display ? Visibility.Visible : Visibility.Collapsed;
@@ -583,8 +583,6 @@ public sealed partial class MainWindow : Window
             CaptureMode.Region => UiCopy.T("sum.region.none"),
             CaptureMode.Window when !string.IsNullOrWhiteSpace(_target.WindowTitle) => UiCopy.Tf("sum.window", _target.WindowTitle!),
             CaptureMode.Window => UiCopy.T("sum.window.none"),
-            CaptureMode.Game when !string.IsNullOrWhiteSpace(_target.WindowTitle) => UiCopy.Tf("sum.game", _target.WindowTitle!),
-            CaptureMode.Game => UiCopy.T("sum.game.none"),
             CaptureMode.AudioOnly => UiCopy.T("sum.audio"),
             _ => UiCopy.T("sum.pick")
         };
@@ -630,7 +628,6 @@ public sealed partial class MainWindow : Window
     {
         CaptureMode.Region => UiCopy.T("home.mode.region"),
         CaptureMode.Window => UiCopy.T("home.mode.window"),
-        CaptureMode.Game => UiCopy.T("home.mode.game"),
         CaptureMode.AudioOnly => UiCopy.T("home.mode.audio"),
         _ => UiCopy.T("home.mode.display")
     };
@@ -647,10 +644,61 @@ public sealed partial class MainWindow : Window
     }
 
     private async void Start_Click(object sender, RoutedEventArgs e) => await StartWithCountdownAsync();
+    private async void Screenshot_Click(object sender, RoutedEventArgs e) => await BeginScreenshotAsync();
     private void CancelCountdown_Click(object sender, RoutedEventArgs e) => _countdownCanceled = true;
     private async void Pause_Click(object sender, RoutedEventArgs e) => await PauseAsync();
     private async void Stop_Click(object sender, RoutedEventArgs e) => await StopAsync();
     private async void PickTarget_Click(object sender, RoutedEventArgs e) => await PickTargetAsync();
+
+    private async Task BeginScreenshotAsync()
+    {
+        if (_snip is not null)
+        {
+            return;
+        }
+
+        var session = new SnipSession();
+        _snip = session;
+        try
+        {
+            var result = await session.RunAsync(Settings.SaveFolder, WindowNative.GetWindowHandle(this));
+            if (result.Kind is SnipKind.SaveFailed or SnipKind.CopyFailed)
+            {
+                TellScreenshot(result.Message ?? UiCopy.T("shot.save.fail"), InfoBarSeverity.Error);
+            }
+            else if (result.Kind is SnipKind.Saved or SnipKind.Copied)
+            {
+                TellScreenshot(result.Message ?? "", InfoBarSeverity.Success);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_snip, session))
+            {
+                _snip = null;
+            }
+        }
+    }
+
+    private void TellScreenshot(string message, InfoBarSeverity severity)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        if (_hiddenForRecording)
+        {
+            if (severity == InfoBarSeverity.Error)
+            {
+                SnipNotice.Show(message);
+            }
+
+            return;
+        }
+
+        ShowBanner(message, severity);
+    }
 
     private async Task StartWithCountdownAsync()
     {
@@ -789,7 +837,7 @@ public sealed partial class MainWindow : Window
 
     private string NewOutputPath()
     {
-        var ext = _mode == CaptureMode.AudioOnly ? ".m4a" : ".mp4";
+        var ext = _mode == CaptureMode.AudioOnly ? ".m4a" : RecordingContainers.VideoExtension(Settings.RecordingFormat);
         return Path.Combine(Settings.SaveFolder, $"Luma-{DateTime.Now:yyyyMMdd-HHmmss}{ext}");
     }
 
@@ -975,7 +1023,7 @@ public sealed partial class MainWindow : Window
                 _target = picked;
             }
         }
-        else if (_mode is CaptureMode.Window or CaptureMode.Game)
+        else if (_mode == CaptureMode.Window)
         {
             var systemResult = await PickWithSystemCaptureAsync();
             if (systemResult == SystemPickResult.Unavailable)
@@ -1034,7 +1082,7 @@ public sealed partial class MainWindow : Window
         var windows = DisplayCatalog.ListWindows(gamesOnly: false);
         if (windows.Count == 0)
         {
-            ShowBanner(_mode == CaptureMode.Game ? UiCopy.T("sum.game.none") : UiCopy.T("sum.window.none"), InfoBarSeverity.Warning);
+            ShowBanner(UiCopy.T("sum.window.none"), InfoBarSeverity.Warning);
             return;
         }
 
@@ -1100,6 +1148,26 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    private static string? RequestedLanMode(JsonElement payload)
+    {
+        if (!payload.TryGetProperty("body", out var body) || body.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!body.TryGetProperty("mode", out var mode))
+        {
+            return null;
+        }
+
+        return mode.ValueKind switch
+        {
+            JsonValueKind.String => mode.GetString(),
+            JsonValueKind.Number => mode.GetRawText(),
+            _ => null
+        };
+    }
+
     private Task<JsonElement> HandleLanCommandAsync(JsonElement payload)
     {
         var done = new TaskCompletionSource<JsonElement>();
@@ -1128,6 +1196,11 @@ public sealed partial class MainWindow : Window
         switch (action)
         {
             case "start":
+                if (SessionStartRules.IsGameMode(RequestedLanMode(payload)) || _mode == CaptureMode.Game)
+                {
+                    return JsonSerializer.SerializeToElement(new { ok = false, error = "游戏录制已关闭。" });
+                }
+
                 if (_session.Phase is not SessionPhase.Idle)
                 {
                     return JsonSerializer.SerializeToElement(new { ok = false, error = "已有录制正在进行。" });

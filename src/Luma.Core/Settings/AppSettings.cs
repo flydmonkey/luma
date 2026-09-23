@@ -8,6 +8,7 @@ public sealed class AppSettings
     public CaptureMode LastMode { get; set; } = CaptureMode.Display;
     public int MonitorIndex { get; set; }
     public QualitySettings Quality { get; set; } = QualitySettings.FromLevel(QualityLevel.Hd, 30);
+    public string RecordingFormat { get; set; } = RecordingContainers.Mp4;
     public AudioSettings Audio { get; set; } = new();
     public OverlaySettings Overlay { get; set; } = new();
     public HotkeySettings Hotkeys { get; set; } = new();
@@ -88,6 +89,7 @@ public sealed class HotkeySettings
     public string Start { get; set; } = "Ctrl+Alt+R";
     public string Pause { get; set; } = "Ctrl+Alt+Shift+P";
     public string Stop { get; set; } = "Ctrl+Alt+S";
+    public string Screenshot { get; set; } = Capture.StillShot.FactoryHotkey;
 }
 
 public sealed class AutomationSettings

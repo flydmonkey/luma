@@ -48,10 +48,25 @@ public sealed class SettingsStore
             loaded.UiLanguage = UiLanguages.Normalize(loaded.UiLanguage);
             loaded.SaveFolder = AppSettings.ResolveSaveFolder(loaded.SaveFolder);
             loaded.Quality ??= QualitySettings.FromLevel(QualityLevel.Hd, 30);
+            loaded.RecordingFormat = RecordingContainers.Normalize(loaded.RecordingFormat);
             loaded.Audio ??= new AudioSettings();
             loaded.Overlay ??= new OverlaySettings();
             loaded.Hotkeys ??= new HotkeySettings();
+            loaded.Hotkeys.Screenshot = Capture.StillShot.NormalizeHotkey(loaded.Hotkeys.Screenshot);
             loaded.Automation ??= new AutomationSettings();
+            if (loaded.LastMode == CaptureMode.Game)
+            {
+                loaded.LastMode = CaptureMode.Display;
+            }
+
+            foreach (var rule in loaded.Automation.Schedules)
+            {
+                if (rule.Mode == CaptureMode.Game)
+                {
+                    rule.Mode = CaptureMode.Display;
+                }
+            }
+
             return loaded;
         }
     }

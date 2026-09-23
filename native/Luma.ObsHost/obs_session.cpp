@@ -588,6 +588,20 @@ void ObsShutdown()
     g_log.close();
 }
 
+static bool HasContainerExtension(std::string path, const std::string& extension)
+{
+    for (char& ch : path)
+    {
+        if (ch >= 'A' && ch <= 'Z')
+        {
+            ch = static_cast<char>(ch - 'A' + 'a');
+        }
+    }
+
+    return path.size() >= extension.size()
+        && path.compare(path.size() - extension.size(), extension.size(), extension) == 0;
+}
+
 bool ObsReady()
 {
     std::lock_guard lock(g_mutex);
@@ -618,7 +632,7 @@ SessionStatus ObsStart(const StartRequest& request)
     }
 
     std::string livePath = request.outputPath;
-    if (livePath.size() >= 4 && livePath.compare(livePath.size() - 4, 4, ".mp4") == 0)
+    if (HasContainerExtension(livePath, ".mp4") || HasContainerExtension(livePath, ".mov"))
     {
         livePath += ".partial.mkv";
     }
@@ -680,19 +694,23 @@ SessionStatus ObsStart(const StartRequest& request)
         g_videoSource = CreateInput("color_source", "luma-color", color);
         obs_data_release(color);
     }
-    else if (mode == "Window" || mode == "Game")
+    else if (mode == "Game")
+    {
+        return Fail("游戏录制已关闭。");
+    }
+    else if (mode == "Window")
     {
         if (request.windowId.empty() || request.windowId == "pending")
         {
-            return Fail("请先选择窗口或游戏目标。");
+            return Fail("请先选择窗口。");
         }
         obs_data_t* settings = obs_data_create();
         obs_data_set_string(settings, "window", request.windowId.c_str());
         obs_data_set_bool(settings, "capture_cursor", true);
         obs_data_set_int(settings, "priority", 2);
-        obs_data_set_int(settings, "method", mode == "Window" ? 2 : 0);
+        obs_data_set_int(settings, "method", 2);
         obs_data_set_int(settings, "capture_mode", 0);
-        g_videoSource = CreateInput(mode == "Game" ? "game_capture" : "window_capture", "luma-video", settings);
+        g_videoSource = CreateInput("window_capture", "luma-video", settings);
         obs_data_release(settings);
     }
     else

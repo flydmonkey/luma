@@ -12,6 +12,7 @@ public sealed class SettingsStoreTests
         Assert.Equal("system", settings.UiLanguage);
         Assert.Equal(12345, settings.Lan.Port);
         Assert.True(settings.Quality.HardwareEncoding);
+        Assert.Equal(RecordingContainers.Mp4, settings.RecordingFormat);
     }
 
     [Fact]
@@ -44,5 +45,22 @@ public sealed class SettingsStoreTests
         Assert.Equal(AppThemeMode.Dark, reset.Theme);
         Assert.Equal("system", reset.UiLanguage);
         Assert.Equal(12345, reset.Lan.Port);
+        Assert.Equal(RecordingContainers.Mp4, reset.RecordingFormat);
+    }
+
+    [Fact]
+    public void Unknown_recording_format_falls_back_to_mp4_and_mkv_is_kept()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "luma-tests", Guid.NewGuid().ToString("N"), "settings.json");
+        var store = new SettingsStore(path);
+        var settings = store.Load();
+        settings.RecordingFormat = "AVI";
+        store.Save(settings);
+        Assert.Equal(RecordingContainers.Mp4, new SettingsStore(path).Load().RecordingFormat);
+
+        settings.RecordingFormat = "mkv";
+        store.Save(settings);
+        Assert.Equal(RecordingContainers.Mkv, new SettingsStore(path).Load().RecordingFormat);
+        Assert.Equal(".mkv", RecordingContainers.VideoExtension("MKV"));
     }
 }

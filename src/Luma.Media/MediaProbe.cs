@@ -94,7 +94,8 @@ public static class MediaProbe
 
     public static void TryPoster(string mediaPath)
     {
-        if (!mediaPath.EndsWith(".mp4", StringComparison.OrdinalIgnoreCase))
+        if (!Luma.Core.Settings.RecordingContainers.IsVideo(mediaPath)
+            || mediaPath.EndsWith(".partial.mkv", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Luma.Core.Capture;
 using Luma.Core.Settings;
 
 namespace Luma.App.Services;
@@ -13,6 +14,7 @@ public sealed class HotkeyService : IDisposable
     public event Action? StartPressed;
     public event Action? PausePressed;
     public event Action? StopPressed;
+    public event Action? ScreenshotPressed;
 
     public HotkeyService()
     {
@@ -41,6 +43,7 @@ public sealed class HotkeyService : IDisposable
         TryRegister(1, settings.Start, failed);
         TryRegister(2, settings.Pause, failed);
         TryRegister(3, settings.Stop, failed);
+        TryRegister(4, settings.Screenshot, failed);
         if (failed.Count > 0)
         {
             throw new InvalidOperationException("无法注册热键 " + string.Join("、", failed) + "。");
@@ -59,6 +62,12 @@ public sealed class HotkeyService : IDisposable
 
     private void TryRegister(int id, string gesture, List<string> failed)
     {
+        if (StillShot.IsSystemSnip(gesture))
+        {
+            failed.Add(gesture);
+            return;
+        }
+
         Parse(gesture, out var modifiers, out var key);
         if (key == 0)
         {
@@ -81,6 +90,7 @@ public sealed class HotkeyService : IDisposable
         NativeMethods.UnregisterHotKey(_hwnd, 1);
         NativeMethods.UnregisterHotKey(_hwnd, 2);
         NativeMethods.UnregisterHotKey(_hwnd, 3);
+        NativeMethods.UnregisterHotKey(_hwnd, 4);
     }
 
     private nint WndProc(nint hwnd, uint msg, nint wParam, nint lParam)
@@ -92,6 +102,7 @@ public sealed class HotkeyService : IDisposable
                 case 1: StartPressed?.Invoke(); break;
                 case 2: PausePressed?.Invoke(); break;
                 case 3: StopPressed?.Invoke(); break;
+                case 4: ScreenshotPressed?.Invoke(); break;
             }
 
             return 0;
