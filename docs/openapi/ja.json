@@ -10,6 +10,7 @@
     "/api/v1/session/pause": { "post": { "summary": "一時停止または再開", "description": "進行中の録画を切り替えます。" } },
     "/api/v1/session/stop": { "post": { "summary": "停止", "description": "セッションを終了し、保存パスを返します。" } },
     "/api/v1/targets": { "get": { "summary": "対象一覧", "description": "ディスプレイ、ウィンドウ、カメラ、マイクを列挙します。選択はしません。" } },
+    "/api/v1/screenshot": { "get": { "summary": "ホスト静止画", "description": "仮想デスクトップのホスト画素静止画と、ディスプレイおよびウィンドウの矩形を返します。保存とコピーはブラウザー側です。" } },
     "/api/v1/settings": {
       "get": { "summary": "設定の読み取り", "description": "テーマ、言語、保存先、LAN 状態を返します。アクセスキーは空です。" },
       "patch": { "summary": "設定の更新", "description": "テーマ、言語、保存先を更新します。待ち受けポートは変更できません。" }

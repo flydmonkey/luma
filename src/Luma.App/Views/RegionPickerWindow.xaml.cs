@@ -24,6 +24,7 @@ public sealed partial class RegionPickerWindow : Window
         _display = display;
         _shot = screenshotPath;
         Title = UiCopy.T("pick.region");
+        AppIcon.Apply(this);
         HintText.Text = UiCopy.T("pick.region.hint");
         ConfirmButton.Content = UiCopy.T("common.ok");
         CancelButton.Content = UiCopy.T("common.cancel");

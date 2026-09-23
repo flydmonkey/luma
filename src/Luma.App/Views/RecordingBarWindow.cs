@@ -40,6 +40,7 @@ public sealed class RecordingBarWindow : Window
     public RecordingBarWindow(Func<TimeSpan> elapsed, Func<bool> isPaused, Func<Task> pause, Func<Task> stop, Action<bool> mute, bool micOn)
     {
         Title = "Luma";
+        AppIcon.Apply(this);
         AppWindow.IsShownInSwitchers = false;
         SystemBackdrop = new DesktopAcrylicBackdrop();
         _elapsed = elapsed;

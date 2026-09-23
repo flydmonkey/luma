@@ -16,14 +16,23 @@ public sealed class LanWebTests
         settings.Lan.Enabled = true;
         settings.Lan.Port = FreePort();
         settings.Lan.AccessKey = "";
+        settings.UiLanguage = "zh-Hans";
         using var server = new LanServer(store, () => settings);
         server.Start();
         Assert.True(server.IsRunning, server.LastError);
         using var client = new HttpClient();
         var html = await client.GetStringAsync($"http://127.0.0.1:{settings.Lan.Port}/");
-        Assert.Contains("data-page=\"record\"", html);
-        Assert.Contains("data-page=\"library\"", html);
-        Assert.Contains("data-page=\"settings\"", html);
+        Assert.Contains("id=\"recordPage\"", html);
+        Assert.Contains("id=\"libraryPage\"", html);
+        Assert.Contains("id=\"settingsPage\"", html);
+        var privacy = await client.GetStringAsync($"http://127.0.0.1:{settings.Lan.Port}/legal/privacy");
+        var terms = await client.GetStringAsync($"http://127.0.0.1:{settings.Lan.Port}/legal/terms");
+        var skill = await client.GetStringAsync($"http://127.0.0.1:{settings.Lan.Port}/skill");
+        var docs = await client.GetStringAsync($"http://127.0.0.1:{settings.Lan.Port}/api/docs");
+        Assert.Contains("隐私", privacy);
+        Assert.Contains("使用", terms);
+        Assert.Contains("Luma Control", skill);
+        Assert.Contains("rapi-doc", docs);
 
         using var patch = new StringContent("""{"lanPort":9}""", System.Text.Encoding.UTF8, "application/json");
         var response = await client.PatchAsync($"http://127.0.0.1:{settings.Lan.Port}/api/v1/settings", patch);

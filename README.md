@@ -56,15 +56,15 @@ Quality presets run from 720p to 4K. The default frame rate is 30 fps, and hardw
 
 The repository includes a [`luma-control`](.cursor/skills/luma-control/SKILL.md) skill. It talks to a running Luma instance through the LAN API. It does not click the WinUI window or invent routes from older Luma builds.
 
-A remote recording follows the desktop selection:
+A remote recording uses the same API as the page:
 
-1. Probe `GET /api/v1/session`. The factory address is `http://127.0.0.1:12345`.
+1. Probe `GET /api/v1`. The factory address is `http://127.0.0.1:12345`.
 2. If the port refuses the connection, LAN access is off. Stop and ask for it to be enabled.
-3. Read `phase`. List displays, windows, cameras, or microphones when you need to see what the PC can see.
-4. `POST /api/v1/session/start` records the target already chosen in the desktop app. Region and window must already be selected there. A `game` mode is rejected.
-5. Pause or stop, then read `phase` again.
+3. Read `GET /api/v1/session`. List displays, windows, cameras, or microphones when a choice is needed.
+4. `PUT /api/v1/target`, then `POST /api/v1/session/start`. Region and window need a chosen target. Game capture is rejected.
+5. Pause or stop, then read the session again.
 
-The API can also patch theme, UI language, and save folder, list the library, and delete one item after `confirm=true`. Rename, trim, compress, and repair stay on the desktop.
+The API can also patch settings, list and rename recordings, delete one item after `confirm=true`, and queue compress, trim, or repair jobs. Merge, captions, and music stay on the desktop.
 
 - [Skill](.cursor/skills/luma-control/SKILL.md)
 - [Control reference](.cursor/skills/luma-control/reference.md)

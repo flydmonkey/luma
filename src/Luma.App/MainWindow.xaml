@@ -7,7 +7,7 @@
     xmlns:local="using:Luma.App"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     Title="Luma">
-    <Grid Background="{ThemeResource SolidBackgroundFillColorBaseBrush}">
+    <Grid Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="48"/>
             <RowDefinition Height="*"/>

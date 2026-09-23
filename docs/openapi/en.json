@@ -10,6 +10,7 @@
     "/api/v1/session/pause": { "post": { "summary": "Pause or resume", "description": "Toggles the active recording." } },
     "/api/v1/session/stop": { "post": { "summary": "Stop", "description": "Ends the session and returns the saved path." } },
     "/api/v1/targets": { "get": { "summary": "Targets", "description": "Lists displays, windows, cameras, or microphones. Does not select one." } },
+    "/api/v1/screenshot": { "get": { "summary": "Host still", "description": "One host-pixel still of the virtual desktop, with monitor and window rectangles. Saving and copying stay in the browser." } },
     "/api/v1/settings": {
       "get": { "summary": "Read settings", "description": "Returns theme, language, save folder, and LAN status. The access key is empty." },
       "patch": { "summary": "Update settings", "description": "Updates theme, language, or save folder. The listen port cannot be changed." }

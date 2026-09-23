@@ -10,6 +10,7 @@
     "/api/v1/session/pause": { "post": { "summary": "일시정지 또는 재개", "description": "진행 중인 녹화를 전환합니다." } },
     "/api/v1/session/stop": { "post": { "summary": "정지", "description": "세션을 끝내고 저장 경로를 반환합니다." } },
     "/api/v1/targets": { "get": { "summary": "대상 목록", "description": "디스플레이, 창, 카메라, 마이크를 나열합니다. 선택하지는 않습니다." } },
+    "/api/v1/screenshot": { "get": { "summary": "호스트 정지 화면", "description": "가상 데스크톱의 호스트 픽셀 정지 화면과 모니터, 창 사각형을 반환합니다. 저장과 복사는 브라우저에서 합니다." } },
     "/api/v1/settings": {
       "get": { "summary": "설정 읽기", "description": "테마, 언어, 저장 폴더, LAN 상태를 반환합니다. 접근 키는 비어 있습니다." },
       "patch": { "summary": "설정 업데이트", "description": "테마, 언어, 저장 폴더를 업데이트합니다. 수신 포트는 바꿀 수 없습니다." }

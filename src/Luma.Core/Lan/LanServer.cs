@@ -3,8 +3,11 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
-using Luma.Core.Library;
+using Luma.Core.Capture;
+using Luma.Core.Legal;
+using Luma.Core.Localization;
 using Luma.Core.Settings;
+using Luma.Core.Skill;
 
 namespace Luma.Core.Lan;
 
@@ -12,8 +15,6 @@ public sealed class LanServer : IDisposable
 {
     private readonly SettingsStore _store;
     private readonly Func<AppSettings> _settings;
-    private readonly LibraryCatalog _library = new();
-    private readonly object _gate = new();
     private HttpListener? _listener;
     private CancellationTokenSource? _cts;
     private Task? _loop;
@@ -23,7 +24,13 @@ public sealed class LanServer : IDisposable
     public IReadOnlyList<string> BoundUrls { get; private set; } = [];
 
     public event Func<JsonElement, Task<JsonElement>>? SessionCommand;
+    public event Action? SettingsChanged;
     public Func<string, object>? ListTargets { get; set; }
+    public Func<WebStillPayload>? CaptureWebStill { get; set; }
+    public Func<int, WebStillPayload?>? CaptureWindowStill { get; set; }
+    public Func<byte[], Task<string?>>? RecognizeWebStill { get; set; }
+    public Func<string, string, string, Task<string>>? RunJob { get; set; }
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _sessions = new(StringComparer.Ordinal);
 
     public LanServer(SettingsStore store, Func<AppSettings> settings)
     {
@@ -179,142 +186,471 @@ public sealed class LanServer : IDisposable
 
     private async Task HandleAsync(HttpListenerContext context)
     {
-        var settings = _settings();
         var path = context.Request.Url?.AbsolutePath.TrimEnd('/').ToLowerInvariant() ?? "/";
         if (path.Length == 0)
         {
             path = "/";
         }
 
-        if (!Authorize(context.Request, settings.Lan.AccessKey) && path is not "/")
+        if (context.Request.HttpMethod == "GET" && await TryWriteDocumentAsync(context, path).ConfigureAwait(false))
         {
-            await WriteAsync(context.Response, 401, """{"error":"unauthorized"}""").ConfigureAwait(false);
+            return;
+        }
+
+        if (!Authorize(context))
+        {
+            if (path == "/unlock" && context.Request.HttpMethod == "POST")
+            {
+                await UnlockAsync(context).ConfigureAwait(false);
+                return;
+            }
+
+            if (path is "/favicon.ico" or "/favicon.png")
+            {
+                await WriteFaviconAsync(context, path).ConfigureAwait(false);
+                return;
+            }
+
+            if (context.Request.HttpMethod == "GET" && path is "/" or "/index.html")
+            {
+                await WriteHtml(context.Response, LanWebAssets.UnlockHtml(wrongKey: false)).ConfigureAwait(false);
+                return;
+            }
+
+            await WriteAsync(context.Response, 401, LanControlApi.Fail("需要访问密钥。")).ConfigureAwait(false);
             return;
         }
 
         try
         {
-            if (path is "/" or "/index.html")
+            if (path is "/" or "/index.html" or "/app.js" or "/app.css")
             {
-                await WriteHtml(context.Response, LanWebAssets.IndexHtml).ConfigureAwait(false);
-                return;
-            }
-
-            if (path == "/app.js")
-            {
-                await WriteAsync(context.Response, 200, LanWebAssets.AppJs, "application/javascript").ConfigureAwait(false);
-                return;
-            }
-
-            if (path == "/app.css")
-            {
-                await WriteAsync(context.Response, 200, LanWebAssets.AppCss, "text/css").ConfigureAwait(false);
-                return;
-            }
-
-            if (path == "/api/v1/settings" && context.Request.HttpMethod == "GET")
-            {
-                await WriteJson(context.Response, SettingsDto.From(settings, includeSecret: false)).ConfigureAwait(false);
-                return;
-            }
-
-            if (path == "/api/v1/settings" && context.Request.HttpMethod is "PATCH" or "POST")
-            {
-                using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
-                var body = await reader.ReadToEndAsync().ConfigureAwait(false);
-                var patch = JsonSerializer.Deserialize<JsonElement>(string.IsNullOrWhiteSpace(body) ? "{}" : body);
-                if (patch.TryGetProperty("lanPort", out _) || patch.TryGetProperty("port", out _))
+                var file = path is "/" or "/index.html" ? "index.html" : path.TrimStart('/');
+                if (!LanWebAssets.TryGet(file, out var type, out var body))
                 {
-                    await WriteAsync(context.Response, 400, """{"error":"listen port cannot be changed from the web API"}""").ConfigureAwait(false);
+                    await WriteAsync(context.Response, 404, LanControlApi.Fail("未找到这个页面。")).ConfigureAwait(false);
                     return;
                 }
 
-                SettingsDto.Apply(settings, patch);
-                _store.Save(settings);
-                await WriteJson(context.Response, SettingsDto.From(settings, includeSecret: false)).ConfigureAwait(false);
+                context.Response.Headers["Cache-Control"] = "no-cache";
+                await WriteBytesAsync(context.Response, 200, body, type).ConfigureAwait(false);
                 return;
             }
 
-            if (path == "/api/v1/library" && context.Request.HttpMethod == "GET")
+            if (path is "/favicon.ico" or "/favicon.png")
             {
-                await WriteJson(context.Response, _library.List(settings.SaveFolder)).ConfigureAwait(false);
+                await WriteFaviconAsync(context, path).ConfigureAwait(false);
                 return;
             }
 
-            if (path.StartsWith("/api/v1/library/", StringComparison.Ordinal) && context.Request.HttpMethod == "DELETE")
+            if (path.StartsWith("/api/v1", StringComparison.Ordinal))
             {
-                var confirm = context.Request.QueryString["confirm"];
-                if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
-                {
-                    await WriteAsync(context.Response, 400, """{"error":"confirmation is required"}""").ConfigureAwait(false);
-                    return;
-                }
-
-                var id = path["/api/v1/library/".Length..];
-                var item = _library.List(settings.SaveFolder).FirstOrDefault(x =>
-                    string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
-                if (item is null)
-                {
-                    await WriteAsync(context.Response, 404, """{"error":"not found"}""").ConfigureAwait(false);
-                    return;
-                }
-
-                _library.Delete(item.Path);
-                await WriteAsync(context.Response, 200, """{"ok":true}""").ConfigureAwait(false);
+                await DispatchApiAsync(context, path).ConfigureAwait(false);
                 return;
             }
 
-            if (path.StartsWith("/api/v1/targets", StringComparison.Ordinal) && context.Request.HttpMethod == "GET")
+            if (path.StartsWith("/media/", StringComparison.Ordinal) || path.StartsWith("/poster/", StringComparison.Ordinal))
             {
-                var kind = context.Request.QueryString["kind"] ?? "displays";
-                var targets = ListTargets?.Invoke(kind) ?? Array.Empty<object>();
-                await WriteJson(context.Response, targets).ConfigureAwait(false);
+                await WriteLibraryFileAsync(context, path).ConfigureAwait(false);
                 return;
             }
 
-            if (path.StartsWith("/api/v1/session", StringComparison.Ordinal) && SessionCommand is not null)
-            {
-                using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
-                var body = await reader.ReadToEndAsync().ConfigureAwait(false);
-                var json = JsonSerializer.Deserialize<JsonElement>(string.IsNullOrWhiteSpace(body) ? "{}" : body);
-                var payload = JsonSerializer.SerializeToElement(new
-                {
-                    path,
-                    method = context.Request.HttpMethod,
-                    body = json
-                });
-                var result = await SessionCommand(payload).ConfigureAwait(false);
-                await WriteJson(context.Response, result).ConfigureAwait(false);
-                return;
-            }
-
-            await WriteAsync(context.Response, 404, """{"error":"not found"}""").ConfigureAwait(false);
+            await WriteAsync(context.Response, 404, LanControlApi.Fail("未找到这个接口。")).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            await WriteAsync(context.Response, 500, JsonSerializer.Serialize(new { error = ex.Message })).ConfigureAwait(false);
+            await WriteAsync(context.Response, 500, LanControlApi.Fail(ex.Message)).ConfigureAwait(false);
         }
     }
 
-    private static bool Authorize(HttpListenerRequest request, string accessKey)
+    private async Task DispatchApiAsync(HttpListenerContext context, string path)
     {
+        var settings = _settings();
+        var relative = path.Length > "/api/v1".Length ? path["/api/v1".Length..] : "/";
+        if (relative.Length == 0)
+        {
+            relative = "/";
+        }
+
+        var query = context.Request.QueryString;
+        var method = context.Request.HttpMethod;
+        var bodyText = "";
+        if (method is "POST" or "PUT" or "PATCH")
+        {
+            using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+            bodyText = await reader.ReadToEndAsync().ConfigureAwait(false);
+        }
+
+        try
+        {
+            if (method == "GET" && relative is "/" or "")
+            {
+                await WriteAsync(context.Response, 200, LanControlApi.Ok(new { name = "luma", control = true })).ConfigureAwait(false);
+                return;
+            }
+
+            if ((relative.StartsWith("/session", StringComparison.Ordinal) || relative == "/target") && SessionCommand is not null)
+            {
+                var json = JsonSerializer.Deserialize<JsonElement>(string.IsNullOrWhiteSpace(bodyText) ? "{}" : bodyText);
+                var payload = JsonSerializer.SerializeToElement(new { path, method, body = json });
+                var result = await SessionCommand(payload).ConfigureAwait(false);
+                var status = result.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.False ? 400 : 200;
+                await WriteAsync(context.Response, status, result.GetRawText()).ConfigureAwait(false);
+                return;
+            }
+
+            if (method == "GET" && relative == "/screenshot")
+            {
+                var windowIndexText = query["windowIndex"];
+                if (!string.IsNullOrEmpty(windowIndexText))
+                {
+                    if (CaptureWindowStill is null || !int.TryParse(windowIndexText, out var windowIndex))
+                    {
+                        await WriteAsync(context.Response, 400, LanControlApi.Fail("没有可截取的窗口。")).ConfigureAwait(false);
+                        return;
+                    }
+
+                    var windowShot = CaptureWindowStill(windowIndex);
+                    if (windowShot is null)
+                    {
+                        await WriteAsync(context.Response, 400, LanControlApi.Fail("没有可截取的窗口。")).ConfigureAwait(false);
+                        return;
+                    }
+
+                    await WriteAsync(context.Response, 200, LanControlApi.Ok(windowShot)).ConfigureAwait(false);
+                    return;
+                }
+
+                if (CaptureWebStill is null)
+                {
+                    await WriteAsync(context.Response, 400, LanControlApi.Fail("没有可截取的显示器。")).ConfigureAwait(false);
+                    return;
+                }
+
+                var shot = CaptureWebStill();
+                await WriteAsync(context.Response, 200, LanControlApi.Ok(shot)).ConfigureAwait(false);
+                return;
+            }
+
+            if (method == "POST" && relative == "/screenshot/ocr")
+            {
+                var png = ScreenshotPng(bodyText);
+                if (png.Length == 0)
+                {
+                    await WriteAsync(context.Response, 400, LanControlApi.Fail("空图片。")).ConfigureAwait(false);
+                    return;
+                }
+
+                string? text = null;
+                if (RecognizeWebStill is not null)
+                {
+                    text = await RecognizeWebStill(png).ConfigureAwait(false);
+                }
+
+                await WriteAsync(context.Response, 200, LanControlApi.Ok(new { text })).ConfigureAwait(false);
+                return;
+            }
+
+            if (method == "GET" && (relative.StartsWith("/targets", StringComparison.Ordinal)))
+            {
+                var kind = relative.StartsWith("/targets/", StringComparison.Ordinal)
+                    ? relative["/targets/".Length..]
+                    : query["kind"] ?? "displays";
+                var listed = ListTargets?.Invoke(kind) ?? Array.Empty<object>();
+                await WriteAsync(context.Response, 200, LanControlApi.Ok(LanControlApi.Targets(listed))).ConfigureAwait(false);
+                return;
+            }
+
+            if (relative == "/settings" && method == "GET")
+            {
+                await WriteAsync(context.Response, 200, LanControlApi.Ok(LanControlApi.SettingsForClient(settings))).ConfigureAwait(false);
+                return;
+            }
+
+            if (relative == "/settings" && method is "PATCH" or "POST")
+            {
+                var patch = JsonSerializer.Deserialize<JsonElement>(string.IsNullOrWhiteSpace(bodyText) ? "{}" : bodyText);
+                var updated = LanControlApi.ApplySettings(settings, patch);
+                _store.Save(updated);
+                CopySettings(updated, settings);
+                SettingsChanged?.Invoke();
+                await WriteAsync(context.Response, 200, LanControlApi.Ok(LanControlApi.SettingsForClient(settings))).ConfigureAwait(false);
+                return;
+            }
+
+            if (relative == "/settings/reset" && method == "POST")
+            {
+                var reset = LanControlApi.Reset(settings);
+                _store.Save(reset);
+                CopySettings(reset, settings);
+                SettingsChanged?.Invoke();
+                await WriteAsync(context.Response, 200, LanControlApi.Ok(LanControlApi.SettingsForClient(settings))).ConfigureAwait(false);
+                return;
+            }
+
+            if (relative == "/library" && method == "GET")
+            {
+                await WriteAsync(context.Response, 200, LanControlApi.Ok(LanControlApi.LibraryList(settings.SaveFolder))).ConfigureAwait(false);
+                return;
+            }
+
+            if (relative.StartsWith("/library/", StringComparison.Ordinal))
+            {
+                await DispatchLibraryAsync(context, settings.SaveFolder, relative["/library/".Length..], method, query["confirm"], bodyText).ConfigureAwait(false);
+                return;
+            }
+
+            if (method == "GET" && relative.StartsWith("/jobs/", StringComparison.Ordinal))
+            {
+                var job = LanControlApi.Job(Uri.UnescapeDataString(relative["/jobs/".Length..]));
+                await WriteAsync(context.Response, job is null ? 404 : 200, job is null ? LanControlApi.Fail("未找到这个作业。") : LanControlApi.Ok(job)).ConfigureAwait(false);
+                return;
+            }
+
+            await WriteAsync(context.Response, 404, LanControlApi.Fail("未找到这个接口。")).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            var status = ex.Message.Contains("confirm", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("不能", StringComparison.Ordinal) ? 400 : 400;
+            await WriteAsync(context.Response, status, LanControlApi.Fail(ex.Message)).ConfigureAwait(false);
+        }
+    }
+
+    private async Task DispatchLibraryAsync(HttpListenerContext context, string folder, string rest, string method, string? confirm, string bodyText)
+    {
+        var parts = rest.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            await WriteAsync(context.Response, 404, LanControlApi.Fail("未找到这个文件。")).ConfigureAwait(false);
+            return;
+        }
+
+        var id = Uri.UnescapeDataString(parts[0]);
+        if (parts.Length == 1 && method == "PATCH")
+        {
+            using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(bodyText) ? "{}" : bodyText);
+            var name = doc.RootElement.TryGetProperty("name", out var value) ? value.GetString() : null;
+            await WriteAsync(context.Response, 200, LanControlApi.Ok(LanControlApi.Rename(folder, id, name ?? ""))).ConfigureAwait(false);
+            return;
+        }
+
+        if (parts.Length == 1 && method == "DELETE")
+        {
+            LanControlApi.Delete(folder, id, string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase));
+            await WriteAsync(context.Response, 200, LanControlApi.Ok(new { deleted = id })).ConfigureAwait(false);
+            return;
+        }
+
+        if (parts.Length == 2 && method == "POST")
+        {
+            var item = LanControlApi.Find(folder, id) ?? throw new InvalidOperationException("未找到这个文件。");
+            var jobId = LanControlApi.EnqueueJob(parts[1], item.Path, bodyText, RunJob);
+            await WriteAsync(context.Response, 200, LanControlApi.Ok(new { jobId })).ConfigureAwait(false);
+        }
+    }
+
+    private async Task WriteLibraryFileAsync(HttpListenerContext context, string path)
+    {
+        var poster = path.StartsWith("/poster/", StringComparison.Ordinal);
+        var id = Uri.UnescapeDataString(path[(poster ? "/poster/" : "/media/").Length..]);
+        var item = LanControlApi.Find(_settings().SaveFolder, id);
+        if (item is null)
+        {
+            await WriteAsync(context.Response, 404, LanControlApi.Fail("未找到这个文件。")).ConfigureAwait(false);
+            return;
+        }
+
+        var file = poster ? item.PosterPath : item.Path;
+        if (string.IsNullOrWhiteSpace(file) || !File.Exists(file))
+        {
+            await WriteAsync(context.Response, 404, LanControlApi.Fail("未找到这个文件。")).ConfigureAwait(false);
+            return;
+        }
+
+        var type = poster ? "image/jpeg" : ContentTypeFor(file);
+        await WriteBytesAsync(context.Response, 200, await File.ReadAllBytesAsync(file).ConfigureAwait(false), type).ConfigureAwait(false);
+    }
+
+    private static byte[] ScreenshotPng(string bodyText)
+    {
+        if (string.IsNullOrWhiteSpace(bodyText))
+        {
+            return [];
+        }
+
+        using var doc = JsonDocument.Parse(bodyText);
+        if (!doc.RootElement.TryGetProperty("png", out var value) || value.ValueKind != JsonValueKind.String)
+        {
+            return [];
+        }
+
+        var text = value.GetString();
+        return string.IsNullOrWhiteSpace(text) ? [] : Convert.FromBase64String(text);
+    }
+
+    private static string ContentTypeFor(string path)
+    {
+        var ext = Path.GetExtension(path);
+        return ext.ToLowerInvariant() switch
+        {
+            ".m4a" or ".aac" => "audio/mp4",
+            ".mp3" => "audio/mpeg",
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            _ => "video/mp4"
+        };
+    }
+
+    private static void CopySettings(AppSettings source, AppSettings target)
+    {
+        var json = JsonSerializer.Serialize(source, LanControlApi.Json);
+        var copy = JsonSerializer.Deserialize<AppSettings>(json, LanControlApi.Json) ?? source;
+        target.SaveFolder = copy.SaveFolder;
+        target.LastMode = copy.LastMode;
+        target.MonitorIndex = copy.MonitorIndex;
+        target.Quality = copy.Quality;
+        target.RecordingFormat = copy.RecordingFormat;
+        target.Audio = copy.Audio;
+        target.Overlay = copy.Overlay;
+        target.Hotkeys = copy.Hotkeys;
+        target.Automation = copy.Automation;
+        target.CloseToTray = copy.CloseToTray;
+        target.LaunchToTray = copy.LaunchToTray;
+        target.HideTrayIcon = copy.HideTrayIcon;
+        target.ShowRecordingBar = copy.ShowRecordingBar;
+        target.SilentMode = copy.SilentMode;
+        target.Theme = copy.Theme;
+        target.UiLanguage = copy.UiLanguage;
+        target.Lan = copy.Lan;
+    }
+
+    private async Task<bool> TryWriteDocumentAsync(HttpListenerContext context, string path)
+    {
+        var settings = _settings();
+        var dark = settings.Theme != AppThemeMode.Light;
+        var locale = UiLanguages.ResolveEffective(settings.UiLanguage);
+        if (path is "/legal/privacy" or "/legal/terms")
+        {
+            var document = path.EndsWith("terms", StringComparison.Ordinal) ? LegalDocuments.Terms : LegalDocuments.Privacy;
+            var html = LegalDocuments.ApplyTheme(LegalDocuments.ReadHtml(document, locale), dark);
+            await WriteHtml(context.Response, html).ConfigureAwait(false);
+            return true;
+        }
+
+        if (path is "/openapi.json" or "/skill/openapi.json")
+        {
+            var lang = context.Request.QueryString["lang"];
+            await WriteAsync(context.Response, 200, OpenApiDocument.Render(string.IsNullOrWhiteSpace(lang) ? locale : lang)).ConfigureAwait(false);
+            return true;
+        }
+
+        if (path == "/api/docs")
+        {
+            await WriteHtml(context.Response, OpenApiDocument.DocsHtml(dark, locale)).ConfigureAwait(false);
+            return true;
+        }
+
+        if (path == "/rapidoc-min.js")
+        {
+            if (!LanWebAssets.TryGet("rapidoc-min.js", out var type, out var body))
+            {
+                await WriteAsync(context.Response, 404, LanControlApi.Fail("未找到这个页面。")).ConfigureAwait(false);
+                return true;
+            }
+
+            await WriteBytesAsync(context.Response, 200, body, type).ConfigureAwait(false);
+            return true;
+        }
+
+        if (path == "/skill/reference.md")
+        {
+            await WriteAsync(context.Response, 200, ControlSkillDocument.ReadReference(), "text/markdown; charset=utf-8").ConfigureAwait(false);
+            return true;
+        }
+
+        if (path == "/skill")
+        {
+            await WriteHtml(context.Response, ControlSkillDocument.ToHtml(dark)).ConfigureAwait(false);
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task UnlockAsync(HttpListenerContext context)
+    {
+        using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);
+        var body = await reader.ReadToEndAsync().ConfigureAwait(false);
+        var key = "";
+        foreach (var part in body.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pair = part.Split('=', 2);
+            if (pair.Length == 2 && pair[0] == "access_key")
+            {
+                key = Uri.UnescapeDataString(pair[1].Replace("+", " ", StringComparison.Ordinal));
+            }
+        }
+
+        if (!string.Equals(key, _settings().Lan.AccessKey, StringComparison.Ordinal))
+        {
+            await WriteHtml(context.Response, LanWebAssets.UnlockHtml(wrongKey: true)).ConfigureAwait(false);
+            return;
+        }
+
+        var token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+        _sessions[token] = 1;
+        context.Response.StatusCode = 302;
+        context.Response.RedirectLocation = "/";
+        context.Response.Headers["Set-Cookie"] = $"luma_lan={token}; HttpOnly; Path=/; SameSite=Lax";
+        context.Response.Close();
+    }
+
+    private Task WriteFaviconAsync(HttpListenerContext context, string path)
+    {
+        var file = Path.Combine(AppContext.BaseDirectory, "Assets", path.TrimStart('/'));
+        if (!File.Exists(file))
+        {
+            return WriteAsync(context.Response, 404, LanControlApi.Fail("未找到这个文件。"));
+        }
+
+        var type = path.EndsWith(".png", StringComparison.Ordinal) ? "image/png" : "image/x-icon";
+        return WriteBytesAsync(context.Response, 200, File.ReadAllBytes(file), type);
+    }
+
+    private bool Authorize(HttpListenerContext context)
+    {
+        var accessKey = _settings().Lan.AccessKey;
         if (string.IsNullOrEmpty(accessKey))
         {
             return true;
         }
 
+        var request = context.Request;
         var header = request.Headers["X-Record-Key"] ?? request.Headers["Authorization"];
-        if (header is null)
+        if (header is not null)
         {
-            return false;
+            if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                header = header["Bearer ".Length..];
+            }
+
+            if (string.Equals(header, accessKey, StringComparison.Ordinal))
+            {
+                return true;
+            }
         }
 
-        if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        var cookie = request.Headers["Cookie"] ?? "";
+        foreach (var part in cookie.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            header = header["Bearer ".Length..];
+            var pair = part.Split('=', 2);
+            if (pair.Length == 2 && pair[0] == "luma_lan" && _sessions.ContainsKey(pair[1]))
+            {
+                return true;
+            }
         }
 
-        return string.Equals(header, accessKey, StringComparison.Ordinal);
+        return false;
     }
 
     private static Task WriteHtml(HttpListenerResponse response, string html) =>
@@ -322,6 +658,15 @@ public sealed class LanServer : IDisposable
 
     private static Task WriteJson(HttpListenerResponse response, object value) =>
         WriteAsync(response, 200, JsonSerializer.Serialize(value), "application/json");
+
+    private static async Task WriteBytesAsync(HttpListenerResponse response, int status, byte[] bytes, string contentType)
+    {
+        response.StatusCode = status;
+        response.ContentType = contentType;
+        response.ContentLength64 = bytes.Length;
+        await response.OutputStream.WriteAsync(bytes).ConfigureAwait(false);
+        response.Close();
+    }
 
     private static async Task WriteAsync(HttpListenerResponse response, int status, string body, string contentType = "application/json")
     {
@@ -334,39 +679,4 @@ public sealed class LanServer : IDisposable
     }
 
     public void Dispose() => Stop();
-}
-
-internal static class SettingsDto
-{
-    public static object From(AppSettings settings, bool includeSecret) => new
-    {
-        theme = settings.Theme.ToString(),
-        uiLanguage = settings.UiLanguage,
-        saveFolder = settings.SaveFolder,
-        hardwareEncoding = settings.Quality.HardwareEncoding,
-        lanEnabled = settings.Lan.Enabled,
-        lanPort = settings.Lan.Port,
-        accessKey = includeSecret ? settings.Lan.AccessKey : ""
-    };
-
-    public static void Apply(AppSettings settings, JsonElement patch)
-    {
-        if (patch.TryGetProperty("saveFolder", out var folder) && folder.ValueKind == JsonValueKind.String)
-        {
-            settings.SaveFolder = folder.GetString() ?? settings.SaveFolder;
-        }
-
-        if (patch.TryGetProperty("theme", out var theme) && theme.ValueKind == JsonValueKind.String)
-        {
-            if (Enum.TryParse<AppThemeMode>(theme.GetString(), true, out var mode))
-            {
-                settings.Theme = mode;
-            }
-        }
-
-        if (patch.TryGetProperty("uiLanguage", out var language) && language.ValueKind == JsonValueKind.String)
-        {
-            settings.UiLanguage = language.GetString() ?? settings.UiLanguage;
-        }
-    }
 }

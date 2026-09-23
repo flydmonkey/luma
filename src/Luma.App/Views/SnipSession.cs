@@ -752,6 +752,7 @@ public sealed class SnipOverlayWindow : Window
     {
         _display = display;
         Title = "Luma.Snip";
+        AppIcon.Apply(this);
         AppWindow.IsShownInSwitchers = false;
         SystemBackdrop = null;
         Hwnd = WindowNative.GetWindowHandle(this);

@@ -3,7 +3,7 @@
   "info": {
     "title": "Luma",
     "version": "1.0.0",
-    "description": "Local LAN control API for this Luma build. Session routes return {ok, phase, error?, path?}. Settings and library routes return their payload directly. Errors from the HTTP layer are {error}. Send X-Record-Key or Authorization: Bearer when an access key is stored. Factory host is http://127.0.0.1:12345. Start records the target already selected on the desktop; there is no target-select route."
+    "description": "Local LAN control API. Responses are { ok, data, error }. Factory host is http://127.0.0.1:12345. Game capture is closed. PUT /api/v1/target selects display, region, window, or audio before POST /session/start. Settings cannot change the listen port. Library compress, trim, and repair are jobs."
   },
   "servers": [
     { "url": "/", "description": "This LAN host" },
@@ -18,6 +18,7 @@
     { "name": "Shell" },
     { "name": "Session" },
     { "name": "Targets" },
+    { "name": "Screenshot" },
     { "name": "Settings" },
     { "name": "Library" }
   ],
@@ -141,6 +142,41 @@
           "SizeText": { "type": "string" },
           "DurationText": { "type": "string" },
           "DateText": { "type": "string" }
+        }
+      },
+      "ScreenshotRect": {
+        "type": "object",
+        "required": ["x", "y", "width", "height"],
+        "properties": {
+          "x": { "type": "integer", "description": "Pixels from the left of the still." },
+          "y": { "type": "integer", "description": "Pixels from the top of the still." },
+          "width": { "type": "integer" },
+          "height": { "type": "integer" }
+        }
+      },
+      "ScreenshotWindow": {
+        "type": "object",
+        "required": ["id", "title", "x", "y", "width", "height"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "x": { "type": "integer" },
+          "y": { "type": "integer" },
+          "width": { "type": "integer" },
+          "height": { "type": "integer" }
+        }
+      },
+      "ScreenshotStill": {
+        "type": "object",
+        "required": ["originX", "originY", "width", "height", "png", "monitors", "windows"],
+        "properties": {
+          "originX": { "type": "integer", "description": "Virtual-desktop origin of the still, in host pixels." },
+          "originY": { "type": "integer" },
+          "width": { "type": "integer", "description": "Still width in host pixels. This is not a scaled preview." },
+          "height": { "type": "integer", "description": "Still height in host pixels." },
+          "png": { "type": "string", "description": "Base64 PNG of the full still at host pixel size." },
+          "monitors": { "type": "array", "items": { "$ref": "#/components/schemas/ScreenshotRect" } },
+          "windows": { "type": "array", "items": { "$ref": "#/components/schemas/ScreenshotWindow" } }
         }
       },
       "DeleteOk": {
@@ -273,6 +309,63 @@
             }
           },
           "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/screenshot": {
+      "get": {
+        "tags": ["Screenshot"],
+        "summary": "Host still",
+        "description": "Returns one still of the host virtual desktop at host pixel size, plus monitor and window rectangles in that still. windowIndex, matching GET /targets/windows, returns that window's own pixels instead of the desktop. Does not write a PNG, change the clipboard, or start, pause, or stop a recording. The browser crops, saves, and copies locally. There is no save or copy route.",
+        "responses": {
+          "200": {
+            "description": "Still payload. data.png is the full host-pixel PNG.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["ok", "data"],
+                  "properties": {
+                    "ok": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/ScreenshotStill" },
+                    "error": { "type": "string", "nullable": true }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No display could be captured.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["ok", "error"],
+                  "properties": {
+                    "ok": { "type": "boolean", "example": false },
+                    "data": { "nullable": true },
+                    "error": { "type": "string", "example": "没有可截取的显示器。" }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Access key is stored and the client is not unlocked. No screen pixels are returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["ok", "error"],
+                  "properties": {
+                    "ok": { "type": "boolean", "example": false },
+                    "data": { "nullable": true },
+                    "error": { "type": "string", "example": "需要访问密钥。" }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },

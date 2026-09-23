@@ -309,7 +309,7 @@ public sealed partial class MainWindow
         {
             HomeMonitorBox.Items.Add(new ComboBoxItem
             {
-                Content = UiCopy.Tf("sum.display", $"{display.Index + 1}  {display.Width}x{display.Height}"),
+                Content = DisplayCaption(display),
                 Tag = display.Index
             });
         }
@@ -762,7 +762,7 @@ public sealed partial class MainWindow
             var display = DisplayCatalog.ListDisplays().FirstOrDefault(d => d.Index == index);
             if (display is not null)
             {
-                item.Content = UiCopy.Tf("sum.display", $"{display.Index + 1}  {display.Width}x{display.Height}");
+                item.Content = DisplayCaption(display);
             }
         }
     }
@@ -1060,21 +1060,20 @@ public sealed partial class MainWindow
         }
     }
 
-    private async void PrivacyCard_Click(object sender, RoutedEventArgs e) => await ShowTextAsync(UiCopy.T("about.privacy"), UiCopy.T("about.privacy.body"));
-    private async void TermsCard_Click(object sender, RoutedEventArgs e) => await ShowTextAsync(UiCopy.T("about.terms"), UiCopy.T("about.terms.body"));
-    private async void ProjectCard_Click(object sender, RoutedEventArgs e) => await Launcher.LaunchUriAsync(new Uri("https://github.com/flydmonkey/luma"));
-    private async void ApiDocsCard_Click(object sender, RoutedEventArgs e) => await ShowTextAsync(UiCopy.T("about.docs"), UiCopy.T("about.docs.body"));
-    private async void SkillCard_Click(object sender, RoutedEventArgs e) => await ShowTextAsync(UiCopy.T("about.skill"), UiCopy.T("about.skill.body"));
+    private async void PrivacyCard_Click(object sender, RoutedEventArgs e) => await OpenSiteAsync($"luma/docs/legal/{DocLocale()}/privacy.html");
+    private async void TermsCard_Click(object sender, RoutedEventArgs e) => await OpenSiteAsync($"luma/docs/legal/{DocLocale()}/terms.html");
+    private async void ProjectCard_Click(object sender, RoutedEventArgs e) => await OpenSiteAsync("luma/");
+    private async void ApiDocsCard_Click(object sender, RoutedEventArgs e) => await OpenSiteAsync("luma/docs/openapi/openapi.json");
+    private async void SkillCard_Click(object sender, RoutedEventArgs e) => await OpenSiteAsync("luma-website/skill/");
 
-    private async Task ShowTextAsync(string title, string body)
+    private static string DocLocale()
     {
-        var dialog = new ContentDialog
-        {
-            Title = title,
-            Content = new TextBlock { Text = body, TextWrapping = TextWrapping.Wrap },
-            CloseButtonText = UiCopy.T("common.ok"),
-            XamlRoot = Content.XamlRoot
-        };
-        await dialog.ShowAsync();
+        var lang = UiCopy.Lang;
+        return lang is UiLanguages.English or UiLanguages.SimplifiedChinese or UiLanguages.TraditionalChinese or UiLanguages.Japanese or UiLanguages.Korean
+            ? lang
+            : UiLanguages.English;
     }
+
+    private static Task OpenSiteAsync(string relative)
+        => Launcher.LaunchUriAsync(new Uri("https://flydmonkey.github.io/" + relative)).AsTask();
 }

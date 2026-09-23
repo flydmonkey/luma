@@ -32,6 +32,33 @@ public static class StillShotOcr
         return result.Text?.Trim() ?? "";
     }
 
+    public static async Task<string?> RecognizePngAsync(byte[] png)
+    {
+        if (png.Length == 0)
+        {
+            return "";
+        }
+
+        using var stream = new MemoryStream(png);
+        using var bitmap = new Bitmap(stream);
+        var data = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+        try
+        {
+            var rowBytes = bitmap.Width * 4;
+            var pixels = new byte[rowBytes * bitmap.Height];
+            for (var row = 0; row < bitmap.Height; row++)
+            {
+                Marshal.Copy(IntPtr.Add(data.Scan0, row * data.Stride), pixels, row * rowBytes, rowBytes);
+            }
+
+            return await RecognizeAsync(new StillPixels(bitmap.Width, bitmap.Height, pixels)).ConfigureAwait(false);
+        }
+        finally
+        {
+            bitmap.UnlockBits(data);
+        }
+    }
+
     private static OcrEngine? CreateEngine()
     {
         var preferred = new Language(UiLanguages.FrameworkTag(UiCopy.Lang));

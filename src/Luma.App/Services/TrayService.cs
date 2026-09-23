@@ -131,6 +131,17 @@ public sealed class TrayService : IDisposable
     {
         try
         {
+            var file = recording || paused ? AppIcon.RecordingPath : AppIcon.IdlePath;
+            if (File.Exists(file))
+            {
+                var next = new Icon(file, 16, 16);
+                _icon.UpdateIcon(next);
+                var previous = _trayIcon;
+                _trayIcon = next;
+                previous?.Dispose();
+                return;
+            }
+
             var back = paused
                 ? Color.FromArgb(180, 120, 0)
                 : recording
@@ -143,11 +154,11 @@ public sealed class TrayService : IDisposable
             using var brush = new SolidBrush(dot);
             g.FillEllipse(brush, 4, 4, 8, 8);
             var handle = bitmap.GetHicon();
-            var next = Icon.FromHandle(handle);
-            _icon.UpdateIcon(next);
-            var previous = _trayIcon;
-            _trayIcon = next;
-            previous?.Dispose();
+            var nextFallback = Icon.FromHandle(handle);
+            _icon.UpdateIcon(nextFallback);
+            var previousFallback = _trayIcon;
+            _trayIcon = nextFallback;
+            previousFallback?.Dispose();
         }
         catch
         {

@@ -10,6 +10,7 @@
     "/api/v1/session/pause": { "post": { "summary": "暫停或繼續", "description": "切換正在進行的錄製。" } },
     "/api/v1/session/stop": { "post": { "summary": "停止", "description": "結束工作階段並回傳儲存路徑。" } },
     "/api/v1/targets": { "get": { "summary": "目標清單", "description": "列出顯示器、視窗、攝影機或麥克風。不會選取其中一項。" } },
+    "/api/v1/screenshot": { "get": { "summary": "主機靜止圖", "description": "回傳虛擬桌面的一張主機像素靜止圖，以及顯示器與視窗矩形。儲存和複製留在瀏覽器。" } },
     "/api/v1/settings": {
       "get": { "summary": "讀取設定", "description": "回傳主題、語言、儲存目錄和區域網路狀態。存取金鑰為空。" },
       "patch": { "summary": "更新設定", "description": "更新主題、語言或儲存目錄。不能修改監聽埠。" }

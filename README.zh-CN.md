@@ -56,15 +56,15 @@ Luma 可以录制显示器、区域、窗口，或只留下声音，也可以截
 
 仓库自带 [`luma-control`](.cursor/skills/luma-control/SKILL.md)。它只通过局域网接口操作正在运行的 Luma，不点击 WinUI 窗口，也不沿用旧版里已经不存在的路径。
 
-远程录制跟随桌面当前的选择：
+远程录制和网页用的是同一套接口：
 
-1. 请求 `GET /api/v1/session`。出厂地址是 `http://127.0.0.1:12345`。
+1. 请求 `GET /api/v1`。出厂地址是 `http://127.0.0.1:12345`。
 2. 端口拒绝连接时，说明局域网没开。停下来，请用户打开。
-3. 读取 `phase`。需要了解这台电脑能看到什么时，再列出显示器、窗口、摄像头或麦克风。
-4. `POST /api/v1/session/start` 录的是桌面里已经选好的目标。区域和窗口必须先在桌面选好。`game` 会被拒绝。
-5. 暂停或停止后，再读一次 `phase`。
+3. 读取 `GET /api/v1/session`。需要选择时，再列出显示器、窗口、摄像头或麦克风。
+4. 先 `PUT /api/v1/target`，再 `POST /api/v1/session/start`。区域和窗口必须带上已选目标。游戏采集会被拒绝。
+5. 暂停或停止后，再读一次会话。
 
-接口还可以修改主题、界面语言和保存目录，列出片库，并在带上 `confirm=true` 后删除一条。改名、剪切、压缩和修复留在桌面。
+接口还可以修改设置、列出和重命名成片，在带上 `confirm=true` 后删除，以及排队压缩、剪切和修复。合并、字幕和配乐留在桌面。
 
 - [Skill](.cursor/skills/luma-control/SKILL.md)
 - [控制参考](.cursor/skills/luma-control/reference.md)

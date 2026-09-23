@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark" data-shell="record">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Luma</title>
+  <link rel="icon" href="/favicon.png?v=luma2" type="image/png" sizes="32x32">
+  <link rel="shortcut icon" href="/favicon.ico?v=luma2">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div class="shell" id="shell">
+  <header class="top">
+    <div class="brand">
+      <button id="backBtn" type="button" hidden title="返回" aria-label="返回">
+        <span class="icon" aria-hidden="true">&#xE72B;</span>
+      </button>
+      <span id="recBadge" class="rec" hidden></span>
+      <span id="pageLabel" class="page">录制</span>
+    </div>
+    <nav class="nav">
+      <button type="button" data-go="library" title="我的视频" aria-label="我的视频">
+        <span class="icon" aria-hidden="true">&#xE8B7;</span>
+      </button>
+      <button type="button" data-go="settings" title="设置" aria-label="设置">
+        <span class="icon" aria-hidden="true">&#xE713;</span>
+      </button>
+    </nav>
+  </header>
+
+  <main id="recordPage" class="page-body record">
+    <p id="elapsed" class="elapsed" hidden>00:00:00</p>
+    <p id="status" class="status">显示器  ·  系统声开 · 麦关</p>
+    <div class="modes" role="group" data-i18n-aria="modes.aria" aria-label="采集模式">
+      <button type="button" class="mode on" data-mode="fullscreen">
+        <span class="icon" aria-hidden="true">&#xE7F8;</span>
+        <span>显示器</span>
+      </button>
+      <button type="button" class="mode" data-mode="region">
+        <span class="icon" aria-hidden="true">&#xE7A8;</span>
+        <span>区域</span>
+      </button>
+      <button type="button" class="mode" data-mode="window">
+        <span class="icon" aria-hidden="true">&#xE8A7;</span>
+        <span>窗口</span>
+      </button>
+      <button type="button" class="mode" id="shotBtn">
+        <span class="icon" aria-hidden="true">&#xE722;</span>
+        <span data-i18n="mode.shot">截图</span>
+      </button>
+      <button type="button" class="mode" data-mode="audio">
+        <span class="icon" aria-hidden="true">&#xE189;</span>
+        <span>录音</span>
+      </button>
+    </div>
+    <div class="quick">
+      <label class="toggle">系统声
+        <span class="toggle-ui"><input id="homeSystem" type="checkbox" checked><i></i></span>
+      </label>
+      <label class="toggle">麦
+        <span class="toggle-ui"><input id="homeMic" type="checkbox"><i></i></span>
+      </label>
+      <div class="field">
+        <span data-i18n="home.quality">清晰度</span>
+        <div class="combo-box">
+          <select id="homeQuality" class="combo-native" tabindex="-1" aria-hidden="true">
+            <option value="0">720p</option>
+            <option value="1" selected>1080p</option>
+            <option value="2">1440p</option>
+            <option value="3">4K</option>
+          </select>
+          <button type="button" id="homeQualityBtn" class="combo-btn" aria-haspopup="listbox" aria-expanded="false">1080p</button>
+          <ul id="homeQualityList" class="combo-list" hidden role="listbox"></ul>
+        </div>
+      </div>
+    </div>
+    <div id="targetPane" class="target-pane"></div>
+    <p id="recordError" class="err" hidden></p>
+    <button id="startBtn" type="button" class="accent wide">开始录制</button>
+    <div id="liveBtns" class="split" hidden>
+      <button id="pauseBtn" type="button">暂停</button>
+      <button id="stopBtn" type="button">停止</button>
+    </div>
+    <div id="sessionOverlay" class="session-overlay" hidden>
+      <div id="processingPanel" class="overlay-card" hidden>
+        <span class="ring" aria-hidden="true"></span>
+        <p data-i18n="rec.processing">正在处理中</p>
+      </div>
+      <div id="savedPanel" class="overlay-card" hidden>
+        <p class="saved-title" data-i18n="rec.saved">已保存</p>
+        <p id="savedFile" class="saved-file"></p>
+        <p id="savedWarning" class="saved-file" hidden></p>
+        <div class="saved-actions">
+          <button id="savedPreview" type="button" class="accent" data-i18n="home.preview">预览</button>
+          <button id="savedClose" type="button" data-i18n="common.close">关闭</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <main id="libraryPage" class="page-body library" hidden>
+    <div id="libraryListPane">
+      <div class="bar" role="toolbar" data-i18n-aria="page.library" aria-label="我的视频">
+        <button id="libPreview" class="appbar" type="button" disabled>
+          <span class="icon" aria-hidden="true">&#xE768;</span><span data-i18n="lib.preview">预览</span>
+        </button>
+        <button id="libRename" class="appbar" type="button" disabled>
+          <span class="icon" aria-hidden="true">&#xE8AC;</span><span data-i18n="lib.rename">重命名</span>
+        </button>
+        <button id="libDelete" class="appbar" type="button" disabled>
+          <span class="icon" aria-hidden="true">&#xE74D;</span><span data-i18n="lib.delete">删除</span>
+        </button>
+        <button id="libFolder" class="appbar" type="button">
+          <span class="icon" aria-hidden="true">&#xE8B7;</span><span data-i18n="lib.folder">打开目录</span>
+        </button>
+        <div class="appbar-more">
+          <button id="libMore" class="appbar" type="button" data-i18n-title="lib.more" title="更多" aria-label="更多" aria-haspopup="menu" aria-expanded="false">
+            <span class="icon" aria-hidden="true">&#xE712;</span>
+          </button>
+          <div id="libMoreMenu" class="flyout" hidden role="menu">
+            <button id="libRepair" type="button" role="menuitem" disabled data-i18n="lib.repair">修复</button>
+            <button id="libMerge" type="button" role="menuitem" disabled data-i18n="lib.merge">合并</button>
+            <button id="libSubtitle" type="button" role="menuitem" disabled data-i18n="lib.subtitle">字幕</button>
+            <button id="libMusic" type="button" role="menuitem" disabled data-i18n="lib.music">配乐</button>
+            <hr>
+            <button id="libRefresh" type="button" role="menuitem" data-i18n="lib.refresh">刷新</button>
+          </div>
+        </div>
+      </div>
+      <div id="libraryEmpty" class="empty" hidden>
+        <span class="icon empty-icon" aria-hidden="true">&#xE8B7;</span>
+        <p class="lead" data-i18n="lib.empty">还没有成片</p>
+        <p data-i18n="lib.empty.desc">录完的视频会出现在这里</p>
+        <button id="emptyRecord" type="button" class="accent" data-i18n="home.start">开始录制</button>
+        <button id="emptyFolder" type="button" data-i18n="lib.folder">打开目录</button>
+      </div>
+      <div id="libraryTable" hidden>
+        <div class="cols"><span></span><span></span><span data-i18n="lib.col.name">名称</span><span data-i18n="lib.col.size">大小</span><span data-i18n="lib.col.duration">时长</span><span data-i18n="lib.col.date">日期</span></div>
+        <div id="libraryRows" class="list" role="listbox" data-i18n-aria="page.library" aria-label="我的视频" aria-multiselectable="true"></div>
+      </div>
+    </div>
+    <div id="libraryViewer" class="viewer" hidden>
+      <h2 id="previewTitle" class="viewer-title"></h2>
+      <div id="previewPlayer" class="player"></div>
+      <div class="bar preview-bar" role="toolbar" data-i18n-aria="page.preview" aria-label="预览">
+        <button id="previewFull" class="appbar" type="button" data-i18n="lib.fullscreen">全屏</button>
+        <button id="previewTrim" class="appbar" type="button" data-i18n="lib.trim">剪切</button>
+        <button id="previewCompress" class="appbar" type="button" data-i18n="lib.compress">压缩</button>
+      </div>
+    </div>
+  </main>
+
+  <main id="settingsPage" class="page-body settings" hidden>
+    <div id="settingsHost" class="settings-host"></div>
+  </main>
+  </div>
+
+  <div id="countdown" class="overlay" hidden>
+    <div class="overlay-card">
+      <p id="countNum" class="count">3</p>
+      <button id="countCancel" type="button" data-i18n="common.cancel">取消</button>
+    </div>
+  </div>
+  <div id="dialog" class="overlay" hidden>
+    <div class="dialog-card">
+      <h2 id="dialogTitle"></h2>
+      <div id="dialogBody"></div>
+      <div class="dialog-actions">
+        <button id="dialogPrimary" type="button" class="accent" hidden></button>
+        <button id="dialogSecondary" type="button" hidden></button>
+        <button id="dialogClose" type="button">取消</button>
+      </div>
+    </div>
+  </div>
+  <p id="toast" class="toast" hidden></p>
+  <div id="shotOverlay" class="shot-overlay" hidden>
+    <div class="shot-stage">
+      <canvas id="shotCanvas"></canvas>
+      <div id="shotWindows" class="cards shot-windows" hidden></div>
+      <div id="shotBox" class="shot-box" hidden></div>
+      <canvas id="shotInk" class="shot-ink" hidden></canvas>
+      <input id="shotText" class="shot-text" hidden>
+      <div id="shotActions" class="shot-actions" hidden>
+        <button id="shotPen" type="button" class="shot-icon" data-i18n-title="shot.pen">&#xE76D;</button>
+        <button id="shotRect" type="button" class="shot-icon" data-i18n-title="shot.box">&#xE739;</button>
+        <button id="shotEllipse" type="button" class="shot-icon" data-i18n-title="shot.circle">&#xEA3A;</button>
+        <button id="shotArrow" type="button" class="shot-icon" data-i18n-title="shot.arrow">&#xE72A;</button>
+        <button id="shotTextPen" type="button" class="shot-icon" data-i18n-title="shot.text">T</button>
+        <span class="shot-gap"></span>
+        <button id="shotColor" type="button" class="shot-icon" data-i18n-title="shot.color"><i id="shotSwatch"></i></button>
+        <div id="shotPalette" class="shot-palette" hidden></div>
+        <span class="shot-gap"></span>
+        <button id="shotOcr" type="button" class="shot-icon" data-i18n-title="shot.ocr">&#xE8C1;</button>
+        <button id="shotSave" type="button" class="shot-icon" data-i18n-title="shot.save">&#xE74E;</button>
+        <button id="shotCopy" type="button" class="shot-icon" data-i18n-title="shot.copy">&#xE8C8;</button>
+        <div id="shotOcrPop" class="shot-ocr" hidden></div>
+      </div>
+    </div>
+    <p id="shotError" class="shot-error" hidden></p>
+    <div class="shot-tools">
+      <button id="shotRegion" type="button" class="on">区域</button>
+      <button id="shotWindow" type="button">窗口</button>
+      <button id="shotDisplay" type="button">整屏</button>
+      <button id="shotCancel" type="button">取消</button>
+    </div>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -34,6 +34,7 @@ public static class SnipNotice
             SystemBackdrop = new DesktopAcrylicBackdrop()
         };
         window.AppWindow.IsShownInSwitchers = false;
+        AppIcon.Apply(window);
         AppTheme.ApplyToWindow(window, App.Settings.Theme);
         if (window.AppWindow.Presenter is OverlappedPresenter presenter)
         {

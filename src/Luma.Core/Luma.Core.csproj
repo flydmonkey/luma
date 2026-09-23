@@ -7,4 +7,28 @@
   <ItemGroup>
     <PackageReference Include="System.Drawing.Common" Version="9.0.1" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Lan\Web\index.html" />
+    <EmbeddedResource Include="Lan\Web\app.css" />
+    <EmbeddedResource Include="Lan\Web\app.js" />
+    <EmbeddedResource Include="Lan\Web\rapidoc-min.js" />
+    <EmbeddedResource Include="..\..\docs\openapi\openapi.json" LogicalName="Luma.OpenApi.skeleton.json" />
+    <EmbeddedResource Include="..\..\docs\openapi\en.json" LogicalName="Luma.OpenApi.en.json" />
+    <EmbeddedResource Include="..\..\docs\openapi\zh-Hans.json" LogicalName="Luma.OpenApi.zh-Hans.json" />
+    <EmbeddedResource Include="..\..\docs\openapi\zh-Hant.json" LogicalName="Luma.OpenApi.zh-Hant.json" />
+    <EmbeddedResource Include="..\..\docs\openapi\ja.json" LogicalName="Luma.OpenApi.ja.json" />
+    <EmbeddedResource Include="..\..\docs\openapi\ko.json" LogicalName="Luma.OpenApi.ko.json" />
+    <EmbeddedResource Include="..\..\docs\legal\en\privacy.html" LogicalName="Luma.Legal.en.privacy.html" />
+    <EmbeddedResource Include="..\..\docs\legal\en\terms.html" LogicalName="Luma.Legal.en.terms.html" />
+    <EmbeddedResource Include="..\..\docs\legal\zh-Hans\privacy.html" LogicalName="Luma.Legal.zh-Hans.privacy.html" />
+    <EmbeddedResource Include="..\..\docs\legal\zh-Hans\terms.html" LogicalName="Luma.Legal.zh-Hans.terms.html" />
+    <EmbeddedResource Include="..\..\docs\legal\zh-Hant\privacy.html" LogicalName="Luma.Legal.zh-Hant.privacy.html" />
+    <EmbeddedResource Include="..\..\docs\legal\zh-Hant\terms.html" LogicalName="Luma.Legal.zh-Hant.terms.html" />
+    <EmbeddedResource Include="..\..\docs\legal\ja\privacy.html" LogicalName="Luma.Legal.ja.privacy.html" />
+    <EmbeddedResource Include="..\..\docs\legal\ja\terms.html" LogicalName="Luma.Legal.ja.terms.html" />
+    <EmbeddedResource Include="..\..\docs\legal\ko\privacy.html" LogicalName="Luma.Legal.ko.privacy.html" />
+    <EmbeddedResource Include="..\..\docs\legal\ko\terms.html" LogicalName="Luma.Legal.ko.terms.html" />
+    <EmbeddedResource Include="..\..\.cursor\skills\luma-control\SKILL.md" LogicalName="Luma.Skill.luma-control.md" />
+    <EmbeddedResource Include="..\..\.cursor\skills\luma-control\reference.md" LogicalName="Luma.Skill.luma-control.reference.md" />
+  </ItemGroup>
 </Project>

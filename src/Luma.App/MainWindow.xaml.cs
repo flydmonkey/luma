@@ -7,6 +7,7 @@ using Luma.Core.Localization;
 using Luma.Core.Os;
 using Luma.Core.Session;
 using Luma.Core.Settings;
+using Luma.Core.Lan;
 using Luma.Media;
 using Luma.Obs;
 using Microsoft.UI;
@@ -59,7 +60,6 @@ public sealed partial class MainWindow : Window
     private string? _imageWatermarkPath;
 
     [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr hWnd);
-    [DllImport("user32.dll")] private static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);
     [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
     public MainWindow(OsCompatibilityResult compatibility)
@@ -68,6 +68,7 @@ public sealed partial class MainWindow : Window
         _session = new RecordingSession(_host);
         InitializeComponent();
         Title = "Luma";
+        AppIcon.Apply(this);
         ApplySystemBackdrop();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(TitleBarDrag);
@@ -154,6 +155,19 @@ public sealed partial class MainWindow : Window
         RefreshLibrary();
         App.LanServer.SessionCommand += HandleLanCommandAsync;
         App.LanServer.ListTargets = LanTargetCatalog.List;
+        App.LanServer.CaptureWebStill = LanTargetCatalog.CaptureWebStill;
+        App.LanServer.CaptureWindowStill = LanTargetCatalog.CaptureWindowStill;
+        App.LanServer.RecognizeWebStill = StillShotOcr.RecognizePngAsync;
+        App.LanServer.RunJob = RunLanJobAsync;
+        App.LanServer.SettingsChanged += () => DispatcherQueue.TryEnqueue(() =>
+        {
+            UiCopy.SetLanguage(UiLanguages.ResolveEffective(App.Settings.UiLanguage));
+            LoadSettingsIntoUi();
+            AppTheme.ApplyToWindow(this, App.Settings.Theme);
+            NativeMenuTheme.Apply(App.Settings.Theme);
+            _tray.ApplyVisibility(App.Settings.HideTrayIcon);
+            _tray.ApplyLanguage();
+        });
         if (Environment.GetCommandLineArgs().Any(arg => arg.Equals("--logon", StringComparison.OrdinalIgnoreCase))
             && Settings.Automation.StartAtLogon)
         {
@@ -166,7 +180,7 @@ public sealed partial class MainWindow : Window
         if (App.Settings.CloseToTray)
         {
             args.Cancel = true;
-            AppWindow.Hide();
+            ConcealWindow();
         }
     }
 
@@ -202,17 +216,16 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        if (_hiddenForRecording)
-        {
-            RevealWindow();
-            return;
-        }
-
-        AppWindow.Show();
-        Activate();
+        RevealWindow();
     }
 
     private void ConcealForRecording()
+    {
+        _hiddenForRecording = true;
+        ConcealWindow();
+    }
+
+    private void ConcealWindow()
     {
         var pos = AppWindow.Position;
         if (pos.X > -8000 && pos.Y > -8000)
@@ -220,9 +233,7 @@ public sealed partial class MainWindow : Window
             _restorePos = pos;
         }
 
-        _hiddenForRecording = true;
         AppWindow.IsShownInSwitchers = false;
-        try { SetWindowDisplayAffinity(WindowNative.GetWindowHandle(this), 0x11); } catch { }
         SetCloaked(true);
         AppWindow.Move(new PointInt32(-32000, -32000));
     }
@@ -253,6 +264,8 @@ public sealed partial class MainWindow : Window
         {
             Activate();
         }
+
+        ApplySystemBackdrop();
     }
 
     private void SetCloaked(bool cloak)
@@ -610,10 +623,22 @@ public sealed partial class MainWindow : Window
         var display = displays.FirstOrDefault(d => d.Index == index) ?? displays.ElementAtOrDefault(index);
         if (display is not null)
         {
-            return UiCopy.Tf("sum.display", $"{display.Index + 1}  {display.Width}x{display.Height}");
+            return DisplayCaption(display);
         }
 
         return UiCopy.Tf("sum.display", "1");
+    }
+
+    private static string DisplayCaption(DisplayInfo display)
+    {
+        var name = display.DeviceName?.Trim();
+        var generic = string.IsNullOrWhiteSpace(name)
+            || name.StartsWith(@"\\.\", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith("DISPLAY", StringComparison.OrdinalIgnoreCase);
+        var body = generic
+            ? $"{display.Index + 1}  {display.Width}x{display.Height}"
+            : $"{display.Index + 1}  {name}  {display.Width}x{display.Height}";
+        return UiCopy.Tf("sum.display", body);
     }
 
     private void ApplySystemBackdrop()
@@ -918,7 +943,6 @@ public sealed partial class MainWindow : Window
         finally
         {
             _busy = false;
-            try { SetWindowDisplayAffinity(WindowNative.GetWindowHandle(this), 0); } catch { }
         }
     }
 
@@ -1189,46 +1213,184 @@ public sealed partial class MainWindow : Window
         return done.Task;
     }
 
+    private Task<string> RunLanJobAsync(string kind, string path, string body)
+    {
+        return kind.ToLowerInvariant() switch
+        {
+            "compress" => _editor.CompressAsync(path),
+            "repair" => _editor.RepairAsync(path),
+            "trim" => TrimLanJobAsync(path, body),
+            _ => throw new InvalidOperationException("不支持的作业。")
+        };
+    }
+
+    private Task<string> TrimLanJobAsync(string path, string body)
+    {
+        using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
+        var start = doc.RootElement.TryGetProperty("startSeconds", out var s) ? s.GetDouble() : 0;
+        var end = doc.RootElement.TryGetProperty("endSeconds", out var e) ? e.GetDouble() : 0;
+        return _editor.TrimAsync(path, TimeSpan.FromSeconds(start), TimeSpan.FromSeconds(end));
+    }
+
     private async Task<JsonElement> HandleLanOnUiAsync(JsonElement payload)
     {
         var path = payload.TryGetProperty("path", out var pathValue) ? pathValue.GetString() ?? "" : "";
+        var method = payload.TryGetProperty("method", out var methodValue) ? methodValue.GetString() ?? "GET" : "GET";
+        if (path.EndsWith("/target", StringComparison.OrdinalIgnoreCase) && method.Equals("PUT", StringComparison.OrdinalIgnoreCase))
+        {
+            return ApplyLanTarget(payload);
+        }
+
+        if (path.EndsWith("/session", StringComparison.OrdinalIgnoreCase) && method.Equals("GET", StringComparison.OrdinalIgnoreCase))
+        {
+            return JsonSerializer.Deserialize<JsonElement>(LanControlApi.Ok(new
+            {
+                session = LanSessionSnapshot(),
+                target = LanTargetSummary()
+            }));
+        }
+
         var action = path.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "";
         switch (action)
         {
             case "start":
                 if (SessionStartRules.IsGameMode(RequestedLanMode(payload)) || _mode == CaptureMode.Game)
                 {
-                    return JsonSerializer.SerializeToElement(new { ok = false, error = "游戏录制已关闭。" });
+                    return FailLan("游戏录制已关闭。");
                 }
 
                 if (_session.Phase is not SessionPhase.Idle)
                 {
-                    return JsonSerializer.SerializeToElement(new { ok = false, error = "已有录制正在进行。" });
+                    return FailLan("已有录制正在进行。");
                 }
 
                 await StartAsync(fromLan: true);
                 if (_session.Phase == SessionPhase.Idle)
                 {
-                    return JsonSerializer.SerializeToElement(new { ok = false, error = HomeInfoBar.Message, phase = 0 });
+                    return FailLan(string.IsNullOrWhiteSpace(HomeInfoBar.Message) ? "请先选择录制目标。" : HomeInfoBar.Message);
                 }
 
-                return JsonSerializer.SerializeToElement(new { ok = true, phase = (int)_session.Phase });
+                return JsonSerializer.Deserialize<JsonElement>(LanControlApi.Ok(LanSessionSnapshot()));
             case "pause":
                 if (_session.Phase is SessionPhase.Recording or SessionPhase.Paused)
                 {
                     await PauseAsync();
                 }
 
-                return JsonSerializer.SerializeToElement(new { ok = true, phase = (int)_session.Phase });
+                return JsonSerializer.Deserialize<JsonElement>(LanControlApi.Ok(LanSessionSnapshot()));
             case "stop":
                 if (_session.Phase != SessionPhase.Idle)
                 {
                     await StopAsync(fromLan: true);
                 }
 
-                return JsonSerializer.SerializeToElement(new { ok = true, phase = (int)_session.Phase, path = _lastFile ?? "" });
+                return JsonSerializer.Deserialize<JsonElement>(LanControlApi.Ok(LanSessionSnapshot()));
             default:
-                return JsonSerializer.SerializeToElement(new { ok = true, phase = (int)_session.Phase });
+                return JsonSerializer.Deserialize<JsonElement>(LanControlApi.Ok(new
+                {
+                    session = LanSessionSnapshot(),
+                    target = LanTargetSummary()
+                }));
         }
     }
+
+    private JsonElement ApplyLanTarget(JsonElement payload)
+    {
+        var mode = RequestedLanMode(payload);
+        if (SessionStartRules.IsGameMode(mode))
+        {
+            return FailLan("游戏录制已关闭。");
+        }
+
+        _mode = mode?.ToLowerInvariant() switch
+        {
+            "region" => CaptureMode.Region,
+            "window" => CaptureMode.Window,
+            "audio" => CaptureMode.AudioOnly,
+            _ => CaptureMode.Display
+        };
+        Settings.Audio.AudioOnly = _mode == CaptureMode.AudioOnly;
+        Settings.LastMode = _mode == CaptureMode.AudioOnly ? CaptureMode.Display : _mode;
+        if (payload.TryGetProperty("body", out var body) && body.ValueKind == JsonValueKind.Object)
+        {
+            if (body.TryGetProperty("displayId", out var display))
+            {
+                var text = display.ValueKind == JsonValueKind.String ? display.GetString() : display.GetRawText();
+                if (int.TryParse(text, out var index))
+                {
+                    Settings.MonitorIndex = index;
+                }
+            }
+
+            if (body.TryGetProperty("region", out var region) && region.ValueKind == JsonValueKind.Object)
+            {
+                _target = new CaptureTarget
+                {
+                    Mode = CaptureMode.Region,
+                    MonitorIndex = Settings.MonitorIndex,
+                    CropX = region.TryGetProperty("x", out var x) ? x.GetInt32() : 0,
+                    CropY = region.TryGetProperty("y", out var y) ? y.GetInt32() : 0,
+                    CropWidth = region.TryGetProperty("width", out var w) ? w.GetInt32() : 0,
+                    CropHeight = region.TryGetProperty("height", out var h) ? h.GetInt32() : 0
+                };
+            }
+            else if (_mode == CaptureMode.Window)
+            {
+                _target = new CaptureTarget
+                {
+                    Mode = CaptureMode.Window,
+                    WindowId = body.TryGetProperty("windowId", out var id) ? id.GetString() : null,
+                    WindowTitle = body.TryGetProperty("windowTitle", out var title) ? title.GetString() : null
+                };
+            }
+            else
+            {
+                _target = new CaptureTarget { Mode = _mode, MonitorIndex = Settings.MonitorIndex };
+            }
+        }
+
+        AudioOnlyBox.IsOn = _mode == CaptureMode.AudioOnly;
+        SyncModeButtons();
+        SaveSettings();
+        return JsonSerializer.Deserialize<JsonElement>(LanControlApi.Ok(LanTargetSummary()));
+    }
+
+    private object LanSessionSnapshot()
+    {
+        var status = _session.GetStatus();
+        var state = _session.Phase switch
+        {
+            SessionPhase.Recording => "recording",
+            SessionPhase.Paused => "paused",
+            SessionPhase.Processing or SessionPhase.Countdown => "recording",
+            _ => "idle"
+        };
+        return new
+        {
+            state,
+            elapsed = status.EncodedDuration.ToString(@"hh\:mm\:ss"),
+            lastSaved = string.IsNullOrWhiteSpace(_lastFile) ? null : new { name = Path.GetFileName(_lastFile), warning = (string?)null },
+            encoderName = status.EncoderName,
+            actualWidth = status.Width,
+            actualHeight = status.Height
+        };
+    }
+
+    private object LanTargetSummary() => new
+    {
+        mode = _mode switch
+        {
+            CaptureMode.Region => "region",
+            CaptureMode.Window => "window",
+            CaptureMode.AudioOnly => "audio",
+            _ => "fullscreen"
+        },
+        monitorIndex = Settings.MonitorIndex,
+        region = _target.CropWidth > 0 ? new { x = _target.CropX, y = _target.CropY, width = _target.CropWidth, height = _target.CropHeight } : null,
+        windowId = _target.WindowId,
+        windowTitle = _target.WindowTitle
+    };
+
+    private static JsonElement FailLan(string error) =>
+        JsonSerializer.Deserialize<JsonElement>(LanControlApi.Fail(error));
 }
