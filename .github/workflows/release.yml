@@ -64,7 +64,7 @@ jobs:
 
       - name: Test
         shell: pwsh
-        run: dotnet test Luma.sln -c Release -p:Platform=x64
+        run: dotnet test Luma.sln -c Release
 
       - name: Publish
         shell: pwsh

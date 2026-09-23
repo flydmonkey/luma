@@ -68,7 +68,7 @@ TAG_VERSION="${GITHUB_REF_NAME#v}"
 
 1. `actions/setup-dotnet` 安装 .NET 8 SDK。
 2. 缓存未命中时 `tools/fetch-obs-runtime.ps1`，然后 `tools/build-obs-host.ps1 -Configuration Release`。
-3. `dotnet test Luma.sln -c Release -p:Platform=x64`。失败则停止，不创建 Release。
+3. `dotnet test Luma.sln -c Release`。解决方案只有 `Release|Any CPU`，应用工程在这个配置下已经映射到 x64。失败则停止，不创建 Release。
 4. `dotnet publish src/Luma.App/Luma.App.csproj -c Release -r win-x64 --self-contained true -p:Platform=x64 -p:WindowsAppSDKSelfContained=true`。
 5. 对 publish 输出目录再执行一次 `tools/stage-obs-runtime.ps1 -Dest <publish目录>`，复制仓库根目录的 `LICENSE`。缺少 `Luma.exe`、`Luma.ObsHost.exe` 或 `obs.dll` 则失败。
 6. 用这份目录打 exe，创建草稿 Release。把同一目录作为 artifact 交给 `windows-portable`。
