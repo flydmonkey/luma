@@ -100,13 +100,26 @@ public static class MediaProbe
             return;
         }
 
-        var ffmpeg = FfmpegLocator.Find();
-        if (ffmpeg is null || !File.Exists(mediaPath))
+        if (!File.Exists(mediaPath))
         {
             return;
         }
 
         var poster = Path.ChangeExtension(mediaPath, ".jpg");
+        var ffmpeg = FfmpegLocator.Find();
+        if (ffmpeg is null)
+        {
+            try
+            {
+                ShellPoster(mediaPath, poster).GetAwaiter().GetResult();
+            }
+            catch
+            {
+                // poster is optional
+            }
+            return;
+        }
+
         try
         {
             var start = new ProcessStartInfo(ffmpeg)
@@ -134,5 +147,27 @@ public static class MediaProbe
         {
             // poster is optional
         }
+    }
+
+    private static async Task ShellPoster(string mediaPath, string poster)
+    {
+        var file = await Windows.Storage.StorageFile.GetFileFromPathAsync(mediaPath);
+        using var thumb = await file.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.SingleItem, 320);
+        if (thumb is null || thumb.Type != Windows.Storage.FileProperties.ThumbnailType.Image)
+        {
+            return;
+        }
+
+        var decoder = await Windows.Graphics.Imaging.BitmapDecoder.CreateAsync(thumb);
+        using var bitmap = await decoder.GetSoftwareBitmapAsync(
+            Windows.Graphics.Imaging.BitmapPixelFormat.Bgra8,
+            Windows.Graphics.Imaging.BitmapAlphaMode.Ignore);
+        using var output = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+        var encoder = await Windows.Graphics.Imaging.BitmapEncoder.CreateAsync(Windows.Graphics.Imaging.BitmapEncoder.JpegEncoderId, output);
+        encoder.SetSoftwareBitmap(bitmap);
+        await encoder.FlushAsync();
+        output.Seek(0);
+        await using var target = File.Create(poster);
+        await output.AsStreamForRead().CopyToAsync(target);
     }
 }

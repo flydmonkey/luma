@@ -1050,8 +1050,12 @@ SessionStatus ObsStart(const StartRequest& request)
         return Fail("缺少输出路径。");
     }
 
+    // mp4_output writes a fragmented MP4 that stays playable if the host dies and
+    // finalises in place on stop, so no ffmpeg remux is needed afterwards. The
+    // installer ships without ffmpeg.exe.
     std::string livePath = request.outputPath;
-    if (HasContainerExtension(livePath, ".mp4") || HasContainerExtension(livePath, ".mov"))
+    const bool hybridMp4 = HasContainerExtension(livePath, ".mp4");
+    if (HasContainerExtension(livePath, ".mov"))
     {
         livePath += ".partial.mkv";
     }
@@ -1306,10 +1310,10 @@ SessionStatus ObsStart(const StartRequest& request)
         obs_data_t* mux = obs_data_create();
         obs_data_set_string(mux, "path", livePath.c_str());
         obs_data_set_string(mux, "directory", "");
-        g_output = obs_output_create("ffmpeg_muxer", "luma-file", mux, nullptr);
+        g_output = obs_output_create(hybridMp4 ? "mp4_output" : "ffmpeg_muxer", "luma-file", mux, nullptr);
         if (!g_output)
         {
-            g_output = obs_output_create("mp4_output", "luma-file", mux, nullptr);
+            g_output = obs_output_create(hybridMp4 ? "ffmpeg_muxer" : "mp4_output", "luma-file", mux, nullptr);
         }
         obs_data_release(mux);
         if (!g_output)

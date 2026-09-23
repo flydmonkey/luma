@@ -131,12 +131,11 @@ public sealed class ObsHostRecordingTests
                 CaptureMicrophone = false
             });
             await Task.Delay(3000);
-            var partialEarly = path + ".partial.mkv";
-            var sizeBeforeKill = File.Exists(partialEarly) ? new FileInfo(partialEarly).Length : -1;
+            var sizeBeforeKill = File.Exists(path) ? new FileInfo(path).Length : -1;
             var created = Process.GetProcessesByName("Luma.ObsHost").First(item => !before.Contains(item.Id));
             created.Kill(entireProcessTree: true);
             await Task.Delay(400);
-            var partial = path + ".partial.mkv";
+            var partial = path;
             var leftovers = Directory.GetFiles(Path.GetTempPath(), "luma-obs-kill-*");
             Assert.True(File.Exists(partial), "beforeKill=" + sizeBeforeKill + " left " + string.Join(", ", leftovers));
             Assert.True(new FileInfo(partial).Length > 1024);
