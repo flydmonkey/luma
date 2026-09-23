@@ -47,6 +47,58 @@ public sealed class LibraryFileInfoTests
     }
 
     [Fact]
+    public void Legacy_index_and_posters_move_into_the_hidden_folder()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "luma-file-info-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var media = Path.Combine(folder, "Luma-old.mp4");
+            var imported = Path.Combine(folder, "holiday.mp4");
+            File.WriteAllBytes(media, [1, 2, 3, 4]);
+            File.WriteAllBytes(imported, [1, 2, 3, 4]);
+            File.WriteAllBytes(Path.Combine(folder, "Luma-old.jpg"), [9]);
+            File.WriteAllBytes(Path.Combine(folder, "holiday.jpg"), [9]);
+            File.WriteAllText(Path.Combine(folder, ".luma-files.json"), "{\"Luma-old.mp4\": 6}");
+
+            var listed = new LibraryCatalog().List(folder).Single(item => item.Path == media);
+
+            Assert.Equal(TimeSpan.FromSeconds(6), listed.Duration);
+            Assert.Equal(LibraryPaths.PosterFor(media), listed.PosterPath);
+            Assert.False(File.Exists(Path.Combine(folder, ".luma-files.json")));
+            Assert.False(File.Exists(Path.Combine(folder, "Luma-old.jpg")));
+            Assert.True(File.Exists(Path.Combine(folder, "holiday.jpg")));
+            Assert.True(new DirectoryInfo(LibraryPaths.MetaFolder(folder)).Attributes.HasFlag(FileAttributes.Hidden));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Rename_carries_the_poster()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "luma-file-info-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var media = Path.Combine(folder, "before.mp4");
+            File.WriteAllBytes(media, [1, 2, 3, 4]);
+            File.WriteAllBytes(LibraryPaths.PreparePoster(media), [9]);
+
+            var renamed = new LibraryCatalog().Rename(media, "after");
+
+            Assert.True(File.Exists(LibraryPaths.PosterFor(renamed)));
+            Assert.False(File.Exists(LibraryPaths.PosterFor(media)));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Rename_and_delete_keep_the_saved_duration_with_the_file()
     {
         var folder = Path.Combine(Path.GetTempPath(), "luma-file-info-" + Guid.NewGuid().ToString("N"));

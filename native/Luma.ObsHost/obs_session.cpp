@@ -14,8 +14,13 @@
 #include <windows.h>
 #include <d3d11.h>
 #include <dxgi1_5.h>
+#include <wincodec.h>
+#include <wrl/client.h>
 
+#include <algorithm>
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
@@ -289,8 +294,195 @@ int ChooseDisplayCaptureMethod()
 
 void StopStamp();
 
+struct PosterGrab
+{
+    std::mutex mutex;
+    std::condition_variable ready;
+    std::wstring path;
+    int sourceW = 0;
+    int sourceH = 0;
+    uint64_t firstTs = 0;
+    bool captured = false;
+    bool cancel = false;
+    std::vector<uint8_t> bgr;
+    int width = 0;
+    int height = 0;
+};
+
+PosterGrab g_poster;
+std::thread g_posterThread;
+
+constexpr uint64_t kPosterEarliestNs = 1000000000ULL;
+constexpr uint64_t kPosterLatestNs = 3000000000ULL;
+constexpr int kPosterWidth = 480;
+
+// Converts one NV12 output frame (BT.709, partial range) to a small BGR image.
+// Called on the OBS video thread, so it stays cheap and never takes g_mutex.
+void GrabPosterFrame(void*, video_data* frame)
+{
+    std::lock_guard lock(g_poster.mutex);
+    if (g_poster.captured || g_poster.sourceW <= 0 || g_poster.sourceH <= 0)
+    {
+        return;
+    }
+    if (g_poster.firstTs == 0)
+    {
+        g_poster.firstTs = frame->timestamp;
+    }
+    const uint64_t age = frame->timestamp - g_poster.firstTs;
+    if (!g_poster.cancel && age < kPosterEarliestNs)
+    {
+        return;
+    }
+
+    const int srcW = g_poster.sourceW;
+    const int srcH = g_poster.sourceH;
+    const int dstW = srcW < kPosterWidth ? srcW : kPosterWidth;
+    const int dstH = std::max(2, static_cast<int>(static_cast<long long>(srcH) * dstW / srcW));
+    std::vector<uint8_t> bgr(static_cast<size_t>(dstW) * dstH * 3);
+    size_t lit = 0;
+    for (int y = 0; y < dstH; y++)
+    {
+        const int sy = static_cast<int>(static_cast<long long>(y) * srcH / dstH);
+        const uint8_t* yRow = frame->data[0] + static_cast<size_t>(sy) * frame->linesize[0];
+        const uint8_t* uvRow = frame->data[1] + static_cast<size_t>(sy / 2) * frame->linesize[1];
+        uint8_t* out = bgr.data() + static_cast<size_t>(y) * dstW * 3;
+        for (int x = 0; x < dstW; x++)
+        {
+            const int sx = static_cast<int>(static_cast<long long>(x) * srcW / dstW);
+            const float luma = (yRow[sx] - 16) * 1.164f;
+            const float u = uvRow[(sx / 2) * 2] - 128.0f;
+            const float v = uvRow[(sx / 2) * 2 + 1] - 128.0f;
+            const auto clamp = [](float value) { return static_cast<uint8_t>(value < 0 ? 0 : value > 255 ? 255 : value); };
+            out[x * 3 + 0] = clamp(luma + 2.112f * u);
+            out[x * 3 + 1] = clamp(luma - 0.213f * u - 0.533f * v);
+            out[x * 3 + 2] = clamp(luma + 1.793f * v);
+            if (yRow[sx] > 32)
+            {
+                lit++;
+            }
+        }
+    }
+
+    // A capture that has not delivered its first picture yet renders black.
+    // Wait up to kPosterLatestNs for something visible unless the recording stops.
+    const bool dark = lit * 50 < static_cast<size_t>(dstW) * dstH;
+    if (dark && !g_poster.cancel && age < kPosterLatestNs)
+    {
+        return;
+    }
+
+    g_poster.bgr = std::move(bgr);
+    g_poster.width = dstW;
+    g_poster.height = dstH;
+    g_poster.captured = true;
+    g_poster.ready.notify_all();
+}
+
+bool WritePosterJpeg(const std::wstring& path, const std::vector<uint8_t>& bgr, int width, int height)
+{
+    using Microsoft::WRL::ComPtr;
+    const HRESULT init = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    bool ok = false;
+    {
+        ComPtr<IWICImagingFactory> factory;
+        ComPtr<IWICStream> stream;
+        ComPtr<IWICBitmapEncoder> encoder;
+        ComPtr<IWICBitmapFrameEncode> frame;
+        ComPtr<IPropertyBag2> props;
+        WICPixelFormatGUID format = GUID_WICPixelFormat24bppBGR;
+        ok = SUCCEEDED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&factory)))
+            && SUCCEEDED(factory->CreateStream(&stream))
+            && SUCCEEDED(stream->InitializeFromFilename(path.c_str(), GENERIC_WRITE))
+            && SUCCEEDED(factory->CreateEncoder(GUID_ContainerFormatJpeg, nullptr, &encoder))
+            && SUCCEEDED(encoder->Initialize(stream.Get(), WICBitmapEncoderNoCache))
+            && SUCCEEDED(encoder->CreateNewFrame(&frame, &props))
+            && SUCCEEDED(frame->Initialize(props.Get()))
+            && SUCCEEDED(frame->SetSize(static_cast<UINT>(width), static_cast<UINT>(height)))
+            && SUCCEEDED(frame->SetPixelFormat(&format))
+            && IsEqualGUID(format, GUID_WICPixelFormat24bppBGR)
+            && SUCCEEDED(frame->WritePixels(static_cast<UINT>(height), static_cast<UINT>(width * 3),
+                static_cast<UINT>(bgr.size()), const_cast<BYTE*>(bgr.data())))
+            && SUCCEEDED(frame->Commit())
+            && SUCCEEDED(encoder->Commit());
+    }
+    if (SUCCEEDED(init))
+    {
+        CoUninitialize();
+    }
+    if (!ok)
+    {
+        DeleteFileW(path.c_str());
+    }
+    return ok;
+}
+
+void RunPoster()
+{
+    std::unique_lock lock(g_poster.mutex);
+    g_poster.ready.wait(lock, [] { return g_poster.captured || g_poster.cancel; });
+    if (!g_poster.captured)
+    {
+        g_poster.ready.wait_for(lock, std::chrono::seconds(1), [] { return g_poster.captured; });
+    }
+    lock.unlock();
+
+    // The raw callback makes OBS read every frame back from the GPU, so it is
+    // removed as soon as one frame is kept. Removing it from inside the callback
+    // would deadlock on the video output's input mutex.
+    obs_remove_raw_video_callback(GrabPosterFrame, nullptr);
+
+    lock.lock();
+    if (g_poster.captured)
+    {
+        const bool ok = WritePosterJpeg(g_poster.path, g_poster.bgr, g_poster.width, g_poster.height);
+        LogLine("poster %s %dx%d", ok ? "saved" : "failed", g_poster.width, g_poster.height);
+    }
+    else
+    {
+        LogLine("poster skipped: no frame");
+    }
+    g_poster.bgr.clear();
+}
+
+void StopPoster()
+{
+    {
+        std::lock_guard lock(g_poster.mutex);
+        g_poster.cancel = true;
+        g_poster.ready.notify_all();
+    }
+    if (g_posterThread.joinable())
+    {
+        g_posterThread.join();
+    }
+}
+
+void StartPoster(const std::string& path)
+{
+    StopPoster();
+    obs_video_info ovi{};
+    if (path.empty() || !obs_get_video_info(&ovi) || ovi.output_format != VIDEO_FORMAT_NV12)
+    {
+        return;
+    }
+    {
+        std::lock_guard lock(g_poster.mutex);
+        g_poster.path = Utf8ToWide(path);
+        g_poster.sourceW = static_cast<int>(ovi.output_width);
+        g_poster.sourceH = static_cast<int>(ovi.output_height);
+        g_poster.firstTs = 0;
+        g_poster.captured = false;
+        g_poster.cancel = false;
+        g_poster.bgr.clear();
+    }
+    obs_add_raw_video_callback(nullptr, GrabPosterFrame, nullptr);
+    g_posterThread = std::thread(RunPoster);
+}
+
 void ReleaseGraph(bool drain = true)
 {
+    StopPoster();
     StopStamp();
     if (g_output)
     {
@@ -812,6 +1004,7 @@ bool DrainOutput(obs_output_t* output, bool* forced)
 
 void FinishStop()
 {
+    StopPoster();
     obs_output_t* output = nullptr;
     {
         std::lock_guard lock(g_mutex);
@@ -1379,6 +1572,11 @@ SessionStatus ObsStart(const StartRequest& request)
         return Fail(error.empty() ? "无法开始输出。" : error);
     }
 
+    if (request.mode != "AudioOnly")
+    {
+        StartPoster(request.posterPath);
+    }
+
     g_startTick = GetTickCount64();
     g_status.ok = true;
     g_status.phase = 2;
@@ -1581,6 +1779,7 @@ StartRequest ParseStartRequest(const std::string& json)
 {
     StartRequest request;
     request.outputPath = JsonString(json, "outputPath");
+    request.posterPath = JsonString(json, "posterPath");
     request.mode = JsonString(json, "mode", "Display");
     request.monitorIndex = static_cast<int>(JsonInt(json, "monitorIndex", 0));
     request.windowId = JsonString(json, "windowId");

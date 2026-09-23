@@ -105,7 +105,12 @@ public static class MediaProbe
             return;
         }
 
-        var poster = Path.ChangeExtension(mediaPath, ".jpg");
+        var poster = Luma.Core.Library.LibraryPaths.PreparePoster(mediaPath);
+        if (File.Exists(poster) && new FileInfo(poster).Length > 0)
+        {
+            return;
+        }
+
         var ffmpeg = FfmpegLocator.Find();
         if (ffmpeg is null)
         {

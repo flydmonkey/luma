@@ -92,6 +92,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
             {
                 op = "start",
                 outputPath = request.OutputPath,
+                posterPath = Luma.Core.Library.LibraryPaths.PreparePoster(request.OutputPath),
                 mode = request.Target.Mode.ToString(),
                 monitorIndex = request.Target.MonitorIndex,
                 windowId = request.Target.WindowId ?? "",

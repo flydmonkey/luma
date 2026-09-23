@@ -4,14 +4,32 @@ namespace Luma.Core.Library;
 
 public static class LibraryFileInfo
 {
-    public const string FileName = ".luma-files.json";
     private static readonly object Gate = new();
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true
     };
 
-    public static string IndexPath(string saveFolder) => Path.Combine(saveFolder, FileName);
+    public static string IndexPath(string saveFolder) => LibraryPaths.IndexPath(saveFolder);
+
+    internal static void Absorb(string saveFolder, IReadOnlyDictionary<string, double> entries)
+    {
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        lock (Gate)
+        {
+            var map = Load(saveFolder);
+            foreach (var (name, seconds) in entries)
+            {
+                map.TryAdd(name, seconds);
+            }
+
+            Save(saveFolder, map);
+        }
+    }
 
     public static TimeSpan? TryGet(string mediaPath)
     {
@@ -29,6 +47,7 @@ public static class LibraryFileInfo
 
     public static IReadOnlyDictionary<string, double> Read(string saveFolder)
     {
+        LibraryPaths.MigrateLegacy(saveFolder);
         lock (Gate)
         {
             return Load(saveFolder);
@@ -124,7 +143,7 @@ public static class LibraryFileInfo
 
     private static void Save(string saveFolder, Dictionary<string, double> map)
     {
-        Directory.CreateDirectory(saveFolder);
+        LibraryPaths.EnsureMetaFolder(saveFolder);
         File.WriteAllText(IndexPath(saveFolder), JsonSerializer.Serialize(map, JsonOptions));
     }
 

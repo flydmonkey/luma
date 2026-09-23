@@ -97,6 +97,7 @@ static int RunSelfTest(const std::wstring& pathW)
         char pathA[MAX_PATH * 4]{};
         WideCharToMultiByte(CP_UTF8, 0, pathW.c_str(), -1, pathA, sizeof(pathA), nullptr, nullptr);
         request.outputPath = pathA;
+        request.posterPath = request.outputPath + ".jpg";
     }
     request.mode = "Display";
     request.width = 1280;

@@ -5,6 +5,7 @@
 struct StartRequest
 {
     std::string outputPath;
+    std::string posterPath;
     std::string mode;
     int monitorIndex = 0;
     std::string windowId;

@@ -35,6 +35,7 @@ target_link_libraries(Luma.ObsHost PRIVATE
   "${OBS_IMPLIB}"
   d3d11
   dxgi
+  windowscodecs
   ole32
   user32
   gdi32

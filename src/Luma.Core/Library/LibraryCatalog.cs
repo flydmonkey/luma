@@ -58,12 +58,17 @@ public sealed class LibraryCatalog
         var dest = System.IO.Path.Combine(directory, newName + extension);
         File.Move(path, dest);
         LibraryFileInfo.Move(path, dest);
+        var poster = FindPoster(path);
+        if (poster is not null)
+        {
+            try { File.Move(poster, LibraryPaths.PosterFor(dest), overwrite: true); } catch (IOException) { }
+        }
         return dest;
     }
 
     private static string? FindPoster(string path)
     {
-        var poster = System.IO.Path.ChangeExtension(path, ".jpg");
+        var poster = LibraryPaths.PosterFor(path);
         return File.Exists(poster) ? poster : null;
     }
 }
