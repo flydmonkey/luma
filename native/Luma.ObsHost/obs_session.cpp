@@ -138,22 +138,59 @@ int Even(int value)
     return value < 2 ? 2 : (value & ~1);
 }
 
+struct MonitorPick
+{
+    int wanted = 0;
+    int seen = 0;
+    bool found = false;
+    std::wstring device;
+};
+
+BOOL CALLBACK PickMonitor(HMONITOR monitor, HDC, LPRECT, LPARAM data)
+{
+    auto* pick = reinterpret_cast<MonitorPick*>(data);
+    if (pick->seen++ != pick->wanted)
+    {
+        return TRUE;
+    }
+
+    MONITORINFOEXW info{};
+    info.cbSize = sizeof(info);
+    if (GetMonitorInfoW(monitor, &info))
+    {
+        pick->device = info.szDevice;
+        pick->found = true;
+    }
+    return FALSE;
+}
+
+// Index must follow EnumDisplayMonitors, the order the app lists displays in.
+// EnumDisplayDevices also counts detached outputs, so index 0 can be a
+// \\.\DISPLAY1 with no screen while the real monitor is \\.\DISPLAY2.
 void GetMonitorSize(int index, int& width, int& height, std::string& monitorId)
 {
     width = GetSystemMetrics(SM_CXSCREEN);
     height = GetSystemMetrics(SM_CYSCREEN);
-    DISPLAY_DEVICEW device{};
-    device.cb = sizeof(device);
-    if (EnumDisplayDevicesW(nullptr, static_cast<DWORD>(index < 0 ? 0 : index), &device, 0))
+    MonitorPick pick;
+    pick.wanted = index < 0 ? 0 : index;
+    EnumDisplayMonitors(nullptr, nullptr, PickMonitor, reinterpret_cast<LPARAM>(&pick));
+    if (!pick.found && pick.wanted != 0)
     {
-        monitorId = WideToUtf8(device.DeviceName);
-        DEVMODEW mode{};
-        mode.dmSize = sizeof(mode);
-        if (EnumDisplaySettingsW(device.DeviceName, ENUM_CURRENT_SETTINGS, &mode))
-        {
-            width = static_cast<int>(mode.dmPelsWidth);
-            height = static_cast<int>(mode.dmPelsHeight);
-        }
+        pick = {};
+        EnumDisplayMonitors(nullptr, nullptr, PickMonitor, reinterpret_cast<LPARAM>(&pick));
+    }
+    if (!pick.found)
+    {
+        return;
+    }
+
+    monitorId = WideToUtf8(pick.device.c_str());
+    DEVMODEW mode{};
+    mode.dmSize = sizeof(mode);
+    if (EnumDisplaySettingsW(pick.device.c_str(), ENUM_CURRENT_SETTINGS, &mode))
+    {
+        width = static_cast<int>(mode.dmPelsWidth);
+        height = static_cast<int>(mode.dmPelsHeight);
     }
 }
 
