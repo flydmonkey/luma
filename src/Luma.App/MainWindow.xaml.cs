@@ -190,7 +190,14 @@ public sealed partial class MainWindow : Window
             return null;
         }
 
-        return new BitmapImage(new Uri(path));
+        try
+        {
+            return new BitmapImage(new Uri(path));
+        }
+        catch (Exception)
+        {
+            return null;
+        }
     }
 
     private AppSettings Settings

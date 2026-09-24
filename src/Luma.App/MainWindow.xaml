@@ -245,7 +245,7 @@
                                 <ColumnDefinition Width="112"/>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="72"/>
-                                <ColumnDefinition Width="48"/>
+                                <ColumnDefinition Width="72"/>
                                 <ColumnDefinition Width="132"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="LibraryColName" Grid.Column="1" Text="名称" FontSize="12"
@@ -276,7 +276,7 @@
                                             <ColumnDefinition Width="112"/>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="72"/>
-                                            <ColumnDefinition Width="48"/>
+                                            <ColumnDefinition Width="72"/>
                                             <ColumnDefinition Width="132"/>
                                         </Grid.ColumnDefinitions>
                                         <Grid Width="112" Height="63">

@@ -23,6 +23,7 @@ struct StartRequest
     std::string micId;
     bool camera = false;
     std::string cameraId;
+    std::string cameraName;
     double cameraX = 0.5;
     double cameraY = 0.5;
     double cameraW = 0.24;

@@ -10,31 +10,72 @@ public sealed class LibraryCatalog
         }
 
         var durations = LibraryFileInfo.Read(saveFolder);
-        return Directory.EnumerateFiles(saveFolder)
-            .Where(path =>
-                Luma.Core.Settings.RecordingContainers.IsVideo(path)
-                || path.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase)
-                || path.EndsWith(".partial.mkv", StringComparison.OrdinalIgnoreCase))
-            .Select(path =>
+        var present = new List<LibraryItem>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in Directory.EnumerateFiles(saveFolder))
+        {
+            if (!IsMedia(path))
+            {
+                continue;
+            }
+
+            try
             {
                 var info = new FileInfo(path);
-                var fileName = info.Name;
-                return new LibraryItem
+                if (!info.Exists)
                 {
-                    Id = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(path)))[..12],
-                    Path = path,
-                    Name = System.IO.Path.GetFileNameWithoutExtension(path),
-                    SizeBytes = info.Length,
-                    Duration = durations.TryGetValue(fileName, out var seconds) && seconds > 0
-                        ? TimeSpan.FromSeconds(seconds)
-                        : TimeSpan.Zero,
-                    Created = info.CreationTimeUtc,
-                    PosterPath = FindPoster(path)
-                };
-            })
+                    continue;
+                }
+
+                seen.Add(info.Name);
+                present.Add(Item(path, info.Name, info.Length, info.CreationTimeUtc, durations, missing: false));
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        var missing = new List<LibraryItem>();
+        foreach (var name in durations.Keys)
+        {
+            if (seen.Contains(name) || !IsMedia(name))
+            {
+                continue;
+            }
+
+            missing.Add(Item(Path.Combine(saveFolder, name), name, 0, default, durations, missing: true));
+        }
+
+        return present
             .OrderByDescending(item => item.Created)
+            .Concat(missing.OrderBy(item => item.Name, StringComparer.OrdinalIgnoreCase))
             .ToArray();
     }
+
+    private static LibraryItem Item(string path, string fileName, long size, DateTimeOffset created, IReadOnlyDictionary<string, double> durations, bool missing)
+    {
+        return new LibraryItem
+        {
+            Id = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(path)))[..12],
+            Path = path,
+            Name = Path.GetFileNameWithoutExtension(fileName),
+            SizeBytes = size,
+            Duration = durations.TryGetValue(fileName, out var seconds) && seconds > 0
+                ? TimeSpan.FromSeconds(seconds)
+                : TimeSpan.Zero,
+            Created = created,
+            PosterPath = missing ? null : FindPoster(path),
+            Missing = missing
+        };
+    }
+
+    private static bool IsMedia(string path)
+        => Luma.Core.Settings.RecordingContainers.IsVideo(path)
+            || path.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith(".partial.mkv", StringComparison.OrdinalIgnoreCase);
 
     public void Delete(string path)
     {
@@ -53,6 +94,11 @@ public sealed class LibraryCatalog
 
     public string Rename(string path, string newName)
     {
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException(path);
+        }
+
         var directory = System.IO.Path.GetDirectoryName(path) ?? throw new InvalidOperationException();
         var extension = System.IO.Path.GetExtension(path);
         var dest = System.IO.Path.Combine(directory, newName + extension);

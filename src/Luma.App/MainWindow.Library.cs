@@ -18,9 +18,25 @@ public sealed partial class MainWindow
 {
     private void RefreshLibrary()
     {
-        var items = _library.List(Settings.SaveFolder).ToList();
+        List<LibraryItem> items;
+        try
+        {
+            items = _library.List(Settings.SaveFolder).ToList();
+        }
+        catch (Exception ex)
+        {
+            ShowBanner(ex.Message, InfoBarSeverity.Error);
+            return;
+        }
+
         foreach (var item in items)
         {
+            if (item.Missing)
+            {
+                item.StatusText = UiCopy.T("lib.deleted");
+                continue;
+            }
+
             if (_durations.TryGetValue(item.Path, out var duration))
             {
                 item.Duration = duration;
@@ -30,6 +46,12 @@ public sealed partial class MainWindow
             if (item.Duration > TimeSpan.Zero)
             {
                 _durations[item.Path] = item.Duration;
+                continue;
+            }
+
+            if (!File.Exists(item.Path))
+            {
+                item.StatusText = UiCopy.T("lib.deleted");
                 continue;
             }
 
@@ -128,14 +150,16 @@ public sealed partial class MainWindow
 
     private void UpdateLibraryCommands()
     {
-        var count = LibraryList.SelectedItems.Count;
-        PreviewBarButton.IsEnabled = count == 1;
-        RenameBarButton.IsEnabled = count == 1;
+        var selected = LibraryList.SelectedItems.OfType<LibraryItem>().ToArray();
+        var count = selected.Length;
+        var usable = count == 1 && !selected[0].Missing;
+        PreviewBarButton.IsEnabled = usable;
+        RenameBarButton.IsEnabled = usable;
         DeleteBarButton.IsEnabled = count > 0;
-        RepairBarButton.IsEnabled = count == 1;
-        MergeMenuItem.IsEnabled = count > 1;
-        SubtitleBarButton.IsEnabled = count == 1;
-        MusicBarButton.IsEnabled = count == 1;
+        RepairBarButton.IsEnabled = usable;
+        MergeMenuItem.IsEnabled = count > 1 && selected.All(item => !item.Missing);
+        SubtitleBarButton.IsEnabled = usable;
+        MusicBarButton.IsEnabled = usable;
     }
 
     private LibraryItem? SelectedItem() => LibraryList.SelectedItem as LibraryItem;
@@ -144,7 +168,12 @@ public sealed partial class MainWindow
 
     private async Task OpenSelectedAsync()
     {
-        if (SelectedItem() is not { } item || !File.Exists(item.Path)) return;
+        if (SelectedItem() is not { } item) return;
+        if (item.Missing || !File.Exists(item.Path))
+        {
+            ShowBanner(UiCopy.T("lib.deleted"), InfoBarSeverity.Warning);
+            return;
+        }
         if (_session.Phase == SessionPhase.Processing && IsCurrentCut(item.Path))
         {
             if (!_windowConcealed)
@@ -327,7 +356,7 @@ public sealed partial class MainWindow
 
     private async void Rename_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem() is not { } item) return;
+        if (SelectedItem() is not { } item || item.Missing || !File.Exists(item.Path)) return;
         var box = new TextBox { Text = item.Name };
         var dialog = new ContentDialog
         {
@@ -411,13 +440,13 @@ public sealed partial class MainWindow
 
     private async void Repair_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem() is not { } item) return;
+        if (SelectedItem() is not { } item || item.Missing || !File.Exists(item.Path)) return;
         await RunJob(UiCopy.T("lib.repairing"), () => _editor.RepairAsync(item.Path), item.Path);
     }
 
     private async void Compress_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem() is not { } item) return;
+        if (SelectedItem() is not { } item || item.Missing || !File.Exists(item.Path)) return;
         var dialog = new ContentDialog
         {
             Title = UiCopy.T("lib.compress"),
@@ -434,7 +463,7 @@ public sealed partial class MainWindow
 
     private async void Trim_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem() is not { } item) return;
+        if (SelectedItem() is not { } item || item.Missing || !File.Exists(item.Path)) return;
         var start = new NumberBox { Header = UiCopy.T("lib.trim.start"), Value = 0, Minimum = 0 };
         var end = new NumberBox { Header = UiCopy.T("lib.trim.end"), Value = 10, Minimum = 0 };
         var panel = new StackPanel { Spacing = 8 };
@@ -461,8 +490,9 @@ public sealed partial class MainWindow
 
     private async void Merge_Click(object sender, RoutedEventArgs e)
     {
-        var items = LibraryList.SelectedItems.OfType<LibraryItem>().Select(item => item.Path).ToArray();
-        if (items.Length < 2) return;
+        var picked = LibraryList.SelectedItems.OfType<LibraryItem>().ToArray();
+        if (picked.Length < 2 || picked.Any(item => item.Missing || !File.Exists(item.Path))) return;
+        var items = picked.Select(item => item.Path).ToArray();
         if (items.Any(path => _session.Phase is SessionPhase.Recording or SessionPhase.Paused && string.Equals(path, _lastFile, StringComparison.OrdinalIgnoreCase)))
         {
             ShowBanner("正在录制的文件不能做后期。请选择更早的成片，当前录制会继续。", InfoBarSeverity.Warning);
@@ -474,7 +504,7 @@ public sealed partial class MainWindow
 
     private async void Subtitle_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem() is not { } item) return;
+        if (SelectedItem() is not { } item || item.Missing || !File.Exists(item.Path)) return;
         var box = new TextBox { PlaceholderText = UiCopy.T("lib.sub.ph") };
         var dialog = new ContentDialog
         {
@@ -525,7 +555,7 @@ public sealed partial class MainWindow
 
     private async void Music_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedItem() is not { } item) return;
+        if (SelectedItem() is not { } item || item.Missing || !File.Exists(item.Path)) return;
         var file = NativeFilePicker.Pick(WindowNative.GetWindowHandle(this), UiCopy.T("lib.music"), UiCopy.T("lib.music"), "*.mp3;*.m4a;*.wav");
         if (file is null) return;
         var volume = new Slider { Header = UiCopy.T("lib.music.vol"), Value = 40, Minimum = 1, Maximum = 100 };

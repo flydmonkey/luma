@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Luma.Core.Lan;
 using Luma.Core.Library;
 
 namespace Luma.Core.Tests;
@@ -91,6 +93,39 @@ public sealed class LibraryFileInfoTests
 
             Assert.True(File.Exists(LibraryPaths.PosterFor(renamed)));
             Assert.False(File.Exists(LibraryPaths.PosterFor(media)));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void File_removed_outside_the_app_stays_listed_as_missing()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "luma-file-info-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var media = Path.Combine(folder, "Luma-take.mp4");
+            File.WriteAllBytes(media, [1, 2, 3, 4]);
+            LibraryFileInfo.Remember(media, TimeSpan.FromSeconds(9));
+            File.Delete(media);
+
+            var catalog = new LibraryCatalog();
+            var listed = catalog.List(folder).Single();
+            Assert.True(listed.Missing);
+            Assert.Equal(TimeSpan.FromSeconds(9), listed.Duration);
+            Assert.Equal("", listed.SizeText);
+
+            catalog.Delete(listed.Path);
+            Assert.Empty(catalog.List(folder));
+
+            File.WriteAllBytes(media, [1, 2, 3, 4]);
+            LibraryFileInfo.Remember(media, TimeSpan.FromSeconds(9));
+            File.Delete(media);
+            var json = JsonSerializer.Serialize(LanControlApi.LibraryList(folder));
+            Assert.Contains("\"missing\":true", json, StringComparison.Ordinal);
         }
         finally
         {

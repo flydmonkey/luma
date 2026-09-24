@@ -35,28 +35,39 @@ public static class LanControlApi
     public static object LibraryList(string folder)
     {
         var catalog = new LibraryCatalog();
-        return catalog.List(folder).Select(item => new
-        {
-            id = item.Id,
-            name = item.Name,
-            length = item.SizeBytes,
-            duration = item.Duration.ToString(),
-            date = item.Created,
-            isAudio = item.IsAudio
-        }).ToArray();
+        return catalog.List(folder).Select(LibraryDto).ToArray();
     }
 
     public static LibraryItem? Find(string folder, string id)
     {
         var catalog = new LibraryCatalog();
-        return catalog.List(folder).FirstOrDefault(item =>
-            string.Equals(item.Id, id, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(item.Name, id, StringComparison.OrdinalIgnoreCase));
+        return catalog.List(folder).FirstOrDefault(item => SameItem(item, id));
     }
+
+    private static bool SameItem(LibraryItem item, string id)
+        => string.Equals(item.Id, id, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(item.Name, id, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(Path.GetFileName(item.Path), id, StringComparison.OrdinalIgnoreCase);
+
+    private static object LibraryDto(LibraryItem item) => new
+    {
+        id = item.Id,
+        name = item.Name,
+        length = item.SizeBytes,
+        duration = item.Missing ? "" : item.Duration.ToString(),
+        date = item.Missing ? (DateTimeOffset?)null : item.Created,
+        isAudio = item.IsAudio,
+        missing = item.Missing
+    };
 
     public static object Rename(string folder, string id, string name)
     {
         var item = Find(folder, id) ?? throw new InvalidOperationException("未找到这个文件。");
+        if (item.Missing || !File.Exists(item.Path))
+        {
+            throw new InvalidOperationException("文件已删除。");
+        }
+
         if (name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || string.IsNullOrWhiteSpace(name))
         {
             throw new InvalidOperationException("名称不能为空。");
@@ -65,15 +76,7 @@ public static class LanControlApi
         var dest = new LibraryCatalog().Rename(item.Path, name.Trim());
         var updated = Find(folder, Path.GetFileNameWithoutExtension(dest))
             ?? throw new InvalidOperationException("重命名后未能读取记录。");
-        return new
-        {
-            id = updated.Id,
-            name = updated.Name,
-            length = updated.SizeBytes,
-            duration = updated.Duration.ToString(),
-            date = updated.Created,
-            isAudio = updated.IsAudio
-        };
+        return LibraryDto(updated);
     }
 
     public static void Delete(string folder, string id, bool confirm)

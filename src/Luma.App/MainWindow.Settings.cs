@@ -42,7 +42,8 @@ public sealed partial class MainWindow
         CameraHSlider.Value = Settings.Overlay.CameraHeight * 100;
         var textMark = Settings.Overlay.Watermarks.FirstOrDefault(item => item.Kind == WatermarkKind.Text);
         var imageMark = Settings.Overlay.Watermarks.FirstOrDefault(item => item.Kind == WatermarkKind.Image);
-        var stamp = Settings.Overlay.Watermarks.Any(item => item.Kind == WatermarkKind.Timestamp);
+        var stampMark = Settings.Overlay.Watermarks.FirstOrDefault(item => item.Kind == WatermarkKind.Timestamp);
+        var stamp = stampMark is not null;
         TimestampBox.IsOn = stamp;
         TextWatermarkBox.IsOn = textMark is not null;
         TextWatermarkText.Text = textMark?.Content ?? "";
@@ -51,8 +52,8 @@ public sealed partial class MainWindow
         _imageWatermarkPath = imageMark?.Content;
         ImageWatermarkPathText.Text = string.IsNullOrWhiteSpace(_imageWatermarkPath) ? "" : Path.GetFileName(_imageWatermarkPath);
         ImageOpacitySlider.Value = (imageMark?.Opacity ?? 0.9) * 100;
-        WatermarkXSlider.Value = (textMark?.X ?? imageMark?.X ?? 0.02) * 100;
-        WatermarkYSlider.Value = (textMark?.Y ?? imageMark?.Y ?? 0.1) * 100;
+        WatermarkXSlider.Value = (textMark?.X ?? imageMark?.X ?? stampMark?.X ?? 0.02) * 100;
+        WatermarkYSlider.Value = (textMark?.Y ?? imageMark?.Y ?? stampMark?.Y ?? 0.1) * 100;
         WatermarkWSlider.Value = (textMark?.Width ?? 0.16) * 100;
         WatermarkHSlider.Value = (textMark?.Height ?? 0.11) * 100;
         SegmentBox.IsOn = Settings.Automation.SegmentEnabled;

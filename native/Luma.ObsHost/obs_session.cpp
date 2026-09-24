@@ -665,15 +665,132 @@ void PlaceItem(obs_source_t* source, int canvasW, int canvasH, double nx, double
     {
         return;
     }
-    struct vec2 pos{};
-    pos.x = static_cast<float>(canvasW * nx);
-    pos.y = static_cast<float>(canvasH * ny);
-    obs_sceneitem_set_pos(item, &pos);
     struct vec2 bounds{};
     bounds.x = static_cast<float>(canvasW * nw < 32 ? 32 : canvasW * nw);
     bounds.y = static_cast<float>(canvasH * nh < 32 ? 32 : canvasH * nh);
+    if (bounds.x > canvasW)
+    {
+        bounds.x = static_cast<float>(canvasW);
+    }
+    if (bounds.y > canvasH)
+    {
+        bounds.y = static_cast<float>(canvasH);
+    }
+    // Sliders are a fraction of the free space, so 1 means flush to the far edge.
+    const float roomX = static_cast<float>(canvasW) - bounds.x;
+    const float roomY = static_cast<float>(canvasH) - bounds.y;
+    struct vec2 pos{};
+    pos.x = roomX > 0 ? static_cast<float>(roomX * nx) : 0;
+    pos.y = roomY > 0 ? static_cast<float>(roomY * ny) : 0;
+    obs_sceneitem_set_pos(item, &pos);
     obs_sceneitem_set_bounds_type(item, OBS_BOUNDS_SCALE_INNER);
+    obs_sceneitem_set_bounds_alignment(item, OBS_ALIGN_CENTER);
     obs_sceneitem_set_bounds(item, &bounds);
+}
+
+std::string AsciiLower(std::string value)
+{
+    for (char& ch : value)
+    {
+        if (ch >= 'A' && ch <= 'Z')
+        {
+            ch = static_cast<char>(ch - 'A' + 'a');
+        }
+    }
+    return value;
+}
+
+bool EqualsIgnoreCase(const char* left, const std::string& right)
+{
+    return left && AsciiLower(left) == AsciiLower(right);
+}
+
+std::string CameraInstanceKey(const std::string& id)
+{
+    const std::string lower = AsciiLower(id);
+    const auto vid = lower.find("vid_");
+    if (vid == std::string::npos)
+    {
+        return {};
+    }
+    const auto end = lower.find("#{", vid);
+    return lower.substr(vid, end == std::string::npos ? std::string::npos : end - vid);
+}
+
+std::string ResolveCameraDeviceId(const std::string& requestedId, const std::string& requestedName)
+{
+    const char* typeId = obs_get_latest_input_type_id("dshow_input");
+    if (!typeId || !typeId[0])
+    {
+        typeId = "dshow_input";
+    }
+    obs_properties_t* props = obs_get_source_properties(typeId);
+    if (!props)
+    {
+        LogLine("camera device list unavailable");
+        return {};
+    }
+
+    obs_property_t* prop = obs_properties_get(props, "video_device_id");
+    const size_t count = prop ? obs_property_list_item_count(prop) : 0;
+    LogLine("camera devices %llu", static_cast<unsigned long long>(count));
+    const bool useDefault = requestedId.empty() || requestedId == "default";
+    const std::string wantedKey = CameraInstanceKey(requestedId);
+    std::string name = requestedName;
+    if (name.empty() && requestedId.find('\\') == std::string::npos && requestedId.find("vid_") == std::string::npos)
+    {
+        name = requestedId;
+    }
+
+    std::string first;
+    std::string byValue;
+    std::string byKey;
+    std::string byName;
+    for (size_t i = 0; i < count; i++)
+    {
+        if (obs_property_list_item_disabled(prop, i))
+        {
+            continue;
+        }
+        const char* itemName = obs_property_list_item_name(prop, i);
+        const char* itemValue = obs_property_list_item_string(prop, i);
+        if (!itemValue || !itemValue[0])
+        {
+            continue;
+        }
+        if (first.empty())
+        {
+            first = itemValue;
+        }
+        if (!useDefault && EqualsIgnoreCase(itemValue, requestedId))
+        {
+            byValue = itemValue;
+            break;
+        }
+        if (byKey.empty() && !wantedKey.empty() && CameraInstanceKey(itemValue) == wantedKey)
+        {
+            byKey = itemValue;
+        }
+        if (byName.empty() && !useDefault && !name.empty() && EqualsIgnoreCase(itemName, name))
+        {
+            byName = itemValue;
+        }
+    }
+    obs_properties_destroy(props);
+
+    if (!byValue.empty())
+    {
+        return byValue;
+    }
+    if (!byKey.empty())
+    {
+        return byKey;
+    }
+    if (!byName.empty())
+    {
+        return byName;
+    }
+    return useDefault ? first : std::string{};
 }
 
 obs_source_t* MakeText(const char* name, const char* text)
@@ -728,22 +845,34 @@ void AddOverlays(const StartRequest& request, int canvasW, int canvasH)
 {
     if (request.camera)
     {
-        obs_data_t* settings = obs_data_create();
-        if (!request.cameraId.empty() && request.cameraId != "default")
+        const std::string deviceId = ResolveCameraDeviceId(request.cameraId, request.cameraName);
+        if (deviceId.empty())
         {
-            obs_data_set_string(settings, "video_device_id", request.cameraId.c_str());
-        }
-        obs_data_set_int(settings, "audio_output_mode", 0);
-        obs_source_t* source = CreateInput("dshow_input", "luma-camera", settings);
-        obs_data_release(settings);
-        if (source)
-        {
-            g_extra.push_back(source);
-            PlaceItem(source, canvasW, canvasH, request.cameraX, request.cameraY, request.cameraW, request.cameraH);
+            LogLine("camera not matched id='%s' name='%s'", request.cameraId.c_str(), request.cameraName.c_str());
+            Warn("摄像头不可用。");
         }
         else
         {
-            Warn("摄像头不可用。");
+            LogLine("camera device %s", deviceId.c_str());
+            obs_data_t* settings = obs_data_create();
+            obs_data_set_string(settings, "video_device_id", deviceId.c_str());
+            // Preferred mode on this USB capture card is 1080p60 MJPEG, and
+            // IMediaControl::Run then fails with ERROR_NO_SYSTEM_RESOURCES.
+            // 720p30 fits the overlay and the device actually starts.
+            obs_data_set_int(settings, "res_type", 1);
+            obs_data_set_string(settings, "resolution", "1280x720");
+            obs_data_set_int(settings, "frame_interval", 333333);
+            obs_source_t* source = CreateInput("dshow_input", "luma-camera", settings);
+            obs_data_release(settings);
+            if (source)
+            {
+                g_extra.push_back(source);
+                PlaceItem(source, canvasW, canvasH, request.cameraX, request.cameraY, request.cameraW, request.cameraH);
+            }
+            else
+            {
+                Warn("摄像头不可用。");
+            }
         }
     }
 
@@ -1797,6 +1926,7 @@ StartRequest ParseStartRequest(const std::string& json)
     request.micId = JsonString(json, "micId");
     request.camera = JsonBool(json, "camera", false);
     request.cameraId = JsonString(json, "cameraId");
+    request.cameraName = JsonString(json, "cameraName");
     request.cameraX = JsonDouble(json, "cameraX", 0.5);
     request.cameraY = JsonDouble(json, "cameraY", 0.5);
     request.cameraW = JsonDouble(json, "cameraW", 0.24);

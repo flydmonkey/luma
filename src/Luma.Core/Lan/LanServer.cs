@@ -444,6 +444,11 @@ public sealed class LanServer : IDisposable
         if (parts.Length == 2 && method == "POST")
         {
             var item = LanControlApi.Find(folder, id) ?? throw new InvalidOperationException("未找到这个文件。");
+            if (item.Missing || !File.Exists(item.Path))
+            {
+                throw new InvalidOperationException("文件已删除。");
+            }
+
             var jobId = LanControlApi.EnqueueJob(parts[1], item.Path, bodyText, RunJob);
             await WriteAsync(context.Response, 200, LanControlApi.Ok(new { jobId })).ConfigureAwait(false);
         }

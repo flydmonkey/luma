@@ -260,8 +260,9 @@ button:disabled { opacity:.45; cursor:default; filter:none; }
 .gate-page .card-row { width:100%; }
 .gate-page .err { margin:0; }
 .cols, .row {
-  display:grid; grid-template-columns:20px 112px minmax(0,1fr) 72px 48px 132px; gap:12px; align-items:center;
+  display:grid; grid-template-columns:20px 112px minmax(0,1fr) 72px 72px 132px; gap:12px; align-items:center;
 }
+.row.missing .name { color:var(--muted); font-weight:400; }
 .cols { color:var(--muted); font-size:12px; padding:8px 24px 4px 16px; flex:0 0 auto; }
 .list { flex:1 1 auto; min-height:0; overflow:auto; padding:0 8px 12px; scrollbar-width:thin; }
 .row {

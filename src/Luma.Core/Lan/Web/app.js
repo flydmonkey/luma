@@ -69,7 +69,8 @@ const I18N = {
     "settings.overlay.mark": "Mark", "settings.pos.x": "Horizontal", "settings.pos.y": "Vertical",
     "settings.size.w": "Width", "settings.size.h": "Height",
     "sec.watermark": "Watermark", "settings.stamp": "Timestamp", "settings.wm.text": "Text mark",
-    "settings.wm.text.value": "Text", "settings.wm.image.file": "Image path",
+    "settings.wm.text.value": "Text", "settings.wm.text.ph": "Watermark text", "settings.wm.text.op": "Text opacity",
+    "settings.wm.image": "Image mark", "settings.wm.image.file": "Image path", "settings.wm.image.op": "Image opacity",
     "sec.auto": "Automation", "settings.seg": "Split files", "settings.seg.min": "Split minutes",
     "settings.launchTray": "Start in tray",
     "settings.launchTray.desc": "Start at sign-in in the tray, without recording",
@@ -101,7 +102,8 @@ const I18N = {
     "lib.empty.desc": "Finished recordings appear here", "lib.col.name": "Name", "lib.col.size": "Size",
     "lib.col.duration": "Time", "lib.col.date": "Date", "lib.fullscreen": "Full screen",
     "lib.trim": "Trim", "lib.compress": "Compress", "lib.rename.invalid": "Enter a valid name",
-    "lib.rename.fail": "Could not rename", "lib.delete.title": "Delete files",
+    "lib.rename.fail": "Could not rename", "lib.deleted": "Deleted", "lib.not.ready": "Video is not ready yet",
+    "lib.delete.title": "Delete files",
     "lib.delete.one": "Delete {0}?", "lib.delete.many": "Delete {0} files?",
     "lib.compress.body": "Export a new file.", "lib.compress.export": "Export new",
     "lib.trim.start": "Start (sec)", "lib.trim.end": "End (sec)", "lib.export": "Export",
@@ -148,7 +150,8 @@ const I18N = {
     "settings.overlay.mark": "水印", "settings.pos.x": "水平位置", "settings.pos.y": "垂直位置",
     "settings.size.w": "宽度", "settings.size.h": "高度",
     "sec.watermark": "水印", "settings.stamp": "时间戳", "settings.wm.text": "文字水印",
-    "settings.wm.text.value": "文字", "settings.wm.image.file": "图片水印路径",
+    "settings.wm.text.value": "文字", "settings.wm.text.ph": "水印文字", "settings.wm.text.op": "文字透明度",
+    "settings.wm.image": "图片水印", "settings.wm.image.file": "图片路径", "settings.wm.image.op": "图片透明度",
     "sec.auto": "自动化", "settings.seg": "分段录制", "settings.seg.min": "分段分钟",
     "settings.launchTray": "登录后进托盘",
     "settings.launchTray.desc": "登录后启动并进入托盘，不自动开录",
@@ -180,7 +183,8 @@ const I18N = {
     "lib.empty.desc": "录完的视频会出现在这里", "lib.col.name": "名称", "lib.col.size": "大小",
     "lib.col.duration": "时长", "lib.col.date": "日期", "lib.fullscreen": "全屏",
     "lib.trim": "剪切", "lib.compress": "压缩", "lib.rename.invalid": "请输入有效的文件名",
-    "lib.rename.fail": "无法重命名", "lib.delete.title": "删除文件",
+    "lib.rename.fail": "无法重命名", "lib.deleted": "已删除", "lib.not.ready": "视频还没准备好",
+    "lib.delete.title": "删除文件",
     "lib.delete.one": "确定删除 {0} ?", "lib.delete.many": "确定删除 {0} 个文件?",
     "lib.compress.body": "导出为新文件。", "lib.compress.export": "导出新文件",
     "lib.trim.start": "开始秒", "lib.trim.end": "结束秒", "lib.export": "导出",
@@ -227,7 +231,8 @@ const I18N = {
     "settings.overlay.mark": "浮水印", "settings.pos.x": "水平位置", "settings.pos.y": "垂直位置",
     "settings.size.w": "寬度", "settings.size.h": "高度",
     "sec.watermark": "浮水印", "settings.stamp": "時間戳", "settings.wm.text": "文字浮水印",
-    "settings.wm.text.value": "文字", "settings.wm.image.file": "圖片浮水印路徑",
+    "settings.wm.text.value": "文字", "settings.wm.text.ph": "浮水印文字", "settings.wm.text.op": "文字透明度",
+    "settings.wm.image": "圖片浮水印", "settings.wm.image.file": "圖片路徑", "settings.wm.image.op": "圖片透明度",
     "sec.auto": "自動化", "settings.seg": "分段錄製", "settings.seg.min": "分段分鐘",
     "settings.launchTray": "登入後進系統匣",
     "settings.launchTray.desc": "登入後啟動並進入系統匣，不自動開錄",
@@ -259,7 +264,8 @@ const I18N = {
     "lib.empty.desc": "錄完的影片會出現在這裡", "lib.col.name": "名稱", "lib.col.size": "大小",
     "lib.col.duration": "時長", "lib.col.date": "日期", "lib.fullscreen": "全螢幕",
     "lib.trim": "剪輯", "lib.compress": "壓縮", "lib.rename.invalid": "請輸入有效的檔名",
-    "lib.rename.fail": "無法重新命名", "lib.delete.title": "刪除檔案",
+    "lib.rename.fail": "無法重新命名", "lib.deleted": "已刪除", "lib.not.ready": "影片還沒準備好",
+    "lib.delete.title": "刪除檔案",
     "lib.delete.one": "確定刪除 {0} ?", "lib.delete.many": "確定刪除 {0} 個檔案?",
     "lib.compress.body": "匯出為新檔案。", "lib.compress.export": "匯出新檔案",
     "lib.trim.start": "開始秒", "lib.trim.end": "結束秒", "lib.export": "匯出",
@@ -306,7 +312,8 @@ const I18N = {
     "settings.overlay.mark": "透かし", "settings.pos.x": "水平", "settings.pos.y": "垂直",
     "settings.size.w": "幅", "settings.size.h": "高さ",
     "sec.watermark": "透かし", "settings.stamp": "タイムスタンプ", "settings.wm.text": "文字透かし",
-    "settings.wm.text.value": "文字", "settings.wm.image.file": "画像のパス",
+    "settings.wm.text.value": "文字", "settings.wm.text.ph": "透かし文字", "settings.wm.text.op": "文字の不透明度",
+    "settings.wm.image": "画像透かし", "settings.wm.image.file": "画像のパス", "settings.wm.image.op": "画像の不透明度",
     "sec.auto": "自動化", "settings.seg": "分割録画", "settings.seg.min": "分割（分）",
     "settings.launchTray": "トレイで起動",
     "settings.launchTray.desc": "サインイン時にトレイで起動（録画しない）",
@@ -338,7 +345,8 @@ const I18N = {
     "lib.empty.desc": "録画した映像がここに出ます", "lib.col.name": "名前", "lib.col.size": "サイズ",
     "lib.col.duration": "時間", "lib.col.date": "日付", "lib.fullscreen": "全画面",
     "lib.trim": "切り取り", "lib.compress": "圧縮", "lib.rename.invalid": "有効な名前を入力",
-    "lib.rename.fail": "名前を変更できません", "lib.delete.title": "ファイルを削除",
+    "lib.rename.fail": "名前を変更できません", "lib.deleted": "削除済み", "lib.not.ready": "動画の準備ができていません",
+    "lib.delete.title": "ファイルを削除",
     "lib.delete.one": "{0} を削除しますか?", "lib.delete.many": "{0} 個のファイルを削除しますか?",
     "lib.compress.body": "新しいファイルに書き出します。", "lib.compress.export": "書き出す",
     "lib.trim.start": "開始（秒）", "lib.trim.end": "終了（秒）", "lib.export": "書き出す",
@@ -385,7 +393,8 @@ const I18N = {
     "settings.overlay.mark": "마크", "settings.pos.x": "가로", "settings.pos.y": "세로",
     "settings.size.w": "너비", "settings.size.h": "높이",
     "sec.watermark": "워터마크", "settings.stamp": "타임스탬프", "settings.wm.text": "텍스트 마크",
-    "settings.wm.text.value": "텍스트", "settings.wm.image.file": "이미지 경로",
+    "settings.wm.text.value": "텍스트", "settings.wm.text.ph": "워터마크 텍스트", "settings.wm.text.op": "텍스트 불투명도",
+    "settings.wm.image": "이미지 마크", "settings.wm.image.file": "이미지 경로", "settings.wm.image.op": "이미지 불투명도",
     "sec.auto": "자동화", "settings.seg": "분할 녹화", "settings.seg.min": "분할(분)",
     "settings.launchTray": "트레이로 시작",
     "settings.launchTray.desc": "로그인 시 트레이로 시작, 녹화 없음",
@@ -417,7 +426,8 @@ const I18N = {
     "lib.empty.desc": "녹화한 영상이 여기에 나타납니다", "lib.col.name": "이름", "lib.col.size": "크기",
     "lib.col.duration": "길이", "lib.col.date": "날짜", "lib.fullscreen": "전체 화면",
     "lib.trim": "자르기", "lib.compress": "압축", "lib.rename.invalid": "올바른 이름을 입력하세요",
-    "lib.rename.fail": "이름을 바꿀 수 없습니다", "lib.delete.title": "파일 삭제",
+    "lib.rename.fail": "이름을 바꿀 수 없습니다", "lib.deleted": "삭제됨", "lib.not.ready": "영상이 아직 준비되지 않았습니다",
+    "lib.delete.title": "파일 삭제",
     "lib.delete.one": "{0}을(를) 삭제할까요?", "lib.delete.many": "파일 {0}개를 삭제할까요?",
     "lib.compress.body": "새 파일로 내보냅니다.", "lib.compress.export": "새로 내보내기",
     "lib.trim.start": "시작(초)", "lib.trim.end": "끝(초)", "lib.export": "내보내기",
@@ -968,12 +978,51 @@ function showSavedOverlay(saved) {
   $("savedPanel").hidden = false;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function sameRecording(item, fileName) {
+  const stem = fileStem(fileName);
+  return !!item && (item.id === fileName || item.name === fileName || item.name === stem);
+}
+
+async function waitForFinishedRecording() {
+  const stopBy = Date.now() + 120000;
+  let saved = null;
+  while (Date.now() < stopBy) {
+    const data = await api("/session");
+    renderSession(data);
+    const session = data?.session || {};
+    if (session.lastSaved?.name) saved = session.lastSaved;
+    if (session.state === "idle") break;
+    await sleep(300);
+  }
+  if (!saved?.name) return { ready: false };
+  const readyBy = Date.now() + 20000;
+  while (Date.now() < readyBy) {
+    const items = (await api("/library")) || [];
+    const item = items.find((entry) => sameRecording(entry, saved.name));
+    if (item?.missing) return { ready: false, missing: true, saved };
+    if (item && Number(item.length) > 0) {
+      if (await probeMediaReady(item.id, item.isAudio)) return { ready: true, saved };
+    }
+    await sleep(400);
+  }
+  return { ready: false, saved };
+}
+
 async function stopRecording() {
   showProcessingOverlay();
   try {
     await api("/session/stop", { method: "POST" });
-    const data = await refreshSession();
-    showSavedOverlay(data?.session?.lastSaved);
+    const outcome = await waitForFinishedRecording();
+    if (outcome.ready) {
+      showSavedOverlay(outcome.saved);
+      return;
+    }
+    hideSessionOverlay();
+    toast(t(outcome.missing ? "lib.deleted" : "lib.not.ready"));
   } catch (err) {
     hideSessionOverlay();
     toast(err.message);
@@ -1090,6 +1139,25 @@ function formatDuration(value) {
   return String(mm).padStart(2, "0") + ":" + String(ss).padStart(2, "0");
 }
 
+function probeMediaReady(id, isAudio) {
+  return new Promise((resolve) => {
+    const el = document.createElement(isAudio ? "audio" : "video");
+    let settled = false;
+    const done = (value) => {
+      if (settled) return;
+      settled = true;
+      el.removeAttribute("src");
+      el.load();
+      resolve(value);
+    };
+    el.preload = "metadata";
+    el.onloadedmetadata = () => done(true);
+    el.onerror = () => done(false);
+    window.setTimeout(() => done(false), 4000);
+    el.src = "/media/" + encodeURIComponent(id);
+  });
+}
+
 function probeMediaDuration(id, isAudio) {
   return new Promise((resolve) => {
     const el = document.createElement(isAudio ? "audio" : "video");
@@ -1118,6 +1186,7 @@ async function fillActualDurations() {
     while (index < rows.length && gen === state.durationProbe) {
       const row = rows[index++];
       const item = state.items.find((entry) => entry.id === row.dataset.id);
+      if (!item || item.missing) continue;
       const seconds = await probeMediaDuration(row.dataset.id, item?.isAudio);
       if (gen !== state.durationProbe || seconds == null) continue;
       const cell = row.querySelector("[data-duration]");
@@ -1196,14 +1265,14 @@ function fileStem(name) {
 }
 
 function updateLibraryCommands() {
-  const count = (state.selectedIds || []).length;
-  const hasOne = count >= 1;
-  const hasMany = count >= 2;
-  $("libPreview").disabled = !hasOne;
-  $("libRename").disabled = count !== 1;
-  $("libDelete").disabled = !hasOne;
-  $("libRepair").disabled = !hasOne;
-  $("libMerge").disabled = !hasMany;
+  const selected = selectedItems();
+  const count = selected.length;
+  const usable = count === 1 && !selected[0].missing;
+  $("libPreview").disabled = !usable;
+  $("libRename").disabled = !usable;
+  $("libDelete").disabled = count === 0;
+  $("libRepair").disabled = !usable;
+  $("libMerge").disabled = !(count > 1 && selected.every((item) => !item.missing));
   $("libSubtitle").disabled = true;
   $("libMusic").disabled = true;
   $("libRefresh").disabled = state.items.length === 0;
@@ -1228,16 +1297,16 @@ async function loadLibrary() {
     const on = state.selectedIds.includes(item.id);
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "row" + (on ? " on" : "");
+    btn.className = "row" + (on ? " on" : "") + (item.missing ? " missing" : "");
     btn.dataset.id = item.id;
     btn.setAttribute("role", "option");
     btn.setAttribute("aria-selected", on ? "true" : "false");
     btn.innerHTML = `<span class="check" aria-hidden="true"></span>
-      <div class="poster"><span class="icon poster-fall" aria-hidden="true">&#xE8B2;</span>${item.isAudio || !item.id ? "" : `<img src="/poster/${encodeURIComponent(item.id)}" alt="">`}</div>
+      <div class="poster"><span class="icon poster-fall" aria-hidden="true">&#xE8B2;</span>${item.isAudio || item.missing || !item.id ? "" : `<img src="/poster/${encodeURIComponent(item.id)}" alt="" onerror="this.remove()">`}</div>
       <strong class="name">${escapeHtml(item.name || item.id)}</strong>
-      <span class="muted meta">${escapeHtml(formatSize(item.length))}</span>
-      <span class="muted meta" data-duration>${formatDuration(item.duration)}</span>
-      <span class="muted meta">${formatDate(item.date)}</span>`;
+      <span class="muted meta">${item.missing ? "" : escapeHtml(formatSize(item.length))}</span>
+      <span class="muted meta" data-duration>${item.missing ? escapeHtml(t("lib.deleted")) : formatDuration(item.duration)}</span>
+      <span class="muted meta">${item.missing ? "" : formatDate(item.date)}</span>`;
     btn.onclick = (ev) => {
       ev.preventDefault();
       if (ev.target.closest(".check")) {
@@ -1246,7 +1315,13 @@ async function loadLibrary() {
       }
       pickLibraryItem(item.id, ev);
     };
-    btn.ondblclick = () => setPage("library", item.id);
+    btn.ondblclick = () => {
+      if (item.missing) {
+        toast(t("lib.deleted"));
+        return;
+      }
+      setPage("library", item.id);
+    };
     rows.append(btn);
   });
   updateLibraryCommands();
@@ -1259,14 +1334,26 @@ async function loadLibrary() {
   }
 }
 
+function findLibraryItem(id) {
+  const stem = fileStem(id);
+  return (state.items || []).find((item) => item.id === id || item.name === id || item.name === stem) || null;
+}
+
 function openPreview(id) {
-  const item = state.items.find((x) => x.id === id) || { id, name: id, isAudio: /\.(m4a|mp3|wav|aac)$/i.test(id) };
-  setLibrarySelection(state.selectedIds.includes(id) ? state.selectedIds : [id], id);
+  const item = findLibraryItem(id);
+  if (!item || item.missing) {
+    $("libraryViewer").hidden = true;
+    $("libraryListPane").hidden = false;
+    if ($("shell")) $("shell").classList.remove("preview");
+    if (item?.missing) toast(t("lib.deleted"));
+    return;
+  }
+  setLibrarySelection(state.selectedIds.includes(item.id) ? state.selectedIds : [item.id], item.id);
   $("libraryListPane").hidden = true;
   $("libraryViewer").hidden = false;
   if ($("shell")) $("shell").classList.add("preview");
   $("previewTitle").textContent = item.name || id;
-  const src = "/media/" + encodeURIComponent(id);
+  const src = "/media/" + encodeURIComponent(item.id);
   $("previewPlayer").innerHTML = item.isAudio
     ? `<audio id="previewMedia" controls src="${src}"></audio>`
     : `<video id="previewMedia" controls src="${src}" playsinline></video>`;
@@ -1321,7 +1408,7 @@ async function openFolderDialog() {
 
 async function renameSelected() {
   const item = selectedItem();
-  if (!item) return;
+  if (!item || item.missing) return;
   const choice = await showDialog({
     title: t("lib.rename"),
     bodyHtml: `<input id="renameBox" type="text" value="${escapeHtml(fileStem(item.name))}">`,
@@ -1373,7 +1460,8 @@ async function waitJob(id) {
 }
 
 async function runJob(kind) {
-  if (!state.selectedId) return;
+  const current = selectedItem();
+  if (!current || current.missing) return;
   let body = null;
   if (kind === "compress") {
     const choice = await showDialog({
@@ -1415,7 +1503,12 @@ function card(title, control, hint) {
 }
 
 function wm(kind) {
-  return (state.settings.overlay?.watermarks || []).find((w) => w.kind === kind || w.kind === String(kind));
+  const names = {
+    0: ["text", "0"],
+    1: ["image", "1"],
+    2: ["timestamp", "2"]
+  }[kind] || [String(kind).toLowerCase()];
+  return (state.settings.overlay?.watermarks || []).find((item) => names.includes(String(item.kind).toLowerCase()));
 }
 
 function renderSettings() {
@@ -1461,8 +1554,11 @@ function renderSettings() {
     <div class="h">${t("sec.watermark")}</div>
     ${card(t("settings.stamp"), toggleControl("sTime"))}
     ${card(t("settings.wm.text"), toggleControl("sTextOn"))}
-    ${card(t("settings.wm.text.value"), `<input id="sText" type="text">`)}
+    ${card(t("settings.wm.text.value"), `<input id="sText" type="text" placeholder="${t("settings.wm.text.ph")}">`)}
+    ${card(t("settings.wm.text.op"), sliderControl("sTextOp", 20, 100))}
+    ${card(t("settings.wm.image"), toggleControl("sImgOn"))}
     ${card(t("settings.wm.image.file"), `<input id="sImg" type="text">`)}
+    ${card(t("settings.wm.image.op"), sliderControl("sImgOp", 10, 100))}
     ${card(t("settings.pos.x"), sliderControl("sMarkX", 0, 100))}
     ${card(t("settings.pos.y"), sliderControl("sMarkY", 0, 100))}
     ${card(t("settings.size.w"), sliderControl("sMarkW", 10, 50))}
@@ -1518,22 +1614,28 @@ function renderSettings() {
   $("sCamY").value = String(Math.round((ov.cameraY ?? 0.5) * 100));
   $("sCamW").value = String(Math.round((ov.cameraWidth ?? 0.24) * 100));
   $("sCamH").value = String(Math.round((ov.cameraHeight ?? 0.24) * 100));
-  const mark = wm(0) || wm(1);
-  $("sMarkX").value = String(Math.round((mark?.x ?? 0.02) * 100));
-  $("sMarkY").value = String(Math.round((mark?.y ?? 0.10) * 100));
-  $("sMarkW").value = String(Math.min(50, Math.max(10, Math.round((mark?.width > 0 ? mark.width : 0.16) * 100))));
-  $("sMarkH").value = String(Math.min(50, Math.max(10, Math.round((mark?.height > 0 ? mark.height : 0.11) * 100))));
+  const placed = wm(0) || wm(1) || wm(2);
+  const sized = wm(0) || wm(1);
+  $("sMarkX").value = String(Math.round((placed?.x ?? 0.02) * 100));
+  $("sMarkY").value = String(Math.round((placed?.y ?? 0.10) * 100));
+  $("sMarkW").value = String(Math.min(50, Math.max(10, Math.round((sized?.width > 0 ? sized.width : 0.16) * 100))));
+  $("sMarkH").value = String(Math.min(50, Math.max(10, Math.round((sized?.height > 0 ? sized.height : 0.11) * 100))));
   syncDeviceEnabled();
   $("sCam").onchange = () => { syncDeviceEnabled(); placeOverlayBoxes(); saveSettingsFromForm().catch((err) => toast(err.message)); };
   $("sMic").onchange = () => { syncDeviceEnabled(); saveSettingsFromForm().catch((err) => toast(err.message)); };
-  ["sCamX", "sCamY", "sCamW", "sCamH", "sMarkX", "sMarkY", "sMarkW", "sMarkH"].forEach((id) => {
+  ["sCamX", "sCamY", "sCamW", "sCamH", "sMarkX", "sMarkY", "sMarkW", "sMarkH", "sTextOp", "sImgOp"].forEach((id) => {
     $(id).oninput = () => { syncSliderFill($(id)); placeOverlayBoxes(); };
     syncSliderFill($(id));
   });
   $("sTime").checked = timeOn;
-  $("sTextOn").checked = !!(textWm.content || textWm.kind === 0);
-  $("sText").value = (!textWm.content || textWm.content === "Record") ? "Luma" : textWm.content;
+  $("sTextOn").checked = textWm.kind != null && textWm.kind !== "";
+  $("sText").value = textWm.content || "";
+  $("sTextOp").value = String(Math.round((textWm.opacity ?? 1) * 100));
+  syncSliderFill($("sTextOp"));
+  $("sImgOn").checked = imageWm.kind != null && imageWm.kind !== "";
   $("sImg").value = imageWm.content || "";
+  $("sImgOp").value = String(Math.round((imageWm.opacity ?? 0.9) * 100));
+  syncSliderFill($("sImgOp"));
   $("sSeg").checked = !!auto.segmentEnabled;
   $("sSegMin").value = String(auto.segmentMinutes || 10);
   $("sLaunch").checked = !!s.launchToTray;
@@ -1549,10 +1651,14 @@ function renderSettings() {
   placeOverlayBoxes();
   requestAnimationFrame(placeOverlayBoxes);
   $("settingsHost").onchange = () => {
+    placeOverlayBoxes();
     clearTimeout(state.settingsTimer);
     saveSettingsFromForm().catch((err) => toast(err.message));
   };
-  $("settingsHost").oninput = queueSettingsSave;
+  $("settingsHost").oninput = () => {
+    placeOverlayBoxes();
+    queueSettingsSave();
+  };
   $("sReset").onclick = resetSettings;
   bindHotkey($("sHkStart"), "start");
   bindHotkey($("sHkPause"), "pause");
@@ -1594,8 +1700,10 @@ function placeOverlayBoxes() {
   wmBox.style.height = markH + "px";
   wmBox.style.left = (mx / 100 * Math.max(0, width - markW)) + "px";
   wmBox.style.top = (my / 100 * Math.max(0, height - markH)) + "px";
-  const markOn = $("sTextOn")?.checked || !!$("sImg")?.value.trim();
+  const markOn = $("sTextOn")?.checked || $("sImgOn")?.checked;
   wmBox.style.opacity = markOn ? "0.95" : "0.55";
+  const text = ($("sText")?.value || "").trim();
+  wmBox.textContent = $("sTextOn")?.checked && text ? text : t("settings.overlay.mark");
 }
 
 function bindOverlayDrag() {
@@ -1659,9 +1767,15 @@ function buildWatermarks() {
   const y = Number($("sMarkY")?.value ?? 10) / 100;
   const w = Number($("sMarkW")?.value ?? 16) / 100;
   const h = Number($("sMarkH")?.value ?? 11) / 100;
-  if ($("sTime").checked) list.push({ kind: 2, content: "", x: 0.02, y: 0.02, width: 0.2, height: 0.08, opacity: 1, color: "#FFFFFFFF" });
-  if ($("sTextOn").checked) list.push({ kind: 0, content: $("sText").value, x, y, width: w, height: h, opacity: 1, color: "#FFFFFFFF" });
-  if ($("sImg").value.trim()) list.push({ kind: 1, content: $("sImg").value.trim(), x, y, width: w, height: h, opacity: 0.9, color: "#FFFFFFFF" });
+  if ($("sTime").checked) list.push({ kind: "Timestamp", content: "", x, y, width: 0.18, height: 0.06, opacity: 1 });
+  const text = ($("sText").value || "").trim();
+  if ($("sTextOn").checked && text) {
+    list.push({ kind: "Text", content: text, x, y, width: w, height: h, opacity: Number($("sTextOp").value || 100) / 100 });
+  }
+  const image = ($("sImg").value || "").trim();
+  if ($("sImgOn").checked && image) {
+    list.push({ kind: "Image", content: image, x, y, width: w, height: h, opacity: Number($("sImgOp").value || 90) / 100 });
+  }
   return list;
 }
 
@@ -1694,6 +1808,7 @@ async function saveSettingsFromForm() {
     overlay: {
       cameraEnabled: $("sCam").checked,
       cameraDeviceId: $("sCamId").value || null,
+      cameraDeviceName: $("sCamId").value ? ($("sCamId").selectedOptions[0]?.textContent || "") : "",
       cameraX: Number($("sCamX").value || 50) / 100,
       cameraY: Number($("sCamY").value || 50) / 100,
       cameraWidth: Number($("sCamW").value || 24) / 100,
@@ -2387,13 +2502,18 @@ async function boot() {
   $("emptyRecord").onclick = () => setPage("record");
   $("emptyFolder").onclick = openFolderDialog;
   $("libFolder").onclick = openFolderDialog;
-  $("libPreview").onclick = () => selectedItem() && setPage("library", selectedItem().id);
+  $("libPreview").onclick = () => {
+    const item = selectedItem();
+    if (!item || item.missing) return;
+    setPage("library", item.id);
+  };
   $("libRename").onclick = renameSelected;
   $("libDelete").onclick = deleteSelected;
   $("libRepair").onclick = () => { setMoreOpen(false); runJob("repair"); };
   $("libMerge").onclick = () => {
     setMoreOpen(false);
-    if ((state.selectedIds || []).length < 2) {
+    const picked = selectedItems();
+    if (picked.length < 2 || picked.some((item) => item.missing)) {
       toast(t("lib.merge.need"));
       return;
     }

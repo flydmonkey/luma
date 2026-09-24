@@ -9,16 +9,24 @@ public sealed class LibraryItem
     public required TimeSpan Duration { get; set; }
     public required DateTimeOffset Created { get; init; }
     public string? PosterPath { get; init; }
+    public bool Missing { get; init; }
+    public string StatusText { get; set; } = "";
     public bool IsAudio => Path.EndsWith(".m4a", StringComparison.OrdinalIgnoreCase);
 
-    public string SizeText => SizeBytes >= 1024 * 1024
-        ? $"{SizeBytes / (1024d * 1024d):0.0} MB"
-        : $"{SizeBytes / 1024d:0} KB";
+    public string SizeText => Missing
+        ? ""
+        : SizeBytes >= 1024 * 1024
+            ? $"{SizeBytes / (1024d * 1024d):0.0} MB"
+            : $"{SizeBytes / 1024d:0} KB";
 
-    public string DurationText => Duration.TotalSeconds > 0
-        ? (Duration.TotalHours >= 1 ? Duration.ToString(@"h\:mm\:ss") : Duration.ToString(@"mm\:ss"))
-        : (IsAudio ? "音频" : "");
-    public string DateText => Created.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+    public string DurationText => !string.IsNullOrEmpty(StatusText)
+        ? StatusText
+        : Duration.TotalSeconds > 0
+            ? (Duration.TotalHours >= 1 ? Duration.ToString(@"h\:mm\:ss") : Duration.ToString(@"mm\:ss"))
+            : (IsAudio ? "音频" : "");
+    public string DateText => Missing || Created == default
+        ? ""
+        : Created.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
 
     public override string ToString() => $"{Name}  {SizeText}  {DateText}";
 }
