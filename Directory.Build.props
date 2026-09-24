@@ -3,7 +3,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <Version>1.2.7</Version>
+    <Version>1.2.8</Version>
     <RunSettingsFilePath>$(MSBuildThisFileDirectory)Luma.runsettings</RunSettingsFilePath>
   </PropertyGroup>
 </Project>
