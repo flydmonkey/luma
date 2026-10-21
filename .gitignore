@@ -14,6 +14,7 @@ x86/
 *.msix
 AppPackages/
 BundleArtifacts/
+publish/
 third_party/obs/
 third_party/obs-src/
 third_party/ffmpeg/

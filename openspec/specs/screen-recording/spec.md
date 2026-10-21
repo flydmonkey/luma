@@ -6,40 +6,6 @@
 
 ## Requirements
 
-### Requirement: Five capture modes
-The application SHALL provide display, region, window, game, and audio-only capture modes, and MUST require the user to choose a mode before the first recording in a session can start.
-
-#### Scenario: Fullscreen desktop capture
-- **WHEN** the user selects display mode and starts recording
-- **THEN** the output video contains the selected display's visible desktop content
-
-#### Scenario: Region capture
-- **WHEN** the user selects region mode, draws a rectangle, and starts recording
-- **THEN** the output video contains only pixels inside that rectangle
-
-#### Scenario: Window capture while occluded
-- **WHEN** the user selects a target window in window mode and another window later covers it
-- **THEN** the recording MUST continue to capture the selected window's content rather than the covering window, unless the target window is minimized
-
-#### Scenario: Game capture avoids black frames
-- **WHEN** the user selects game mode, picks a running DirectX or OpenGL game that is windowed or borderless, and starts recording
-- **THEN** the output video shows the game scene instead of a black or flickering frame
-
-#### Scenario: Exclusive fullscreen fallback
-- **WHEN** the selected game is in exclusive fullscreen and capture cannot attach
-- **THEN** the application MUST not silently produce a black video; it MUST fail with a clear message or offer a borderless/windowed workaround
-
-### Requirement: Target is required before start
-The application SHALL require a concrete capture target before a user-initiated recording can start in region, window, or game mode, and MUST NOT silently substitute the full display or an empty window handle. Switching to those modes while idle SHALL open the corresponding picker.
-
-#### Scenario: Region without a rectangle
-- **WHEN** the current mode is region and no capture rectangle has been confirmed
-- **THEN** the start action MUST stay disabled or fail with a visible explanation, and no recording file is created
-
-#### Scenario: Window or game without a target
-- **WHEN** the current mode is window or game and no window has been chosen
-- **THEN** the start action MUST stay disabled or fail with a visible explanation, and no recording file is created
-
 ### Requirement: Countdown then leave the picture
 A user-initiated start SHALL show a 3-second countdown, then hide the main window before frames are written, and MUST keep the application window out of the recorded picture by default. Automated or API starts MAY skip the countdown but MUST still keep the application out of the picture.
 
@@ -141,3 +107,33 @@ The application SHALL write recordings so that an unexpected process exit leaves
 #### Scenario: Abnormal stop
 - **WHEN** the application terminates while a recording is in progress
 - **THEN** a partial file exists in the save folder and can be opened after repair if it is not already playable
+
+### Requirement: Four capture modes
+The application SHALL provide display, region, window, and audio-only capture modes, and MUST require the user to choose one of those modes before the first recording in a session can start. The home mode row SHALL show those four modes plus a screenshot tile. The screenshot tile MUST NOT be a capture mode.
+
+#### Scenario: Fullscreen desktop capture
+- **WHEN** the user selects display mode and starts recording
+- **THEN** the output video contains the selected display's visible desktop content
+
+#### Scenario: Region capture
+- **WHEN** the user selects region mode, draws a rectangle, and starts recording
+- **THEN** the output video contains only pixels inside that rectangle
+
+#### Scenario: Window capture while occluded
+- **WHEN** the user selects a target window in window mode and another window later covers it
+- **THEN** the recording MUST continue to capture the selected window's content rather than the covering window, unless the target window is minimized
+
+#### Scenario: Game mode is gone
+- **WHEN** the user looks at the home mode row and at settings
+- **THEN** there is no game capture mode to select
+
+### Requirement: Region and window need a target
+The application SHALL require a concrete capture target before a user-initiated recording can start in region or window mode, and MUST NOT silently substitute the full display or an empty window handle. Switching to those modes while idle SHALL open the corresponding picker.
+
+#### Scenario: Region without a rectangle
+- **WHEN** the current mode is region and no capture rectangle has been confirmed
+- **THEN** the start action MUST stay disabled or fail with a visible explanation, and no recording file is created
+
+#### Scenario: Window without a target
+- **WHEN** the current mode is window and no window has been chosen
+- **THEN** the start action MUST stay disabled or fail with a visible explanation, and no recording file is created
