@@ -434,7 +434,7 @@ public sealed class RecordingBarWindow : Window
 
     private void ApplyMicGlyph(bool on)
     {
-        var glyph = on ? "\uE1D6" : "\uF781";
+        var glyph = on ? "\uE1D6" : "\uEC54";
         if (_shownMicGlyph != glyph)
         {
             _shownMicGlyph = glyph;

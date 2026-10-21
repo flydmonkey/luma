@@ -354,6 +354,8 @@ public sealed partial class MainWindow
                 PreviewPlayer.SetMediaPlayer(player);
             }
 
+            MediaControlGlyphs.Attach(PreviewPlayer.TransportControls);
+
             player.MediaOpened += OnOpened;
             player.MediaFailed += OnFailed;
             try
