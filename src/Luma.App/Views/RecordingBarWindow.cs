@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Luma.App.Services;
+using Luma.Core.Settings;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
@@ -31,7 +32,18 @@ public sealed class RecordingBarWindow : Window
     private readonly bool _showMeters;
     private readonly ScreenInkOverlay? _ink;
     private readonly ToggleButton? _penButton;
+    private readonly ToggleButton? _styleButton;
+    private readonly Ellipse? _styleDot;
+    private readonly Button? _undoButton;
+    private readonly StackPanel? _stylePanel;
+    private readonly StackPanel? _inkTools;
+    private readonly List<(string Color, Button Button)> _colorButtons = [];
+    private readonly List<(int Width, Button Button, Ellipse Dot)> _widthButtons = [];
+    private readonly Action<string, int>? _inkStyleChanged;
+    private string _inkColor;
+    private int _inkWidth;
     private bool? _shownPaused;
+    private const int StylePanelHeight = 40;
     private string? _shownMicGlyph;
 
     [DllImport("user32.dll")]
@@ -52,10 +64,16 @@ public sealed class RecordingBarWindow : Window
         bool micOn,
         Func<(double System, double Mic)> levels,
         bool systemOn,
-        ScreenInkOverlay? ink)
+        ScreenInkOverlay? ink,
+        string inkColor,
+        int inkWidth,
+        Action<string, int>? inkStyleChanged)
     {
         _levels = levels;
         _ink = ink;
+        _inkColor = inkColor;
+        _inkWidth = inkWidth;
+        _inkStyleChanged = inkStyleChanged;
         _showMeters = micOn || systemOn;
         Title = "Luma";
         AppIcon.Apply(this);
@@ -72,6 +90,7 @@ public sealed class RecordingBarWindow : Window
             MinWidth = 78,
             FontSize = 16,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextLineBounds = TextLineBounds.Tight,
             VerticalAlignment = VerticalAlignment.Center
         };
         _pauseButton = IconButton(Symbol("\uE769"), UiCopy.T("bar.pause"));
@@ -122,12 +141,39 @@ public sealed class RecordingBarWindow : Window
             };
             ToolTipService.SetToolTip(_penButton, penTip);
             AutomationProperties.SetName(_penButton, penTip);
-            _penButton.Click += (_, _) => _ink.SetDrawing(_penButton.IsChecked == true);
+            _penButton.Click += (_, _) =>
+            {
+                _ink.SetDrawing(_penButton.IsChecked == true);
+                ShowInkTools(_ink.IsDrawing);
+            };
+            var styleTip = UiCopy.T("bar.ink.style");
+            _styleDot = new Ellipse { Width = 14, Height = 14, StrokeThickness = 1, Stroke = new SolidColorBrush(Microsoft.UI.Colors.Gray) };
+            _styleButton = new ToggleButton
+            {
+                Width = 36,
+                Height = 36,
+                Padding = new Thickness(0),
+                Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                BorderThickness = new Thickness(0),
+                Content = _styleDot
+            };
+            ToolTipService.SetToolTip(_styleButton, styleTip);
+            AutomationProperties.SetName(_styleButton, styleTip);
+            _styleButton.Click += (_, _) => ShowStylePanel(_styleButton.IsChecked == true);
+            _undoButton = IconButton(Symbol("\uE7A7"), UiCopy.T("bar.ink.undo"));
+            AutomationProperties.SetName(_undoButton, UiCopy.T("bar.ink.undo"));
+            _undoButton.Click += (_, _) => _ink.Undo();
             var clearButton = IconButton(Symbol("\uE75C"), UiCopy.T("bar.ink.clear"));
             AutomationProperties.SetName(clearButton, UiCopy.T("bar.ink.clear"));
             clearButton.Click += (_, _) => _ink.Clear();
+            _inkTools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Visibility = Visibility.Collapsed };
+            _inkTools.Children.Add(_styleButton);
+            _inkTools.Children.Add(_undoButton);
+            _inkTools.Children.Add(clearButton);
             row.Children.Add(_penButton);
-            row.Children.Add(clearButton);
+            row.Children.Add(_inkTools);
+            _stylePanel = BuildStylePanel();
+            ApplyInkStyle();
         }
 
         _systemMeter = Meter(systemOn);
@@ -143,7 +189,14 @@ public sealed class RecordingBarWindow : Window
             row.Children.Add(meters);
         }
 
-        Content = new Grid { Padding = new Thickness(14, 8, 14, 8), Children = { row } };
+        var body = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center };
+        body.Children.Add(new Grid { Height = 36, Children = { row } });
+        if (_stylePanel is not null)
+        {
+            body.Children.Add(_stylePanel);
+        }
+
+        Content = new Grid { Padding = new Thickness(14, 0, 14, 0), Children = { body } };
         AppTheme.ApplyToWindow(this, App.Settings.Theme);
         ExtendsContentIntoTitleBar = true;
         if (AppWindow.Presenter is OverlappedPresenter presenter)
@@ -164,6 +217,12 @@ public sealed class RecordingBarWindow : Window
             if (_penButton is not null && _penButton.IsChecked != _ink!.IsDrawing)
             {
                 _penButton.IsChecked = _ink.IsDrawing;
+                ShowInkTools(_ink.IsDrawing);
+            }
+
+            if (_undoButton is not null && _undoButton.IsEnabled != _ink!.CanUndo)
+            {
+                _undoButton.IsEnabled = _ink.CanUndo;
             }
 
             if (_showMeters)
@@ -192,16 +251,23 @@ public sealed class RecordingBarWindow : Window
         Place();
     }
 
-    public void Place()
+    public void Place() => Place(activate: true);
+
+    private void Place(bool activate)
     {
         var hwnd = WindowNative.GetWindowHandle(this);
         var scale = GetDpiForWindow(hwnd) / 96.0;
         if (scale <= 0) scale = 1;
-        var width = (int)(((_showMeters ? 340 : 280) + (_ink is not null ? 92 : 0)) * scale);
-        AppWindow.Resize(new SizeInt32(width, (int)(48 * scale)));
+        var inkWidth = _ink is null ? 0 : 46 + (_inkTools?.Visibility == Visibility.Visible ? 138 : 0);
+        var width = (int)(((_showMeters ? 340 : 280) + inkWidth) * scale);
+        var height = 48 + (_stylePanel?.Visibility == Visibility.Visible ? StylePanelHeight : 0);
+        AppWindow.Resize(new SizeInt32(width, (int)(height * scale)));
         var work = DisplayArea.Primary.WorkArea;
         AppWindow.Move(new PointInt32(work.X + (work.Width - width) / 2, work.Y + 8));
-        Activate();
+        if (activate)
+        {
+            Activate();
+        }
     }
 
     private void ApplyTransport(bool paused)
@@ -218,6 +284,120 @@ public sealed class RecordingBarWindow : Window
         var tip = paused ? UiCopy.T("bar.resume") : UiCopy.T("bar.pause");
         ToolTipService.SetToolTip(_pauseButton, tip);
         AutomationProperties.SetName(_pauseButton, tip);
+    }
+
+    private StackPanel BuildStylePanel()
+    {
+        var panel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            Height = StylePanelHeight - 6,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Visibility = Visibility.Collapsed
+        };
+        foreach (var color in ScreenAidSettings.InkColors)
+        {
+            var button = SwatchButton(new Ellipse
+            {
+                Width = 18,
+                Height = 18,
+                Fill = new SolidColorBrush(ParseColor(color)),
+                Stroke = new SolidColorBrush(Microsoft.UI.Colors.Gray),
+                StrokeThickness = 1
+            });
+            button.Click += (_, _) => ChooseInkStyle(color, _inkWidth);
+            _colorButtons.Add((color, button));
+            panel.Children.Add(button);
+        }
+
+        panel.Children.Add(new Border { Width = 1, Height = 20, Margin = new Thickness(4, 0, 4, 0), Background = new SolidColorBrush(Microsoft.UI.Colors.Gray) });
+        foreach (var width in ScreenAidSettings.InkWidths)
+        {
+            var size = 4 + width * 1.5;
+            var dot = new Ellipse { Width = size, Height = size };
+            var button = SwatchButton(dot);
+            button.Click += (_, _) => ChooseInkStyle(_inkColor, width);
+            _widthButtons.Add((width, button, dot));
+            panel.Children.Add(button);
+        }
+
+        return panel;
+    }
+
+    private static Button SwatchButton(UIElement content) => new()
+    {
+        Width = 32,
+        Height = 32,
+        Padding = new Thickness(0),
+        Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+        BorderThickness = new Thickness(2),
+        BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+        Content = content
+    };
+
+    private void ShowInkTools(bool show)
+    {
+        var visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        if (_inkTools is null || _inkTools.Visibility == visibility)
+        {
+            return;
+        }
+
+        _inkTools.Visibility = visibility;
+        if (!show)
+        {
+            _stylePanel!.Visibility = Visibility.Collapsed;
+            _styleButton!.IsChecked = false;
+        }
+
+        Place(activate: false);
+    }
+
+    private void ShowStylePanel(bool show)
+    {
+        if (_stylePanel is null)
+        {
+            return;
+        }
+
+        _stylePanel.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+        _styleButton!.IsChecked = show;
+        Place(activate: false);
+    }
+
+    private void ChooseInkStyle(string color, int width)
+    {
+        _inkColor = color;
+        _inkWidth = width;
+        ApplyInkStyle();
+        _ink!.SetDrawing(true);
+        _inkStyleChanged?.Invoke(color, width);
+    }
+
+    private void ApplyInkStyle()
+    {
+        _ink!.SetPen(_inkColor, _inkWidth);
+        var fill = new SolidColorBrush(ParseColor(_inkColor));
+        _styleDot!.Fill = fill;
+        var accent = (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"];
+        var none = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        foreach (var (color, button) in _colorButtons)
+        {
+            button.BorderBrush = color == _inkColor ? accent : none;
+        }
+
+        foreach (var (width, button, dot) in _widthButtons)
+        {
+            dot.Fill = fill;
+            button.BorderBrush = width == _inkWidth ? accent : none;
+        }
+    }
+
+    private static Windows.UI.Color ParseColor(string hex)
+    {
+        var value = Convert.ToUInt32(hex.TrimStart('#'), 16);
+        return Windows.UI.Color.FromArgb(255, (byte)(value >> 16), (byte)(value >> 8), (byte)value);
     }
 
     private static ProgressBar Meter(bool enabled) => new()

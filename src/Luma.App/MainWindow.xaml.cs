@@ -1180,7 +1180,13 @@ public sealed partial class MainWindow : Window
             {
                 var displays = DisplayCatalog.ListDisplays();
                 var display = displays.FirstOrDefault(item => item.Index == Settings.MonitorIndex) ?? displays[0];
-                _ink = new ScreenInkOverlay(display.X, display.Y, display.Width, display.Height);
+                _ink = new ScreenInkOverlay(
+                    display.X,
+                    display.Y,
+                    display.Width,
+                    display.Height,
+                    ScreenAidSettings.NormalizeInkColor(Settings.ScreenAids.InkColor),
+                    ScreenAidSettings.NormalizeInkWidth(Settings.ScreenAids.InkWidth));
             }
         }
         catch (Exception)
@@ -1244,7 +1250,15 @@ public sealed partial class MainWindow : Window
                     return (status.SystemLevel, status.MicrophoneLevel);
                 },
                 Settings.Audio.CaptureSystem,
-                _ink);
+                _ink,
+                ScreenAidSettings.NormalizeInkColor(Settings.ScreenAids.InkColor),
+                ScreenAidSettings.NormalizeInkWidth(Settings.ScreenAids.InkWidth),
+                (color, width) =>
+                {
+                    Settings.ScreenAids.InkColor = color;
+                    Settings.ScreenAids.InkWidth = width;
+                    QueueSettingsSave();
+                });
             bar.Closed += (_, _) =>
             {
                 if (ReferenceEquals(_bar, bar))

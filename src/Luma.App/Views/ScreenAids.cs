@@ -225,20 +225,25 @@ public sealed class ScreenInkOverlay : IDisposable
     private const uint WmMouseActivate = 0x21;
     private const uint WmHotkey = 0x312;
     private const int EscapeHotkey = 0x4C55;
+    private const int UndoHotkey = 0x4C56;
+    private const uint ModControl = 0x2;
+    private const uint ModNoRepeat = 0x4000;
 
     // Pen mode needs a hit-testable surface, and fully transparent pixels of a layered window aren't.
     private static readonly Color PenBackdrop = Color.FromArgb(1, 0, 0, 0);
 
     private readonly int _x;
     private readonly int _y;
+    private readonly double _scale;
     private readonly LayeredSurface _surface;
     private readonly Bitmap _strokes;
     private readonly Graphics _strokeCanvas;
-    private readonly Pen _pen;
-    private System.Drawing.Point? _last;
+    private readonly List<Stroke> _history = [];
+    private Pen _pen;
+    private Stroke? _current;
     private long _lastPresent;
 
-    public ScreenInkOverlay(int x, int y, int width, int height)
+    public ScreenInkOverlay(int x, int y, int width, int height, string color = "#EB2D2D", int penWidth = 4)
     {
         _x = x;
         _y = y;
@@ -247,20 +252,42 @@ public sealed class ScreenInkOverlay : IDisposable
         _strokeCanvas = Graphics.FromImage(_strokes);
         _strokeCanvas.SmoothingMode = SmoothingMode.AntiAlias;
         _strokeCanvas.Clear(Color.Transparent);
-        var scale = LayeredSurface.Native.ScaleAt(x + width / 2, y + height / 2);
-        _pen = new Pen(Color.FromArgb(235, 45, 45), (float)(4 * scale))
-        {
-            StartCap = LineCap.Round,
-            EndCap = LineCap.Round,
-            LineJoin = LineJoin.Round
-        };
+        _scale = LayeredSurface.Native.ScaleAt(x + width / 2, y + height / 2);
+        _pen = CreatePen(color, penWidth);
         Compose();
         _surface.Show();
     }
 
     public bool IsDrawing { get; private set; }
 
+    public bool CanUndo => _history.Count > 0;
+
     internal nint Handle => _surface.Hwnd;
+
+    public void SetPen(string color, int penWidth)
+    {
+        _pen.Dispose();
+        _pen = CreatePen(color, penWidth);
+    }
+
+    public void Undo()
+    {
+        EndStroke();
+        if (_history.Count == 0)
+        {
+            return;
+        }
+
+        _history[^1].Pen.Dispose();
+        _history.RemoveAt(_history.Count - 1);
+        _strokeCanvas.Clear(Color.Transparent);
+        foreach (var stroke in _history)
+        {
+            stroke.Draw(_strokeCanvas);
+        }
+
+        Compose();
+    }
 
     public void SetDrawing(bool drawing)
     {
@@ -274,10 +301,11 @@ public sealed class ScreenInkOverlay : IDisposable
         if (drawing)
         {
             LayeredSurface.Native.RegisterHotKey(_surface.Hwnd, EscapeHotkey, 0, 0x1B);
+            LayeredSurface.Native.RegisterHotKey(_surface.Hwnd, UndoHotkey, ModControl | ModNoRepeat, 0x5A);
         }
         else
         {
-            LayeredSurface.Native.UnregisterHotKey(_surface.Hwnd, EscapeHotkey);
+            UnregisterHotkeys();
             EndStroke();
         }
 
@@ -286,17 +314,30 @@ public sealed class ScreenInkOverlay : IDisposable
 
     public void Clear()
     {
+        EndStroke();
+        ClearHistory();
         _strokeCanvas.Clear(Color.Transparent);
         Compose();
     }
 
+    private void ClearHistory()
+    {
+        foreach (var stroke in _history)
+        {
+            stroke.Pen.Dispose();
+        }
+
+        _history.Clear();
+    }
+
     public void Dispose()
     {
-        LayeredSurface.Native.UnregisterHotKey(_surface.Hwnd, EscapeHotkey);
+        UnregisterHotkeys();
         _surface.Dispose();
         _strokeCanvas.Dispose();
         _strokes.Dispose();
         _pen.Dispose();
+        ClearHistory();
     }
 
     private void Compose()
@@ -316,19 +357,24 @@ public sealed class ScreenInkOverlay : IDisposable
             case WmRButtonDown:
                 SetDrawing(false);
                 return 0;
+            case WmHotkey when wParam.ToInt32() == UndoHotkey:
+                Undo();
+                return 0;
             case WmLButtonDown when IsDrawing:
                 LayeredSurface.Native.SetCapture(_surface.Hwnd);
-                _last = PointOf(lParam);
-                Segment(_last.Value, _last.Value);
+                var start = PointOf(lParam);
+                _current = new Stroke((Pen)_pen.Clone(), [start]);
+                _history.Add(_current);
+                Segment(start, start);
                 Present(force: true);
                 return 0;
-            case WmMouseMove when _last is { } from:
+            case WmMouseMove when _current is { } stroke:
                 var to = PointOf(lParam);
-                Segment(from, to);
-                _last = to;
+                Segment(stroke.Points[^1], to);
+                stroke.Points.Add(to);
                 Present(force: false);
                 return 0;
-            case WmLButtonUp when _last is not null:
+            case WmLButtonUp when _current is not null:
                 EndStroke();
                 return 0;
             default:
@@ -338,20 +384,69 @@ public sealed class ScreenInkOverlay : IDisposable
 
     private void EndStroke()
     {
-        if (_last is null)
+        if (_current is null)
         {
             return;
         }
 
-        _last = null;
+        _current = null;
         LayeredSurface.Native.ReleaseCapture();
         Present(force: true);
     }
 
     private void Segment(System.Drawing.Point from, System.Drawing.Point to)
     {
-        _strokeCanvas.DrawLine(_pen, from, to);
-        _surface.Canvas.DrawLine(_pen, from, to);
+        Stroke.Line(_strokeCanvas, _current!.Pen, from, to);
+        Stroke.Line(_surface.Canvas, _current.Pen, from, to);
+    }
+
+    private void UnregisterHotkeys()
+    {
+        LayeredSurface.Native.UnregisterHotKey(_surface.Hwnd, EscapeHotkey);
+        LayeredSurface.Native.UnregisterHotKey(_surface.Hwnd, UndoHotkey);
+    }
+
+    private Pen CreatePen(string color, int penWidth)
+    {
+        Color parsed;
+        try { parsed = ColorTranslator.FromHtml(color); }
+        catch (Exception) { parsed = Color.FromArgb(235, 45, 45); }
+
+        return new Pen(parsed, (float)(Math.Clamp(penWidth, 1, 32) * _scale))
+        {
+            StartCap = LineCap.Round,
+            EndCap = LineCap.Round,
+            LineJoin = LineJoin.Round
+        };
+    }
+
+    private sealed record Stroke(Pen Pen, List<System.Drawing.Point> Points)
+    {
+        public void Draw(Graphics canvas)
+        {
+            if (Points.Count == 1)
+            {
+                Line(canvas, Pen, Points[0], Points[0]);
+            }
+            else
+            {
+                canvas.DrawLines(Pen, Points.ToArray());
+            }
+        }
+
+        // GDI+ draws nothing for a zero-length line, so a click becomes a dot.
+        public static void Line(Graphics canvas, Pen pen, System.Drawing.Point from, System.Drawing.Point to)
+        {
+            if (from != to)
+            {
+                canvas.DrawLine(pen, from, to);
+                return;
+            }
+
+            using var brush = new SolidBrush(pen.Color);
+            var radius = pen.Width / 2;
+            canvas.FillEllipse(brush, from.X - radius, from.Y - radius, pen.Width, pen.Width);
+        }
     }
 
     private void Present(bool force)

@@ -1845,7 +1845,7 @@ async function saveSettingsFromForm() {
       microphoneVolume: Number($("sMicVol").value),
       noiseSuppression: $("sDenoise").checked
     },
-    screenAids: { showCursor: $("sCursor").checked, highlightClicks: $("sClicks").checked, annotation: $("sInk").checked },
+    screenAids: { ...(state.settings?.screenAids || {}), showCursor: $("sCursor").checked, highlightClicks: $("sClicks").checked, annotation: $("sInk").checked },
     quality: { ...currentQuality(), level: qualityLevel($("sQ").value), frameRate: Number($("sFps").value), hardwareEncoding: $("sHw").checked },
     overlay: {
       cameraEnabled: $("sCam").checked,

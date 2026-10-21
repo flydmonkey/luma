@@ -71,7 +71,21 @@ public sealed class ScreenAidSettings
     /// <summary>Offer the pen on the recording bar; recorded in display and region modes.</summary>
     public bool Annotation { get; set; }
 
+    public static readonly string[] InkColors = ["#EB2D2D", "#FFC400", "#22C55E", "#3B82F6", "#FFFFFF", "#111111"];
+    public static readonly int[] InkWidths = [2, 4, 8];
+
+    /// <summary>One of <see cref="InkColors"/>.</summary>
+    public string InkColor { get; set; } = InkColors[0];
+
+    /// <summary>Pen width in device-independent pixels; one of <see cref="InkWidths"/>.</summary>
+    public int InkWidth { get; set; } = InkWidths[1];
+
     public static bool AppliesTo(CaptureMode mode) => mode is CaptureMode.Display or CaptureMode.Region;
+
+    public static string NormalizeInkColor(string? color) =>
+        InkColors.FirstOrDefault(item => string.Equals(item, color, StringComparison.OrdinalIgnoreCase)) ?? InkColors[0];
+
+    public static int NormalizeInkWidth(int width) => InkWidths.Contains(width) ? width : InkWidths[1];
 }
 
 public sealed class OverlaySettings

@@ -67,13 +67,15 @@ public sealed class LanWebTests
         Assert.True(server.IsRunning, server.LastError);
         using var client = new HttpClient();
         using var patch = new StringContent(
-            """{"screenAids":{"showCursor":false,"highlightClicks":true,"annotation":true},"audio":{"captureSystem":true,"microphoneVolume":150,"noiseSuppression":false}}""",
+            """{"screenAids":{"showCursor":false,"highlightClicks":true,"annotation":true,"inkColor":"#3B82F6","inkWidth":8},"audio":{"captureSystem":true,"microphoneVolume":150,"noiseSuppression":false}}""",
             System.Text.Encoding.UTF8, "application/json");
         var response = await client.PatchAsync($"http://127.0.0.1:{settings.Lan.Port}/api/v1/settings", patch);
         Assert.True(response.IsSuccessStatusCode, await response.Content.ReadAsStringAsync());
         Assert.False(settings.ScreenAids.ShowCursor);
         Assert.True(settings.ScreenAids.HighlightClicks);
         Assert.True(settings.ScreenAids.Annotation);
+        Assert.Equal("#3B82F6", settings.ScreenAids.InkColor);
+        Assert.Equal(8, settings.ScreenAids.InkWidth);
         Assert.Equal(150, settings.Audio.MicrophoneVolume);
         Assert.False(settings.Audio.NoiseSuppression);
         server.Stop();
@@ -86,6 +88,16 @@ public sealed class LanWebTests
         Assert.True(ScreenAidSettings.AppliesTo(Luma.Core.Session.CaptureMode.Region));
         Assert.False(ScreenAidSettings.AppliesTo(Luma.Core.Session.CaptureMode.Window));
         Assert.False(ScreenAidSettings.AppliesTo(Luma.Core.Session.CaptureMode.AudioOnly));
+    }
+
+    [Fact]
+    public void Ink_style_falls_back_to_red_and_medium()
+    {
+        Assert.Equal("#3B82F6", ScreenAidSettings.NormalizeInkColor("#3b82f6"));
+        Assert.Equal("#EB2D2D", ScreenAidSettings.NormalizeInkColor("#123456"));
+        Assert.Equal("#EB2D2D", ScreenAidSettings.NormalizeInkColor(null));
+        Assert.Equal(8, ScreenAidSettings.NormalizeInkWidth(8));
+        Assert.Equal(4, ScreenAidSettings.NormalizeInkWidth(5));
     }
 
     private static int FreePort()

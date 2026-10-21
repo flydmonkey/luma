@@ -156,6 +156,11 @@ public sealed class ObsHostRecordingTests
                 SendMessage(ink.Handle, 0x202, 0, Pack(width * 3 / 4, y));
             }
 
+            ink.SetPen("#3B82F6", 8);
+            Zigzag(ink.Handle, height / 4);
+            ink.SetPen("#22C55E", 8);
+            Zigzag(ink.Handle, height * 3 / 4);
+            ink.Undo();
             ink.SetDrawing(false);
             drawn.SetResult();
             while (GetMessage(out var message, 0, 0, 0) > 0)
@@ -190,6 +195,10 @@ public sealed class ObsHostRecordingTests
             using var image = new System.Drawing.Bitmap(frame);
             var pixel = image.GetPixel(image.Width / 2, image.Height / 2);
             Assert.True(pixel.R > 150 && pixel.G < 100 && pixel.B < 100, $"Expected the red ink band in the recording, got {pixel}.");
+            var blue = image.GetPixel(image.Width / 2, image.Height / 4);
+            Assert.True(blue.B > 150 && blue.R < 120, $"Expected the blue stroke in the recording, got {blue}.");
+            var undone = image.GetPixel(image.Width / 2, image.Height * 3 / 4);
+            Assert.False(undone.G > 150 && undone.R < 100 && undone.B < 120, $"The undone green stroke is still in the recording: {undone}.");
         }
         finally
         {
@@ -203,6 +212,21 @@ public sealed class ObsHostRecordingTests
     }
 
     private static nint Pack(int x, int y) => (y << 16) | (x & 0xFFFF);
+
+    // One stroke that fills a 60-pixel band across the middle half of the screen.
+    private static void Zigzag(nint hwnd, int band)
+    {
+        var left = GetSystemMetrics(0) / 4;
+        var right = GetSystemMetrics(0) * 3 / 4;
+        SendMessage(hwnd, 0x201, 1, Pack(left, band - 30));
+        for (var y = band - 30; y <= band + 30; y += 4)
+        {
+            SendMessage(hwnd, 0x200, 1, Pack(left, y));
+            SendMessage(hwnd, 0x200, 1, Pack(right, y));
+        }
+
+        SendMessage(hwnd, 0x202, 0, Pack(right, band + 30));
+    }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern int GetSystemMetrics(int index);

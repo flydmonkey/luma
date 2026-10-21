@@ -245,7 +245,9 @@
         "properties": {
           "showCursor": { "type": "boolean", "default": true, "description": "Record the mouse pointer." },
           "highlightClicks": { "type": "boolean", "default": false, "description": "Show a ring at each click in display and region recordings." },
-          "annotation": { "type": "boolean", "default": false, "description": "Offer the pen on the desktop recording bar in display and region recordings." }
+          "annotation": { "type": "boolean", "default": false, "description": "Offer the pen on the desktop recording bar in display and region recordings." },
+          "inkColor": { "type": "string", "enum": ["#EB2D2D", "#FFC400", "#22C55E", "#3B82F6", "#FFFFFF", "#111111"], "default": "#EB2D2D", "description": "Pen color; other values fall back to red. Patches replace the whole object, so send the current value back." },
+          "inkWidth": { "type": "integer", "enum": [2, 4, 8], "default": 4, "description": "Pen width in device-independent pixels; other values fall back to 4." }
         }
       },
       "Hotkeys": {

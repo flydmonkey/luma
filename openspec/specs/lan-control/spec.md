@@ -179,3 +179,10 @@ The web settings page SHALL offer the pointer, click highlight and annotation sw
 #### Scenario: Turn on click highlight from the web
 - **WHEN** a client patches `{"screenAids":{"highlightClicks":true}}`
 - **THEN** the desktop setting turns on and the next screen recording highlights clicks
+
+### Requirement: Web settings keep the pen style
+`PATCH /api/v1/settings` SHALL accept `screenAids.inkColor` and `screenAids.inkWidth`. Because a patch replaces the whole `screenAids` object, the web settings page MUST send back the pen style it loaded.
+
+#### Scenario: Save from the web
+- **WHEN** the desktop pen is blue and the user turns on click highlight from the web page
+- **THEN** the pen stays blue
