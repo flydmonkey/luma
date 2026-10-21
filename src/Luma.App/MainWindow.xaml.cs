@@ -46,6 +46,7 @@ public sealed partial class MainWindow : Window
     private bool _countdownCanceled;
     private string _page = "record";
     private string? _lastFile;
+    private string? _sessionNotice;
     private bool _micMuted;
     private string _micId = "default";
     private readonly Dictionary<string, TimeSpan> _durations = new(StringComparer.OrdinalIgnoreCase);
@@ -150,6 +151,10 @@ public sealed partial class MainWindow : Window
         {
             ShowBanner(UiCopy.T("os.unsupported"), InfoBarSeverity.Error);
             StartButton.IsEnabled = false;
+        }
+        else
+        {
+            ReportLanStart("无法启动局域网服务。");
         }
 
         ApplyLibraryItemStretch();
@@ -523,13 +528,6 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ModeBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_loadingSettings) return;
-        _mode = (CaptureMode)Math.Clamp(ModeBox.SelectedIndex, 0, 2);
-        SyncModeButtons();
-    }
-
     private void SyncModeButtons()
     {
         ModeFullButton.IsChecked = _mode == CaptureMode.Display;
@@ -763,7 +761,8 @@ public sealed partial class MainWindow : Window
 
             Directory.CreateDirectory(Settings.SaveFolder);
             var path = NewOutputPath();
-            await _session.StartAsync(BuildRequest(path));
+            var request = BuildRequest(path);
+            await _session.StartAsync(request);
             _lastFile = path;
             _segmentStart = DateTime.UtcNow;
             SetRecordingUi(true);
@@ -780,6 +779,14 @@ public sealed partial class MainWindow : Window
             var status = _session.GetStatus();
             StatusText.Text = $"{status.EncoderName}  {status.Width}×{status.Height}";
             HideOverlay();
+            _sessionNotice = EncoderNotice.FellBackToSoftware(request.Quality.HardwareEncoding, request.Target.Mode, status)
+                ? UiCopy.T("rec.encoder.fallback")
+                : null;
+            if (_sessionNotice is not null && !(fromLan && Settings.SilentMode))
+            {
+                if (_windowConcealed) _tray.Notify(_sessionNotice);
+                else ShowBanner(_sessionNotice, InfoBarSeverity.Warning);
+            }
         }
         catch (Exception ex)
         {
@@ -920,6 +927,8 @@ public sealed partial class MainWindow : Window
             SetRecordingUi(false);
             HideBar();
             RefreshLibrary();
+            var notice = string.Join(" ", new[] { _sessionNotice, result.Status.Warning }.Where(text => !string.IsNullOrWhiteSpace(text)));
+            _sessionNotice = null;
             if (silentLan || (_windowConcealed && !bringBack))
             {
                 HideBusyMask();
@@ -927,9 +936,9 @@ public sealed partial class MainWindow : Window
             }
 
             await Play(result.OutputPath, Path.GetFileNameWithoutExtension(result.OutputPath));
-            if (!string.IsNullOrWhiteSpace(result.Status.Warning))
+            if (notice.Length > 0)
             {
-                ShowBanner(result.Status.Warning, InfoBarSeverity.Warning);
+                ShowBanner(notice, InfoBarSeverity.Warning);
             }
         }
         catch (Exception ex)

@@ -22,6 +22,7 @@ public sealed class LanServer : IDisposable
     public bool IsRunning { get; private set; }
     public int BoundPort { get; private set; }
     public IReadOnlyList<string> BoundUrls { get; private set; } = [];
+    public IReadOnlyList<string> SkippedUrls { get; private set; } = [];
 
     public event Func<JsonElement, Task<JsonElement>>? SessionCommand;
     public event Action? SettingsChanged;
@@ -56,29 +57,41 @@ public sealed class LanServer : IDisposable
 
         Stop();
         RunNetsh($"http delete urlacl url=http://+:{settings.Lan.Port}/");
-        var urls = ListenUrls(settings.Lan.Port).ToArray();
-        foreach (var url in urls)
+        var loopback = new[] { $"http://127.0.0.1:{settings.Lan.Port}/", $"http://localhost:{settings.Lan.Port}/" };
+        var remote = RemoteUrls(settings.Lan.Port).ToArray();
+        foreach (var url in loopback.Concat(remote))
         {
             RunNetsh($"http add urlacl url={url} user=Everyone");
         }
-        if (!TryListen(urls, out var listener))
-        {
-            var loopback = new[] { $"http://127.0.0.1:{settings.Lan.Port}/", $"http://localhost:{settings.Lan.Port}/" };
-            if (!TryListen(loopback, out listener))
-            {
-                LastError = $"端口 {settings.Lan.Port} 已被占用或无法绑定。";
-                IsRunning = false;
-                BoundUrls = [];
-                return;
-            }
 
-            urls = loopback;
+        if (!TryListen(loopback, out var listener) || listener is null)
+        {
+            LastError = $"端口 {settings.Lan.Port} 已被占用或无法绑定。";
+            IsRunning = false;
+            BoundUrls = [];
+            SkippedUrls = [];
+            return;
+        }
+
+        var bound = new List<string>(loopback);
+        var skipped = new List<string>();
+        foreach (var url in remote)
+        {
+            if (TryAddPrefix(listener, url))
+            {
+                bound.Add(url);
+            }
+            else
+            {
+                skipped.Add(url.TrimEnd('/'));
+            }
         }
 
         AllowFirewall(settings.Lan.Port);
         _listener = listener;
         BoundPort = settings.Lan.Port;
-        BoundUrls = urls.Select(url => url.TrimEnd('/')).ToArray();
+        BoundUrls = bound.Select(url => url.TrimEnd('/')).ToArray();
+        SkippedUrls = skipped;
         LastError = null;
         IsRunning = true;
         _cts = new CancellationTokenSource();
@@ -94,12 +107,11 @@ public sealed class LanServer : IDisposable
         IsRunning = false;
         BoundPort = 0;
         BoundUrls = [];
+        SkippedUrls = [];
     }
 
-    private static IEnumerable<string> ListenUrls(int port)
+    private static IEnumerable<string> RemoteUrls(int port)
     {
-        yield return $"http://127.0.0.1:{port}/";
-        yield return $"http://localhost:{port}/";
         IPAddress[] addresses;
         try
         {
@@ -110,12 +122,26 @@ public sealed class LanServer : IDisposable
             yield break;
         }
 
-        foreach (var address in addresses)
+        foreach (var address in addresses.Distinct())
         {
             if (address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(address))
             {
                 yield return $"http://{address}:{port}/";
             }
+        }
+    }
+
+    // A started listener registers each new prefix immediately and leaves it out of Prefixes when registration fails.
+    private static bool TryAddPrefix(HttpListener listener, string url)
+    {
+        try
+        {
+            listener.Prefixes.Add(url);
+            return true;
+        }
+        catch (HttpListenerException)
+        {
+            return false;
         }
     }
 

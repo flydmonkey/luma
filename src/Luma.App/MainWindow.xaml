@@ -127,12 +127,6 @@
                     <ComboBox x:Name="HomeQualityBox" Grid.Column="2" Header="清晰度" HorizontalAlignment="Stretch" SelectionChanged="HomeQuality_Changed"/>
                 </Grid>
 
-                <ComboBox x:Name="ModeBox" Visibility="Collapsed" SelectionChanged="ModeBox_SelectionChanged">
-                    <ComboBoxItem Content="显示器"/>
-                    <ComboBoxItem Content="区域"/>
-                    <ComboBoxItem Content="窗口"/>
-                </ComboBox>
-
                 <ComboBox x:Name="HomeMonitorBox" PlaceholderText="选择显示器" HorizontalAlignment="Stretch"
                           SelectionChanged="HomeMonitor_Changed" Visibility="Collapsed"/>
                 <Button x:Name="PickTargetButton" Content="选择区域 / 窗口" Click="PickTarget_Click"

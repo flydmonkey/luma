@@ -77,9 +77,6 @@ public sealed partial class MainWindow
 
         _mode = Settings.LastMode;
         _target = new CaptureTarget { Mode = _mode };
-        ModeBox.SelectedIndex = _mode is CaptureMode.Display or CaptureMode.Region or CaptureMode.Window
-            ? (int)_mode
-            : 0;
         if (HomeMonitorBox.Items.Count > 0)
         {
             HomeMonitorBox.SelectedIndex = Math.Clamp(Settings.MonitorIndex, 0, HomeMonitorBox.Items.Count - 1);
@@ -553,13 +550,6 @@ public sealed partial class MainWindow
         ToolTipService.SetToolTip(ScreenshotButton, UiCopy.T("home.mode.shot"));
         AutomationProperties.SetName(ScreenshotButton, UiCopy.T("home.mode.shot"));
         ToolTipService.SetToolTip(ModeAudioButton, UiCopy.T("home.mode.audio.tip"));
-        if (ModeBox.Items.Count >= 3)
-        {
-            if (ModeBox.Items[0] is ComboBoxItem display) display.Content = UiCopy.T("home.mode.display");
-            if (ModeBox.Items[1] is ComboBoxItem region) region.Content = UiCopy.T("home.mode.region");
-            if (ModeBox.Items[2] is ComboBoxItem window) window.Content = UiCopy.T("home.mode.window");
-        }
-
         CountdownCancelButton.Content = UiCopy.T("common.cancel");
         BusyText.Text = UiCopy.T("rec.processing");
         FolderBarButton.Label = UiCopy.T("lib.folder");
@@ -805,8 +795,32 @@ public sealed partial class MainWindow
         SaveSettings();
         if (Settings.Lan.Enabled) App.LanServer.Start();
         else App.LanServer.Stop();
-        if (Settings.Lan.Enabled && !App.LanServer.IsRunning) ShowBanner(App.LanServer.LastError ?? "无法启动局域网服务。", InfoBarSeverity.Error);
+        ReportLanStart("无法启动局域网服务。");
         RefreshLanAddress();
+    }
+
+    private void ReportLanStart(string fallbackError)
+    {
+        if (!Settings.Lan.Enabled)
+        {
+            return;
+        }
+
+        if (!App.LanServer.IsRunning)
+        {
+            ShowBanner(App.LanServer.LastError ?? fallbackError, InfoBarSeverity.Error);
+            return;
+        }
+
+        if (App.LanServer.SkippedUrls.Count == 0)
+        {
+            return;
+        }
+
+        var anyRemote = App.LanServer.BoundUrls.Any(url => !url.Contains("127.0.0.1", StringComparison.Ordinal) && !url.Contains("localhost", StringComparison.Ordinal));
+        ShowBanner(
+            anyRemote ? string.Format(UiCopy.T("lan.partial"), string.Join("  ", App.LanServer.SkippedUrls)) : UiCopy.T("lan.localonly"),
+            InfoBarSeverity.Warning);
     }
 
     private void LanPortApply_Click(object sender, RoutedEventArgs e) => ApplyLanPort();
@@ -827,7 +841,7 @@ public sealed partial class MainWindow
         if (Settings.Lan.Enabled)
         {
             App.LanServer.Start();
-            if (!App.LanServer.IsRunning) ShowBanner(App.LanServer.LastError ?? "无法绑定该端口。", InfoBarSeverity.Error);
+            ReportLanStart("无法绑定该端口。");
         }
 
         RefreshLanAddress();

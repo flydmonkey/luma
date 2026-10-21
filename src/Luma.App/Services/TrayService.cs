@@ -84,6 +84,17 @@ public sealed class TrayService : IDisposable
         }
     }
 
+    public void Notify(string message)
+    {
+        void Go()
+        {
+            try { _icon.ShowNotification("Luma", message); } catch { }
+        }
+
+        if (_dispatcher.HasThreadAccess) Go();
+        else _dispatcher.TryEnqueue(Go);
+    }
+
     public void ApplyLanguage()
     {
         void Go()

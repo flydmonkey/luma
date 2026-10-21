@@ -15,6 +15,19 @@ public sealed class RecordingPolicyTests
     }
 
     [Fact]
+    public void Software_fallback_is_noticed_only_when_hardware_was_asked_for()
+    {
+        var software = new EngineStatus { Phase = SessionPhase.Recording, UsedHardware = false };
+        var hardware = new EngineStatus { Phase = SessionPhase.Recording, UsedHardware = true };
+
+        Assert.True(EncoderNotice.FellBackToSoftware(true, CaptureMode.Display, software));
+        Assert.False(EncoderNotice.FellBackToSoftware(true, CaptureMode.Display, hardware));
+        Assert.False(EncoderNotice.FellBackToSoftware(false, CaptureMode.Display, software));
+        Assert.False(EncoderNotice.FellBackToSoftware(true, CaptureMode.AudioOnly, software));
+        Assert.False(EncoderNotice.FellBackToSoftware(true, CaptureMode.Display, new EngineStatus { Phase = SessionPhase.Idle }));
+    }
+
+    [Fact]
     public void Silent_lan_start_hides_the_recording_bar()
     {
         Assert.False(RecordingChrome.ShowBar(enabled: true, fromLan: true, silentMode: true));

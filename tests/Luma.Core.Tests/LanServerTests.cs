@@ -51,6 +51,54 @@ public sealed class LanServerTests
     }
 
     [Fact]
+    public async Task Taken_lan_address_is_skipped_while_the_rest_keep_listening()
+    {
+        var lanAddress = Dns.GetHostAddresses(Dns.GetHostName())
+            .FirstOrDefault(address => address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(address));
+        if (lanAddress is null)
+        {
+            return;
+        }
+
+        const int port = 23461;
+        var taken = $"http://{lanAddress}:{port}/";
+        var blocker = new HttpListener();
+        blocker.Prefixes.Add(taken);
+        try
+        {
+            blocker.Start();
+        }
+        catch (HttpListenerException)
+        {
+            blocker.Close();
+            return;
+        }
+
+        try
+        {
+            var path = Path.Combine(Path.GetTempPath(), "luma-tests", Guid.NewGuid().ToString("N"), "settings.json");
+            var store = new SettingsStore(path);
+            var settings = store.Load();
+            settings.Lan.Enabled = true;
+            settings.Lan.Port = port;
+            using var server = new LanServer(store, () => settings);
+            server.Start();
+
+            Assert.True(server.IsRunning, server.LastError);
+            Assert.Contains(taken.TrimEnd('/'), server.SkippedUrls);
+            Assert.DoesNotContain(taken.TrimEnd('/'), server.BoundUrls);
+            using var client = new HttpClient();
+            var health = await client.GetAsync($"http://127.0.0.1:{port}/openapi.json");
+            Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+        }
+        finally
+        {
+            blocker.Stop();
+            blocker.Close();
+        }
+    }
+
+    [Fact]
     public void Window_start_without_target_is_rejected()
     {
         var reason = SessionStartRules.Reject(new CaptureTarget { Mode = CaptureMode.Window });

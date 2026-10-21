@@ -18,6 +18,15 @@ public static class SegmentGate
     }
 }
 
+public static class EncoderNotice
+{
+    public static bool FellBackToSoftware(bool hardwareRequested, CaptureMode mode, EngineStatus status) =>
+        hardwareRequested
+        && mode != CaptureMode.AudioOnly
+        && status.Phase is SessionPhase.Recording or SessionPhase.Paused
+        && !status.UsedHardware;
+}
+
 public static class RecordingChrome
 {
     public static bool ShowBar(bool enabled, bool fromLan, bool silentMode) =>
