@@ -28,9 +28,9 @@ public sealed class HostStatus
         EffectiveFps = EffectiveFps,
         SkippedFrames = SkippedFrames,
         EncodedDuration = TimeSpan.FromSeconds(Math.Max(0, EncodedDurationSeconds)),
-        Warning = string.IsNullOrWhiteSpace(Warning)
+        Warning = HostText.Localize(string.IsNullOrWhiteSpace(Warning)
             ? (string.IsNullOrWhiteSpace(Error) ? null : Error)
-            : Warning,
+            : Warning) is { Length: > 0 } warning ? warning : null,
         StopForced = StopForced
     };
 }

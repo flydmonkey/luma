@@ -32,7 +32,7 @@ public sealed class RecordingSession
             {
                 if (_phase != SessionPhase.Idle)
                 {
-                    throw new InvalidOperationException("已有录制正在进行。");
+                    throw new InvalidOperationException(Localization.CoreText.T("session.busy"));
                 }
 
                 _phase = SessionPhase.Recording;
@@ -59,7 +59,7 @@ public sealed class RecordingSession
         await _operation.WaitAsync().ConfigureAwait(false);
         try
         {
-            RequirePhase(SessionPhase.Recording, "只有正在录制时才能暂停。");
+            RequirePhase(SessionPhase.Recording, Localization.CoreText.T("session.pause.idle"));
             await _engine.PauseAsync().ConfigureAwait(false);
             SetPhase(SessionPhase.Paused);
         }
@@ -74,7 +74,7 @@ public sealed class RecordingSession
         await _operation.WaitAsync().ConfigureAwait(false);
         try
         {
-            RequirePhase(SessionPhase.Paused, "只有已暂停的录制才能恢复。");
+            RequirePhase(SessionPhase.Paused, Localization.CoreText.T("session.resume.idle"));
             await _engine.ResumeAsync().ConfigureAwait(false);
             SetPhase(SessionPhase.Recording);
         }
@@ -89,7 +89,7 @@ public sealed class RecordingSession
         await _operation.WaitAsync().ConfigureAwait(false);
         try
         {
-            RequirePhase([SessionPhase.Recording, SessionPhase.Paused], "当前没有可以停止的录制。");
+            RequirePhase([SessionPhase.Recording, SessionPhase.Paused], Localization.CoreText.T("session.stop.idle"));
             SetPhase(SessionPhase.Processing);
 
             try

@@ -38,7 +38,14 @@ public sealed partial class MainWindow : Window
     private readonly HotkeyService _hotkeys = new();
     private readonly TrayService _tray;
     private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _timer;
-    private readonly FileSystemWatcher? _watcher;
+    private FileSystemWatcher? _watcher;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _libraryRefreshTimer;
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _saveTimer;
+    private string? _appliedHotkeys;
+    private bool? _appliedLogonTask;
+    private Task _logonTaskQueue = Task.CompletedTask;
+    private int _libraryGeneration;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _unprobeable = new(StringComparer.OrdinalIgnoreCase);
     private CaptureMode _mode = CaptureMode.Display;
     private CaptureTarget _target = new() { Mode = CaptureMode.Display };
     private bool _loadingSettings = true;
@@ -103,19 +110,7 @@ public sealed partial class MainWindow : Window
         _timer = DispatcherQueue.CreateTimer();
         _timer.Interval = TimeSpan.FromMilliseconds(250);
         _timer.Tick += (_, _) => Poll();
-        _timer.Start();
-        try
-        {
-            Directory.CreateDirectory(App.Settings.SaveFolder);
-            _watcher = new FileSystemWatcher(App.Settings.SaveFolder) { EnableRaisingEvents = true, NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size };
-            _watcher.Created += (_, _) => DispatcherQueue.TryEnqueue(RefreshLibrary);
-            _watcher.Deleted += (_, _) => DispatcherQueue.TryEnqueue(RefreshLibrary);
-            _watcher.Renamed += (_, _) => DispatcherQueue.TryEnqueue(RefreshLibrary);
-        }
-        catch
-        {
-            // library still refreshes after stop
-        }
+        WatchSaveFolder();
 
         if (Content is FrameworkElement root)
         {
@@ -140,6 +135,7 @@ public sealed partial class MainWindow : Window
 
         Closed += (_, _) =>
         {
+            if (_saveTimer?.IsRunning == true) SaveSettings();
             _timer.Stop();
             _bar?.Close();
             _hotkeys.Dispose();
@@ -154,7 +150,7 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            ReportLanStart("无法启动局域网服务。");
+            ReportLanStart(UiCopy.T("lan.start.fail"));
         }
 
         ApplyLibraryItemStretch();
@@ -174,6 +170,16 @@ public sealed partial class MainWindow : Window
             NativeMenuTheme.Apply(App.Settings.Theme);
             _tray.ApplyVisibility(App.Settings.HideTrayIcon);
             _tray.ApplyLanguage();
+            if (HotkeyKey(Settings.Hotkeys) != _appliedHotkeys)
+            {
+                TryApplyHotkeys(silent: true);
+            }
+
+            ApplyLogonTask();
+            if (WatchSaveFolder())
+            {
+                RefreshLibrary();
+            }
         });
     }
 
@@ -211,7 +217,42 @@ public sealed partial class MainWindow : Window
         set => App.Settings = value;
     }
 
-    private void SaveSettings() => App.SettingsStore.Save(Settings);
+    private void SaveSettings()
+    {
+        _saveTimer?.Stop();
+        App.SettingsStore.Save(Settings);
+    }
+
+    // Sliders and text boxes report every step, so their writes are coalesced.
+    private void QueueSettingsSave()
+    {
+        if (_saveTimer is null)
+        {
+            _saveTimer = DispatcherQueue.CreateTimer();
+            _saveTimer.Interval = TimeSpan.FromMilliseconds(400);
+            _saveTimer.IsRepeating = false;
+            _saveTimer.Tick += (_, _) => SaveSettings();
+        }
+
+        _saveTimer.Stop();
+        _saveTimer.Start();
+    }
+
+    private void ApplyLogonTask()
+    {
+        var enabled = Settings.Automation.StartAtLogon || Settings.LaunchToTray;
+        if (_appliedLogonTask == enabled)
+        {
+            return;
+        }
+
+        _appliedLogonTask = enabled;
+        var exe = Environment.ProcessPath ?? "";
+        _logonTaskQueue = _logonTaskQueue.ContinueWith(_ => AutomationTaskService.Apply(enabled, exe), TaskScheduler.Default);
+    }
+
+    private static string HotkeyKey(HotkeySettings hotkeys)
+        => $"{hotkeys.Enabled}|{hotkeys.Start}|{hotkeys.Pause}|{hotkeys.Stop}|{hotkeys.Screenshot}";
 
     private void ShowFromTray()
     {
@@ -779,9 +820,11 @@ public sealed partial class MainWindow : Window
             var status = _session.GetStatus();
             StatusText.Text = $"{status.EncoderName}  {status.Width}×{status.Height}";
             HideOverlay();
-            _sessionNotice = EncoderNotice.FellBackToSoftware(request.Quality.HardwareEncoding, request.Target.Mode, status)
+            var fallback = EncoderNotice.FellBackToSoftware(request.Quality.HardwareEncoding, request.Target.Mode, status)
                 ? UiCopy.T("rec.encoder.fallback")
                 : null;
+            var notice = string.Join(" ", new[] { fallback, status.Warning }.Where(text => !string.IsNullOrWhiteSpace(text)));
+            _sessionNotice = notice.Length > 0 ? notice : null;
             if (_sessionNotice is not null && !(fromLan && Settings.SilentMode))
             {
                 if (_windowConcealed) _tray.Notify(_sessionNotice);
@@ -927,7 +970,7 @@ public sealed partial class MainWindow : Window
             SetRecordingUi(false);
             HideBar();
             RefreshLibrary();
-            var notice = string.Join(" ", new[] { _sessionNotice, result.Status.Warning }.Where(text => !string.IsNullOrWhiteSpace(text)));
+            var notice = string.Join(" ", new[] { _sessionNotice, result.Status.Warning }.Where(text => !string.IsNullOrWhiteSpace(text)).Distinct());
             _sessionNotice = null;
             if (silentLan || (_windowConcealed && !bringBack))
             {
@@ -975,6 +1018,8 @@ public sealed partial class MainWindow : Window
         TitleRecBadge.Visibility = Visibility.Collapsed;
         PauseButton.Content = UiCopy.T("home.pause");
         _tray.SetSession(recording, recording && _session.Phase == SessionPhase.Paused);
+        if (recording) _timer.Start();
+        else _timer.Stop();
         if (!recording)
         {
             UpdateIdleSummary();
@@ -1178,10 +1223,12 @@ public sealed partial class MainWindow : Window
         try
         {
             _hotkeys.Apply(Settings.Hotkeys);
+            _appliedHotkeys = HotkeyKey(Settings.Hotkeys);
             HotkeyErrorText.Text = "";
         }
         catch (Exception ex)
         {
+            _appliedHotkeys = null;
             HotkeyErrorText.Text = ex.Message;
             if (!silent) ShowBanner(ex.Message, InfoBarSeverity.Warning);
         }

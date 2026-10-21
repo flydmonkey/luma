@@ -2536,7 +2536,10 @@ async function boot() {
   const last = Number(state.settings?.lastMode);
   selectMode(audioOnly ? "audio" : last === 1 ? "region" : last === 2 ? "window" : "fullscreen");
   showPage();
-  state.poll = setInterval(() => { if (state.page === "record") refreshSession(); }, 1000);
+  state.poll = setInterval(() => { if (state.page === "record" && !document.hidden) refreshSession(); }, 1000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && state.page === "record") refreshSession();
+  });
 }
 
 boot().catch((err) => { $("status").textContent = err.message; });

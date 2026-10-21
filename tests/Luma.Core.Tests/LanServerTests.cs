@@ -156,6 +156,33 @@ public sealed class LanServerTests
     }
 
     [Fact]
+    public async Task Web_assets_answer_304_when_the_etag_matches()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "luma-tests", Guid.NewGuid().ToString("N"), "settings.json");
+        var store = new SettingsStore(path);
+        var settings = store.Load();
+        settings.Lan.Enabled = true;
+        settings.Lan.Port = FreePort();
+        settings.Lan.AccessKey = "";
+        using var server = new LanServer(store, () => settings);
+        server.Start();
+        Assert.True(server.IsRunning, server.LastError);
+
+        using var client = new HttpClient();
+        var url = $"http://127.0.0.1:{settings.Lan.Port}/app.js";
+        using var first = await client.GetAsync(url);
+        Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+        var etag = first.Headers.ETag;
+        Assert.NotNull(etag);
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.IfNoneMatch.Add(etag);
+        using var again = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.NotModified, again.StatusCode);
+        Assert.Empty(await again.Content.ReadAsByteArrayAsync());
+    }
+
+    [Fact]
     public async Task Media_supports_byte_ranges()
     {
         var folder = Path.Combine(Path.GetTempPath(), "luma-tests", Guid.NewGuid().ToString("N"));

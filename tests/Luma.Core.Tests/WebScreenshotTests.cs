@@ -204,6 +204,18 @@ public sealed class WebScreenshotTests
     }
 
     [Fact]
+    public void Web_assets_keep_a_stable_etag_per_file()
+    {
+        Assert.True(LanWebAssets.TryGet("app.js", out _, out _, out var first));
+        Assert.True(LanWebAssets.TryGet("app.js", out _, out _, out var again));
+        Assert.True(LanWebAssets.TryGet("app.css", out _, out _, out var css));
+        Assert.StartsWith("\"", first, StringComparison.Ordinal);
+        Assert.Equal(first, again);
+        Assert.NotEqual(first, css);
+        Assert.False(LanWebAssets.TryGet("missing.js", out _, out _, out _));
+    }
+
+    [Fact]
     public void Web_shell_has_a_screenshot_action_and_five_languages()
     {
         Assert.True(LanWebAssets.TryGet("index.html", out _, out var htmlBytes));

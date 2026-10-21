@@ -16,8 +16,50 @@ namespace Luma.App;
 
 public sealed partial class MainWindow
 {
+    private bool WatchSaveFolder()
+    {
+        if (_watcher is not null && string.Equals(_watcher.Path, Settings.SaveFolder, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        _watcher?.Dispose();
+        _watcher = null;
+        try
+        {
+            Directory.CreateDirectory(Settings.SaveFolder);
+            var watcher = new FileSystemWatcher(Settings.SaveFolder) { NotifyFilter = NotifyFilters.FileName | NotifyFilters.Size };
+            watcher.Created += (_, _) => DispatcherQueue.TryEnqueue(RequestLibraryRefresh);
+            watcher.Deleted += (_, _) => DispatcherQueue.TryEnqueue(RequestLibraryRefresh);
+            watcher.Renamed += (_, _) => DispatcherQueue.TryEnqueue(RequestLibraryRefresh);
+            watcher.EnableRaisingEvents = true;
+            _watcher = watcher;
+        }
+        catch
+        {
+            // library still refreshes after stop
+        }
+
+        return true;
+    }
+
+    private void RequestLibraryRefresh()
+    {
+        if (_libraryRefreshTimer is null)
+        {
+            _libraryRefreshTimer = DispatcherQueue.CreateTimer();
+            _libraryRefreshTimer.Interval = TimeSpan.FromMilliseconds(300);
+            _libraryRefreshTimer.IsRepeating = false;
+            _libraryRefreshTimer.Tick += (_, _) => RefreshLibrary();
+        }
+
+        _libraryRefreshTimer.Stop();
+        _libraryRefreshTimer.Start();
+    }
+
     private void RefreshLibrary()
     {
+        _libraryRefreshTimer?.Stop();
         List<LibraryItem> items;
         try
         {
@@ -29,6 +71,7 @@ public sealed partial class MainWindow
             return;
         }
 
+        var unknown = new List<LibraryItem>();
         foreach (var item in items)
         {
             if (item.Missing)
@@ -49,26 +92,20 @@ public sealed partial class MainWindow
                 continue;
             }
 
-            if (!File.Exists(item.Path))
-            {
-                item.StatusText = UiCopy.T("lib.deleted");
-                continue;
-            }
-
-            duration = MediaProbe.TryDuration(item.Path);
-            if (duration <= TimeSpan.Zero)
-            {
-                continue;
-            }
-
-            item.Duration = duration;
-            _durations[item.Path] = duration;
-            LibraryFileInfo.Remember(item.Path, duration);
+            unknown.Add(item);
         }
 
+        var scroller = FindScrollViewer(LibraryList);
+        var offset = scroller?.VerticalOffset ?? 0;
         LibraryEmpty.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         LibraryListHost.Visibility = items.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         LibraryList.ItemsSource = items;
+        if (scroller is not null && offset > 0)
+        {
+            DispatcherQueue.TryEnqueue(() => scroller.ChangeView(null, offset, null, disableAnimation: true));
+        }
+
+        ProbeDurations(unknown, ++_libraryGeneration);
         if (!string.IsNullOrWhiteSpace(_lastFile))
         {
             var match = items.FirstOrDefault(item => string.Equals(item.Path, _lastFile, StringComparison.OrdinalIgnoreCase));
@@ -80,6 +117,81 @@ public sealed partial class MainWindow
 
         UpdateLibraryCommands();
         DispatcherQueue.TryEnqueue(ApplyLibrarySelectionChrome);
+    }
+
+    private void ProbeDurations(List<LibraryItem> items, int generation)
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        _ = Task.Run(() =>
+        {
+            foreach (var item in items)
+            {
+                if (generation != Volatile.Read(ref _libraryGeneration))
+                {
+                    return;
+                }
+
+                FileInfo info;
+                try
+                {
+                    info = new FileInfo(item.Path);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (!info.Exists)
+                {
+                    DispatcherQueue.TryEnqueue(() => item.StatusText = UiCopy.T("lib.deleted"));
+                    continue;
+                }
+
+                var key = $"{item.Path}|{info.Length}|{info.LastWriteTimeUtc.Ticks}";
+                if (_unprobeable.ContainsKey(key))
+                {
+                    continue;
+                }
+
+                var duration = MediaProbe.TryDuration(item.Path);
+                if (duration <= TimeSpan.Zero)
+                {
+                    _unprobeable.TryAdd(key, 0);
+                    continue;
+                }
+
+                LibraryFileInfo.Remember(item.Path, duration);
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    _durations[item.Path] = duration;
+                    item.Duration = duration;
+                });
+            }
+        });
+    }
+
+    private static ScrollViewer? FindScrollViewer(DependencyObject root)
+    {
+        var count = VisualTreeHelper.GetChildrenCount(root);
+        for (var i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is ScrollViewer viewer)
+            {
+                return viewer;
+            }
+
+            if (FindScrollViewer(child) is { } nested)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     private void RememberDuration(string path, TimeSpan duration)
@@ -363,7 +475,7 @@ public sealed partial class MainWindow
         catch (Exception ex)
         {
             _previewFullScreen = false;
-            ShowBanner("无法切换全屏：" + ex.Message, InfoBarSeverity.Error);
+            ShowBanner(string.Format(UiCopy.T("lib.fullscreen.fail"), ex.Message), InfoBarSeverity.Error);
         }
     }
 
@@ -514,7 +626,7 @@ public sealed partial class MainWindow
         var items = picked.Select(item => item.Path).ToArray();
         if (items.Any(path => _session.Phase is SessionPhase.Recording or SessionPhase.Paused && string.Equals(path, _lastFile, StringComparison.OrdinalIgnoreCase)))
         {
-            ShowBanner("正在录制的文件不能做后期。请选择更早的成片，当前录制会继续。", InfoBarSeverity.Warning);
+            ShowBanner(UiCopy.T("lib.post.busy"), InfoBarSeverity.Warning);
             return;
         }
 
@@ -596,7 +708,7 @@ public sealed partial class MainWindow
             && _session.Phase is SessionPhase.Recording or SessionPhase.Paused
             && string.Equals(sourcePath, _lastFile, StringComparison.OrdinalIgnoreCase))
         {
-            ShowBanner("正在录制的文件不能做后期。请选择更早的成片，当前录制会继续。", InfoBarSeverity.Warning);
+            ShowBanner(UiCopy.T("lib.post.busy"), InfoBarSeverity.Warning);
             return;
         }
 
@@ -605,7 +717,7 @@ public sealed partial class MainWindow
         {
             var output = await work();
             RefreshLibrary();
-            ShowBanner("已完成 " + Path.GetFileName(output), InfoBarSeverity.Success);
+            ShowBanner(string.Format(UiCopy.T("lib.post.done"), Path.GetFileName(output)), InfoBarSeverity.Success);
         }
         catch (Exception ex)
         {

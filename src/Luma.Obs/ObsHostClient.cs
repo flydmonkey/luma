@@ -4,6 +4,7 @@ using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Luma.Core.Localization;
 using Luma.Core.Session;
 using Luma.Core.Settings;
 
@@ -36,7 +37,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
         }
 
         ResetConnection();
-        var host = FindHost() ?? throw new InvalidOperationException("未找到 Luma.ObsHost。请先构建 native/Luma.ObsHost 并拉取 OBS 运行时。");
+        var host = FindHost() ?? throw new InvalidOperationException(CoreText.T("host.missing"));
         var workDir = Path.GetDirectoryName(host) ?? AppContext.BaseDirectory;
         _process = Process.Start(new ProcessStartInfo
         {
@@ -44,7 +45,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
             UseShellExecute = false,
             CreateNoWindow = true,
             WorkingDirectory = workDir
-        }) ?? throw new InvalidOperationException("无法启动 Luma.ObsHost。");
+        }) ?? throw new InvalidOperationException(CoreText.T("host.start"));
 
         _pipe = new NamedPipeClientStream(".", PipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
         var deadline = DateTime.UtcNow.AddSeconds(60);
@@ -54,7 +55,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
             token.ThrowIfCancellationRequested();
             if (_process.HasExited)
             {
-                throw new InvalidOperationException($"Luma.ObsHost 启动后立即退出，代码 {_process.ExitCode}。");
+                throw new InvalidOperationException(CoreText.F("host.exited", _process.ExitCode));
             }
 
             try
@@ -71,7 +72,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
 
         if (_pipe is not { IsConnected: true })
         {
-            throw new InvalidOperationException($"无法连接 Luma.ObsHost：{last?.Message}");
+            throw new InvalidOperationException(CoreText.F("host.connect", last?.Message ?? ""));
         }
 
         _reader = new StreamReader(_pipe, Encoding.UTF8, detectEncodingFromByteOrderMarks: false, bufferSize: 4096, leaveOpen: true);
@@ -127,7 +128,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
             }, token).ConfigureAwait(false);
             if (!status.Ok)
             {
-                throw new InvalidOperationException(string.IsNullOrWhiteSpace(status.Error) ? "开始录制失败。" : status.Error);
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(status.Error) ? CoreText.T("op.start") : HostText.Localize(status.Error));
             }
 
             _outputPath = status.OutputPath;
@@ -143,14 +144,14 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
     public async Task PauseAsync()
     {
         var status = await SendAsync(new { op = "pause" }).ConfigureAwait(false);
-        ThrowIfFailed(status, "暂停失败。");
+        ThrowIfFailed(status, CoreText.T("op.pause"));
         _status = status.ToEngineStatus();
     }
 
     public async Task ResumeAsync()
     {
         var status = await SendAsync(new { op = "resume" }).ConfigureAwait(false);
-        ThrowIfFailed(status, "恢复失败。");
+        ThrowIfFailed(status, CoreText.T("op.resume"));
         _status = status.ToEngineStatus();
     }
 
@@ -158,7 +159,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
     {
         await EnsureStartedAsync().ConfigureAwait(false);
         var status = await SendAsync(new { op = "mute", muted }).ConfigureAwait(false);
-        ThrowIfFailed(status, "麦克风静音失败。");
+        ThrowIfFailed(status, CoreText.T("op.mute"));
     }
 
     public Task<RecordingResult> StopAsync()
@@ -180,7 +181,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
             {
                 if (DateTime.UtcNow >= deadline)
                 {
-                    throw new InvalidOperationException("录制停止超过 120 秒；控制面仍可用，但 OBS/驱动停止线程未返回，请重启 Luma 后再录制");
+                    throw new InvalidOperationException(CoreText.T("stop.timeout"));
                 }
 
                 await Task.Delay(200).ConfigureAwait(false);
@@ -190,7 +191,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
 
             if ((SessionPhase)status.Phase != SessionPhase.Idle && !status.Ok)
             {
-                ThrowIfFailed(status, "停止录制失败。");
+                ThrowIfFailed(status, CoreText.T("op.stop"));
             }
 
             var path = string.IsNullOrWhiteSpace(status.OutputPath) ? _outputPath : status.OutputPath;
@@ -209,7 +210,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
             var usable = bytes > 0 && (FindFfmpeg() is null || StopFileRules.IsUsable(bytes, probed, _status.EncodedDuration));
             if (!usable)
             {
-                throw new InvalidOperationException(string.IsNullOrWhiteSpace(status.Error) ? "成片未通过校验。" : status.Error);
+                throw new InvalidOperationException(string.IsNullOrWhiteSpace(status.Error) ? CoreText.T("stop.invalid") : HostText.Localize(status.Error));
             }
 
             if (status.StopForced || !status.Ok)
@@ -243,7 +244,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
     {
         if (!await TryRefreshStatusAsync(token).ConfigureAwait(false) && _pipe is not { IsConnected: true })
         {
-            throw new InvalidOperationException("OBS 宿主没有返回状态。");
+            throw new InvalidOperationException(CoreText.T("host.nostatus"));
         }
     }
 
@@ -289,7 +290,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
             {
                 if (_pipe is null || _reader is null)
                 {
-                    throw new InvalidOperationException("OBS 宿主未连接。");
+                    throw new InvalidOperationException(CoreText.T("host.disconnected"));
                 }
 
                 pipe = _pipe;
@@ -301,9 +302,9 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
             await pipe.WriteAsync(bytes, token).ConfigureAwait(false);
             await pipe.FlushAsync(token).ConfigureAwait(false);
             var line = await reader.ReadLineAsync(token).ConfigureAwait(false)
-                       ?? throw new InvalidOperationException("OBS 宿主没有返回状态。");
+                       ?? throw new InvalidOperationException(CoreText.T("host.nostatus"));
             return JsonSerializer.Deserialize<HostStatus>(line, JsonOptions)
-                   ?? throw new InvalidOperationException("无法解析宿主状态。");
+                   ?? throw new InvalidOperationException(CoreText.T("host.nostatus"));
         }
         finally
         {
@@ -474,7 +475,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
     {
         if (!status.Ok)
         {
-            throw new InvalidOperationException(string.IsNullOrWhiteSpace(status.Error) ? fallback : status.Error);
+            throw new InvalidOperationException(string.IsNullOrWhiteSpace(status.Error) ? fallback : HostText.Localize(status.Error));
         }
     }
 

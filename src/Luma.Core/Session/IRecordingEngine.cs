@@ -71,10 +71,10 @@ public static class SessionStartRules
     {
         if (target.Mode == CaptureMode.Game || IsGameMode(target.Mode.ToString()))
         {
-            return "游戏录制已关闭。";
+            return Localization.CoreText.T("target.game");
         }
 
-        return target.IsReady ? null : "请先选择录制目标。";
+        return target.IsReady ? null : Localization.CoreText.T("target.none");
     }
 
     public static bool IsGameMode(string? mode)

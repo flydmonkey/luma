@@ -92,7 +92,7 @@ public static class LanTargetCatalog
             id = display.Index.ToString(),
             title = $"{display.Width}×{display.Height}",
             label = $"{display.Index + 1}  {display.DeviceName}  {display.Width}×{display.Height}",
-            detail = string.IsNullOrWhiteSpace(display.DeviceName) ? $"显示器 {display.Index + 1}" : display.DeviceName,
+            detail = string.IsNullOrWhiteSpace(display.DeviceName) ? string.Format(UiCopy.T("sum.display"), display.Index + 1) : display.DeviceName,
             preview = Preview(display.X, display.Y, display.Width, display.Height)
         }).ToArray();
 
@@ -102,7 +102,7 @@ public static class LanTargetCatalog
             id = window.ObsWindowId,
             title = string.IsNullOrWhiteSpace(window.Title) ? window.ProcessName : window.Title,
             label = string.IsNullOrWhiteSpace(window.Title) ? window.ProcessName : window.Title,
-            detail = window.Minimized ? "已最小化" : $"{window.Width}×{window.Height}",
+            detail = window.Minimized ? UiCopy.T("target.minimized") : $"{window.Width}×{window.Height}",
             preview = window.Minimized ? null : PreviewWindow(window)
         }).ToArray();
 

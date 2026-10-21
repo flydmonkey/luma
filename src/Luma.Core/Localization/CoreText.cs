@@ -1,0 +1,216 @@
+namespace Luma.Core.Localization;
+
+/// <summary>
+/// Messages raised below the UI layer. The desktop sets <see cref="Language"/> together with its own copy;
+/// until then text stays Simplified Chinese, which the LAN API documents.
+/// </summary>
+public static class CoreText
+{
+    public static string Language { get; set; } = UiLanguages.SimplifiedChinese;
+
+    public static string T(string key)
+    {
+        if (Tables.TryGetValue(Language, out var table) && table.TryGetValue(key, out var value))
+        {
+            return value;
+        }
+
+        return Tables[UiLanguages.English].TryGetValue(key, out var en) ? en : key;
+    }
+
+    public static string F(string key, params object[] args) => string.Format(T(key), args);
+
+    private static readonly Dictionary<string, Dictionary<string, string>> Tables = new()
+    {
+        [UiLanguages.English] = new()
+        {
+            ["port.invalid"] = "The port must be a whole number from 1 to 65535.",
+            ["port.taken"] = "Port {0} is in use or can't be opened.",
+            ["session.busy"] = "A recording is already in progress.",
+            ["session.pause.idle"] = "Only an active recording can be paused.",
+            ["session.resume.idle"] = "Only a paused recording can be resumed.",
+            ["session.stop.idle"] = "There is no recording to stop.",
+            ["session.stopping"] = "The recording is finishing.",
+            ["session.pause.unsupported"] = "This output can't be paused.",
+            ["target.game"] = "Game recording is turned off.",
+            ["target.none"] = "Choose what to record first.",
+            ["target.window"] = "Choose a window first.",
+            ["stop.forced"] = "Luma had to force the recording to stop. The file was checked and plays.",
+            ["stop.timeout"] = "Stopping took more than 120 seconds. Restart Luma before the next recording.",
+            ["stop.invalid"] = "The recorded file didn't pass the check.",
+            ["stop.pending"] = "Finishing the recording and checking the file…",
+            ["host.missing"] = "Luma.ObsHost wasn't found. Reinstall Luma.",
+            ["host.start"] = "Luma.ObsHost couldn't start.",
+            ["host.exited"] = "Luma.ObsHost exited right after starting (code {0}).",
+            ["host.connect"] = "Couldn't connect to Luma.ObsHost: {0}",
+            ["host.nostatus"] = "The recording engine didn't answer.",
+            ["host.disconnected"] = "The recording engine isn't connected.",
+            ["op.start"] = "Couldn't start recording.",
+            ["op.pause"] = "Couldn't pause.",
+            ["op.resume"] = "Couldn't resume.",
+            ["op.mute"] = "Couldn't mute the microphone.",
+            ["op.stop"] = "Couldn't stop recording.",
+            ["source.create"] = "Couldn't create the capture source.",
+            ["warn.system"] = "System audio isn't available.",
+            ["warn.mic"] = "The microphone isn't available.",
+            ["warn.mic.track"] = "There is no microphone track.",
+            ["warn.camera"] = "The camera isn't available.",
+            ["warn.text"] = "The text watermark isn't available.",
+            ["warn.image"] = "The image watermark isn't available.",
+            ["warn.timestamp"] = "The timestamp isn't available.",
+            ["warn.opacity"] = "Watermark opacity isn't available."
+        },
+        [UiLanguages.SimplifiedChinese] = new()
+        {
+            ["port.invalid"] = "端口必须是 1 到 65535 之间的整数。",
+            ["port.taken"] = "端口 {0} 已被占用或无法绑定。",
+            ["session.busy"] = "已有录制正在进行。",
+            ["session.pause.idle"] = "只有正在录制时才能暂停。",
+            ["session.resume.idle"] = "只有已暂停的录制才能恢复。",
+            ["session.stop.idle"] = "当前没有可以停止的录制。",
+            ["session.stopping"] = "录制正在结束。",
+            ["session.pause.unsupported"] = "当前输出不支持暂停。",
+            ["target.game"] = "游戏录制已关闭。",
+            ["target.none"] = "请先选择录制目标。",
+            ["target.window"] = "请先选择窗口。",
+            ["stop.forced"] = "OBS 正常停止超时，已强制结束；成片已通过校验",
+            ["stop.timeout"] = "录制停止超过 120 秒；控制面仍可用，但 OBS/驱动停止线程未返回，请重启 Luma 后再录制",
+            ["stop.invalid"] = "成片未通过校验。",
+            ["stop.pending"] = "正在结束 OBS 输出并校验文件…",
+            ["host.missing"] = "未找到 Luma.ObsHost。请重新安装 Luma。",
+            ["host.start"] = "无法启动 Luma.ObsHost。",
+            ["host.exited"] = "Luma.ObsHost 启动后立即退出，代码 {0}。",
+            ["host.connect"] = "无法连接 Luma.ObsHost：{0}",
+            ["host.nostatus"] = "OBS 宿主没有返回状态。",
+            ["host.disconnected"] = "OBS 宿主未连接。",
+            ["op.start"] = "开始录制失败。",
+            ["op.pause"] = "暂停失败。",
+            ["op.resume"] = "恢复失败。",
+            ["op.mute"] = "麦克风静音失败。",
+            ["op.stop"] = "停止录制失败。",
+            ["source.create"] = "无法创建采集源。",
+            ["warn.system"] = "系统声采集不可用。",
+            ["warn.mic"] = "麦克风不可用。",
+            ["warn.mic.track"] = "当前没有麦克风轨道。",
+            ["warn.camera"] = "摄像头不可用。",
+            ["warn.text"] = "文字水印不可用。",
+            ["warn.image"] = "图片水印不可用。",
+            ["warn.timestamp"] = "时间戳不可用。",
+            ["warn.opacity"] = "水印透明度不可用。"
+        },
+        [UiLanguages.TraditionalChinese] = new()
+        {
+            ["port.invalid"] = "連接埠必須是 1 到 65535 之間的整數。",
+            ["port.taken"] = "連接埠 {0} 已被占用或無法繫結。",
+            ["session.busy"] = "已有錄製正在進行。",
+            ["session.pause.idle"] = "只有正在錄製時才能暫停。",
+            ["session.resume.idle"] = "只有已暫停的錄製才能繼續。",
+            ["session.stop.idle"] = "目前沒有可以停止的錄製。",
+            ["session.stopping"] = "錄製正在結束。",
+            ["session.pause.unsupported"] = "目前的輸出不支援暫停。",
+            ["target.game"] = "遊戲錄製已關閉。",
+            ["target.none"] = "請先選擇錄製目標。",
+            ["target.window"] = "請先選擇視窗。",
+            ["stop.forced"] = "正常停止逾時，已強制結束；成品已通過檢查。",
+            ["stop.timeout"] = "停止錄製超過 120 秒，請重新啟動 Luma 後再錄製。",
+            ["stop.invalid"] = "成品未通過檢查。",
+            ["stop.pending"] = "正在結束錄製並檢查檔案…",
+            ["host.missing"] = "找不到 Luma.ObsHost。請重新安裝 Luma。",
+            ["host.start"] = "無法啟動 Luma.ObsHost。",
+            ["host.exited"] = "Luma.ObsHost 啟動後立即結束，代碼 {0}。",
+            ["host.connect"] = "無法連線到 Luma.ObsHost：{0}",
+            ["host.nostatus"] = "錄製引擎沒有回應。",
+            ["host.disconnected"] = "錄製引擎未連線。",
+            ["op.start"] = "無法開始錄製。",
+            ["op.pause"] = "無法暫停。",
+            ["op.resume"] = "無法繼續。",
+            ["op.mute"] = "無法將麥克風靜音。",
+            ["op.stop"] = "無法停止錄製。",
+            ["source.create"] = "無法建立擷取來源。",
+            ["warn.system"] = "系統聲音擷取無法使用。",
+            ["warn.mic"] = "麥克風無法使用。",
+            ["warn.mic.track"] = "目前沒有麥克風音軌。",
+            ["warn.camera"] = "攝影機無法使用。",
+            ["warn.text"] = "文字浮水印無法使用。",
+            ["warn.image"] = "圖片浮水印無法使用。",
+            ["warn.timestamp"] = "時間戳記無法使用。",
+            ["warn.opacity"] = "浮水印透明度無法使用。"
+        },
+        [UiLanguages.Japanese] = new()
+        {
+            ["port.invalid"] = "ポートは 1 から 65535 までの整数にしてください。",
+            ["port.taken"] = "ポート {0} は使用中か、開けません。",
+            ["session.busy"] = "すでに録画中です。",
+            ["session.pause.idle"] = "一時停止できるのは録画中だけです。",
+            ["session.resume.idle"] = "再開できるのは一時停止中の録画だけです。",
+            ["session.stop.idle"] = "停止できる録画がありません。",
+            ["session.stopping"] = "録画を終了しています。",
+            ["session.pause.unsupported"] = "この出力は一時停止できません。",
+            ["target.game"] = "ゲーム録画はオフになっています。",
+            ["target.none"] = "先に録画対象を選んでください。",
+            ["target.window"] = "先にウィンドウを選んでください。",
+            ["stop.forced"] = "録画を強制的に停止しました。ファイルは確認済みで再生できます。",
+            ["stop.timeout"] = "停止に 120 秒以上かかりました。次の録画の前に Luma を再起動してください。",
+            ["stop.invalid"] = "録画ファイルが確認に失敗しました。",
+            ["stop.pending"] = "録画を終了してファイルを確認しています…",
+            ["host.missing"] = "Luma.ObsHost が見つかりません。Luma を再インストールしてください。",
+            ["host.start"] = "Luma.ObsHost を起動できません。",
+            ["host.exited"] = "Luma.ObsHost が起動直後に終了しました (コード {0})。",
+            ["host.connect"] = "Luma.ObsHost に接続できません: {0}",
+            ["host.nostatus"] = "録画エンジンから応答がありません。",
+            ["host.disconnected"] = "録画エンジンに接続されていません。",
+            ["op.start"] = "録画を開始できません。",
+            ["op.pause"] = "一時停止できません。",
+            ["op.resume"] = "再開できません。",
+            ["op.mute"] = "マイクをミュートできません。",
+            ["op.stop"] = "録画を停止できません。",
+            ["source.create"] = "キャプチャ ソースを作成できません。",
+            ["warn.system"] = "システム音声を取り込めません。",
+            ["warn.mic"] = "マイクを使用できません。",
+            ["warn.mic.track"] = "マイクのトラックがありません。",
+            ["warn.camera"] = "カメラを使用できません。",
+            ["warn.text"] = "テキストの透かしを使用できません。",
+            ["warn.image"] = "画像の透かしを使用できません。",
+            ["warn.timestamp"] = "タイムスタンプを使用できません。",
+            ["warn.opacity"] = "透かしの不透明度を使用できません。"
+        },
+        [UiLanguages.Korean] = new()
+        {
+            ["port.invalid"] = "포트는 1에서 65535 사이의 정수여야 합니다.",
+            ["port.taken"] = "포트 {0}이(가) 사용 중이거나 열 수 없습니다.",
+            ["session.busy"] = "이미 녹화 중입니다.",
+            ["session.pause.idle"] = "녹화 중일 때만 일시 중지할 수 있습니다.",
+            ["session.resume.idle"] = "일시 중지된 녹화만 다시 시작할 수 있습니다.",
+            ["session.stop.idle"] = "중지할 녹화가 없습니다.",
+            ["session.stopping"] = "녹화를 마치는 중입니다.",
+            ["session.pause.unsupported"] = "이 출력은 일시 중지할 수 없습니다.",
+            ["target.game"] = "게임 녹화가 꺼져 있습니다.",
+            ["target.none"] = "먼저 녹화할 대상을 선택하세요.",
+            ["target.window"] = "먼저 창을 선택하세요.",
+            ["stop.forced"] = "녹화를 강제로 중지했습니다. 파일은 확인되었고 재생할 수 있습니다.",
+            ["stop.timeout"] = "중지에 120초 넘게 걸렸습니다. 다음 녹화 전에 Luma를 다시 시작하세요.",
+            ["stop.invalid"] = "녹화 파일이 확인을 통과하지 못했습니다.",
+            ["stop.pending"] = "녹화를 마치고 파일을 확인하는 중…",
+            ["host.missing"] = "Luma.ObsHost를 찾을 수 없습니다. Luma를 다시 설치하세요.",
+            ["host.start"] = "Luma.ObsHost를 시작할 수 없습니다.",
+            ["host.exited"] = "Luma.ObsHost가 시작 직후 종료되었습니다(코드 {0}).",
+            ["host.connect"] = "Luma.ObsHost에 연결할 수 없습니다: {0}",
+            ["host.nostatus"] = "녹화 엔진이 응답하지 않습니다.",
+            ["host.disconnected"] = "녹화 엔진이 연결되어 있지 않습니다.",
+            ["op.start"] = "녹화를 시작할 수 없습니다.",
+            ["op.pause"] = "일시 중지할 수 없습니다.",
+            ["op.resume"] = "다시 시작할 수 없습니다.",
+            ["op.mute"] = "마이크를 음소거할 수 없습니다.",
+            ["op.stop"] = "녹화를 중지할 수 없습니다.",
+            ["source.create"] = "캡처 소스를 만들 수 없습니다.",
+            ["warn.system"] = "시스템 오디오를 캡처할 수 없습니다.",
+            ["warn.mic"] = "마이크를 사용할 수 없습니다.",
+            ["warn.mic.track"] = "마이크 트랙이 없습니다.",
+            ["warn.camera"] = "카메라를 사용할 수 없습니다.",
+            ["warn.text"] = "텍스트 워터마크를 사용할 수 없습니다.",
+            ["warn.image"] = "이미지 워터마크를 사용할 수 없습니다.",
+            ["warn.timestamp"] = "타임스탬프를 사용할 수 없습니다.",
+            ["warn.opacity"] = "워터마크 불투명도를 사용할 수 없습니다."
+        }
+    };
+}

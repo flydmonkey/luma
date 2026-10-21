@@ -2,7 +2,7 @@ namespace Luma.Core.Session;
 
 public static class StopFileRules
 {
-    public const string ForcedWarning = "OBS 正常停止超时，已强制结束；成片已通过校验";
+    public static string ForcedWarning => Localization.CoreText.T("stop.forced");
 
     public static bool IsUsable(long bytes, TimeSpan fileDuration, TimeSpan recordedDuration)
     {

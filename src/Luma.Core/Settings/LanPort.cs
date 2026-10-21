@@ -11,7 +11,7 @@ public static class LanPort
         port = 0;
         if (!int.TryParse(text, out var value) || value < Min || value > Max)
         {
-            error = "端口必须是 1 到 65535 之间的整数。";
+            error = Localization.CoreText.T("port.invalid");
             return false;
         }
 

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Luma.Core.Settings;
 
 namespace Luma.App.Services;
 
@@ -7,11 +6,11 @@ public static class AutomationTaskService
 {
     private const string TaskName = "Luma.StartAtLogon";
 
-    public static void Apply(AppSettings settings, string executablePath)
+    public static void Apply(bool startAtLogon, string executablePath)
     {
         try
         {
-            if ((settings.Automation.StartAtLogon || settings.LaunchToTray) && File.Exists(executablePath))
+            if (startAtLogon && File.Exists(executablePath))
             {
                 Run("schtasks", $"/Create /F /TN \"{TaskName}\" /SC ONLOGON /RL LIMITED /TR \"\\\"{executablePath}\\\" --logon\"");
             }

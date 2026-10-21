@@ -1742,7 +1742,7 @@ SessionStatus ObsStart(const StartRequest& request)
                 {
                     hardwareFailure = "no hardware encoder produced an active output";
                 }
-                Warn("硬件编码不可用，已回退 obs_x264。" + hardwareFailure);
+                Warn("硬件编码不可用，已回退 obs_x264。");
                 LogLine("encoder fallback obs_x264: %s", hardwareFailure.c_str());
             }
             break;

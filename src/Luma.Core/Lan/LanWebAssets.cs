@@ -1,32 +1,50 @@
+using System.Collections.Concurrent;
 using System.Reflection;
+using System.Security.Cryptography;
 
 namespace Luma.Core.Lan;
 
 public static class LanWebAssets
 {
+    private static readonly ConcurrentDictionary<string, (string ContentType, byte[] Body, string ETag)?> Cache = new(StringComparer.Ordinal);
+
     public static bool TryGet(string name, out string contentType, out byte[] body)
+        => TryGet(name, out contentType, out body, out _);
+
+    public static bool TryGet(string name, out string contentType, out byte[] body, out string etag)
     {
-        contentType = name switch
+        if (Cache.GetOrAdd(name, Load) is { } asset)
+        {
+            (contentType, body, etag) = asset;
+            return true;
+        }
+
+        contentType = "";
+        body = [];
+        etag = "";
+        return false;
+    }
+
+    private static (string ContentType, byte[] Body, string ETag)? Load(string name)
+    {
+        var contentType = name switch
         {
             "index.html" => "text/html; charset=utf-8",
             "app.css" => "text/css; charset=utf-8",
             "app.js" or "rapidoc-min.js" => "application/javascript; charset=utf-8",
             _ => ""
         };
-        var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Luma.Core.Lan.Web." + name);
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Luma.Core.Lan.Web." + name);
         if (stream is null || contentType.Length == 0)
         {
-            body = [];
-            return false;
+            return null;
         }
 
-        using (stream)
-        {
-            using var memory = new MemoryStream();
-            stream.CopyTo(memory);
-            body = memory.ToArray();
-            return true;
-        }
+        using var memory = new MemoryStream();
+        stream.CopyTo(memory);
+        var body = memory.ToArray();
+        var etag = "\"" + Convert.ToHexString(SHA256.HashData(body))[..16] + "\"";
+        return (contentType, body, etag);
     }
 
     private static readonly Dictionary<string, (string Prompt, string Wrong, string Open)> UnlockCopy = new()

@@ -50,7 +50,7 @@ public sealed class LanServer : IDisposable
 
         if (!LanPort.IsValid(settings.Lan.Port))
         {
-            LastError = "端口必须是 1 到 65535 之间的整数。";
+            LastError = Localization.CoreText.T("port.invalid");
             IsRunning = false;
             return;
         }
@@ -66,7 +66,7 @@ public sealed class LanServer : IDisposable
 
         if (!TryListen(loopback, out var listener) || listener is null)
         {
-            LastError = $"端口 {settings.Lan.Port} 已被占用或无法绑定。";
+            LastError = Localization.CoreText.F("port.taken", settings.Lan.Port);
             IsRunning = false;
             BoundUrls = [];
             SkippedUrls = [];
@@ -252,14 +252,13 @@ public sealed class LanServer : IDisposable
             if (path is "/" or "/index.html" or "/app.js" or "/app.css")
             {
                 var file = path is "/" or "/index.html" ? "index.html" : path.TrimStart('/');
-                if (!LanWebAssets.TryGet(file, out var type, out var body))
+                if (!LanWebAssets.TryGet(file, out var type, out var body, out var etag))
                 {
                     await WriteAsync(context.Response, 404, LanControlApi.Fail("未找到这个页面。")).ConfigureAwait(false);
                     return;
                 }
 
-                context.Response.Headers["Cache-Control"] = "no-cache";
-                await WriteBytesAsync(context.Response, 200, body, type).ConfigureAwait(false);
+                await WriteRevalidatedAsync(context, body, type, etag).ConfigureAwait(false);
                 return;
             }
 
@@ -504,7 +503,9 @@ public sealed class LanServer : IDisposable
 
         if (poster)
         {
-            await WriteBytesAsync(context.Response, 200, await File.ReadAllBytesAsync(file).ConfigureAwait(false), "image/jpeg").ConfigureAwait(false);
+            var info = new FileInfo(file);
+            var etag = $"\"{info.Length:x}-{info.LastWriteTimeUtc.Ticks:x}\"";
+            await WriteRevalidatedAsync(context, await File.ReadAllBytesAsync(file).ConfigureAwait(false), "image/jpeg", etag).ConfigureAwait(false);
             return;
         }
 
@@ -654,13 +655,13 @@ public sealed class LanServer : IDisposable
 
         if (path == "/rapidoc-min.js")
         {
-            if (!LanWebAssets.TryGet("rapidoc-min.js", out var type, out var body))
+            if (!LanWebAssets.TryGet("rapidoc-min.js", out var type, out var body, out var etag))
             {
                 await WriteAsync(context.Response, 404, LanControlApi.Fail("未找到这个页面。")).ConfigureAwait(false);
                 return true;
             }
 
-            await WriteBytesAsync(context.Response, 200, body, type).ConfigureAwait(false);
+            await WriteRevalidatedAsync(context, body, type, etag).ConfigureAwait(false);
             return true;
         }
 
@@ -760,6 +761,35 @@ public sealed class LanServer : IDisposable
 
     private static Task WriteJson(HttpListenerResponse response, object value) =>
         WriteAsync(response, 200, JsonSerializer.Serialize(value), "application/json");
+
+    // "no-cache" makes the browser ask every time; a matching ETag answers with 304 and no body.
+    private static async Task WriteRevalidatedAsync(HttpListenerContext context, byte[] bytes, string contentType, string etag)
+    {
+        if (NotModified(context, etag))
+        {
+            return;
+        }
+
+        context.Response.Headers["Cache-Control"] = "no-cache";
+        context.Response.Headers["ETag"] = etag;
+        await WriteBytesAsync(context.Response, 200, bytes, contentType).ConfigureAwait(false);
+    }
+
+    private static bool NotModified(HttpListenerContext context, string etag)
+    {
+        var sent = context.Request.Headers["If-None-Match"];
+        if (string.IsNullOrEmpty(sent) || !sent.Split(',').Any(tag => tag.Trim() == etag))
+        {
+            return false;
+        }
+
+        context.Response.StatusCode = 304;
+        context.Response.Headers["Cache-Control"] = "no-cache";
+        context.Response.Headers["ETag"] = etag;
+        context.Response.ContentLength64 = 0;
+        context.Response.Close();
+        return true;
+    }
 
     private static async Task WriteBytesAsync(HttpListenerResponse response, int status, byte[] bytes, string contentType)
     {

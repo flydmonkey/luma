@@ -1,4 +1,5 @@
 using Luma.App.Services;
+using Luma.Core.Library;
 using Luma.Core.Localization;
 using Luma.Core.Session;
 using Luma.Core.Settings;
@@ -137,9 +138,13 @@ public sealed partial class MainWindow
             Settings.MonitorIndex = monitor;
         }
 
-        SaveSettings();
-        TryApplyHotkeys(silent: true);
-        AutomationTaskService.Apply(Settings, Environment.ProcessPath ?? "");
+        QueueSettingsSave();
+        if (HotkeyKey(Settings.Hotkeys) != _appliedHotkeys)
+        {
+            TryApplyHotkeys(silent: true);
+        }
+
+        ApplyLogonTask();
     }
 
     private OverlaySettings BuildOverlay()
@@ -603,6 +608,12 @@ public sealed partial class MainWindow
         _tray?.ApplyLanguage();
         RefreshLanAddress();
         LocalizeFrameworkChrome();
+        var audioLabel = UiCopy.T("home.mode.audio");
+        if (LibraryItem.AudioLabel != audioLabel)
+        {
+            LibraryItem.AudioLabel = audioLabel;
+            if (LibraryList.ItemsSource is not null) RefreshLibrary();
+        }
     }
 
     private void LocalizeFrameworkChrome()
@@ -795,7 +806,7 @@ public sealed partial class MainWindow
         SaveSettings();
         if (Settings.Lan.Enabled) App.LanServer.Start();
         else App.LanServer.Stop();
-        ReportLanStart("无法启动局域网服务。");
+        ReportLanStart(UiCopy.T("lan.start.fail"));
         RefreshLanAddress();
     }
 
@@ -841,7 +852,7 @@ public sealed partial class MainWindow
         if (Settings.Lan.Enabled)
         {
             App.LanServer.Start();
-            ReportLanStart("无法绑定该端口。");
+            ReportLanStart(UiCopy.T("lan.port.fail"));
         }
 
         RefreshLanAddress();
@@ -892,6 +903,7 @@ public sealed partial class MainWindow
         Settings.SaveFolder = folder.Path;
         SaveFolderText.Text = folder.Path;
         SaveSettings();
+        WatchSaveFolder();
         RefreshLibrary();
     }
 
@@ -928,9 +940,11 @@ public sealed partial class MainWindow
         NativeMenuTheme.Apply(Settings.Theme);
         _tray.ApplyLanguage();
         TryApplyHotkeys(silent: true);
+        ApplyLogonTask();
         if (Settings.Lan.Enabled) App.LanServer.Start();
         else App.LanServer.Stop();
         RefreshLanAddress();
+        WatchSaveFolder();
         RefreshLibrary();
         ShowBanner(UiCopy.T("settings.reset.done"), InfoBarSeverity.Success);
     }

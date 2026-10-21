@@ -6,51 +6,32 @@ namespace Luma.Media;
 
 public static class MediaProbe
 {
-    public static string Describe(string path)
-    {
-        var ffmpeg = FfmpegLocator.Find();
-        if (ffmpeg is null || !File.Exists(path))
-        {
-            return "";
-        }
-
-        try
-        {
-            var start = new ProcessStartInfo(ffmpeg)
-            {
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-            start.ArgumentList.Add("-hide_banner");
-            start.ArgumentList.Add("-i");
-            start.ArgumentList.Add(path);
-            using var process = Process.Start(start);
-            if (process is null)
-            {
-                return "";
-            }
-
-            var text = process.StandardError.ReadToEnd();
-            if (!process.WaitForExit(8000))
-            {
-                try { process.Kill(entireProcessTree: true); } catch { /* ignore */ }
-            }
-
-            return text;
-        }
-        catch
-        {
-            return "";
-        }
-    }
+    public static string Describe(string path) => ReadProbe(path, 8000) ?? "";
 
     public static TimeSpan TryDuration(string path)
     {
+        var text = ReadProbe(path, 5000);
+        if (text is null)
+        {
+            return TimeSpan.Zero;
+        }
+
+        var match = Regex.Match(text, @"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)");
+        if (!match.Success)
+        {
+            return TimeSpan.Zero;
+        }
+
+        var seconds = double.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture);
+        return new TimeSpan(int.Parse(match.Groups[1].Value), int.Parse(match.Groups[2].Value), 0) + TimeSpan.FromSeconds(seconds);
+    }
+
+    private static string? ReadProbe(string path, int timeoutMs)
+    {
         var ffmpeg = FfmpegLocator.Find();
         if (ffmpeg is null || !File.Exists(path))
         {
-            return TimeSpan.Zero;
+            return null;
         }
 
         try
@@ -67,28 +48,22 @@ public static class MediaProbe
             using var process = Process.Start(start);
             if (process is null)
             {
-                return TimeSpan.Zero;
+                return null;
             }
 
-            var text = process.StandardError.ReadToEnd();
-            if (!process.WaitForExit(5000))
+            // Read concurrently so the timeout still applies when ffmpeg stops writing but never exits.
+            var text = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit(timeoutMs))
             {
                 try { process.Kill(entireProcessTree: true); } catch { /* ignore */ }
-                return TimeSpan.Zero;
+                return null;
             }
 
-            var match = Regex.Match(text, @"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)");
-            if (!match.Success)
-            {
-                return TimeSpan.Zero;
-            }
-
-            var seconds = double.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture);
-            return new TimeSpan(int.Parse(match.Groups[1].Value), int.Parse(match.Groups[2].Value), 0) + TimeSpan.FromSeconds(seconds);
+            return text.Wait(1000) ? text.Result : null;
         }
         catch
         {
-            return TimeSpan.Zero;
+            return null;
         }
     }
 

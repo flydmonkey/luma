@@ -46,7 +46,7 @@ public sealed class HotkeyService : IDisposable
         TryRegister(4, settings.Screenshot, failed);
         if (failed.Count > 0)
         {
-            throw new InvalidOperationException("无法注册热键 " + string.Join("、", failed) + "。");
+            throw new InvalidOperationException(string.Format(UiCopy.T("hotkey.failed"), string.Join(UiCopy.T("list.sep"), failed)));
         }
     }
 
