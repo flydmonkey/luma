@@ -11,6 +11,7 @@ public sealed class AppSettings
     public string RecordingFormat { get; set; } = RecordingContainers.Mp4;
     public AudioSettings Audio { get; set; } = new();
     public OverlaySettings Overlay { get; set; } = new();
+    public ScreenAidSettings ScreenAids { get; set; } = new();
     public HotkeySettings Hotkeys { get; set; } = new();
     public AutomationSettings Automation { get; set; } = new();
     public bool CloseToTray { get; set; } = true;
@@ -58,6 +59,19 @@ public sealed class AudioSettings
     public const int MaxVolume = 200;
 
     public static double Gain(int percent) => Math.Clamp(percent, 0, MaxVolume) / 100.0;
+}
+
+public sealed class ScreenAidSettings
+{
+    public bool ShowCursor { get; set; } = true;
+
+    /// <summary>Draw a ring where the mouse clicks; recorded in display and region modes.</summary>
+    public bool HighlightClicks { get; set; }
+
+    /// <summary>Offer the pen on the recording bar; recorded in display and region modes.</summary>
+    public bool Annotation { get; set; }
+
+    public static bool AppliesTo(CaptureMode mode) => mode is CaptureMode.Display or CaptureMode.Region;
 }
 
 public sealed class OverlaySettings

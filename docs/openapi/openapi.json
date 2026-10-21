@@ -205,6 +205,7 @@
           "recordingFormat": { "type": "string", "enum": ["mp4", "mkv", "mov", "flv"] },
           "audio": { "$ref": "#/components/schemas/AudioSettings" },
           "overlay": { "type": "object" },
+          "screenAids": { "$ref": "#/components/schemas/ScreenAidSettings" },
           "hotkeys": { "$ref": "#/components/schemas/Hotkeys" },
           "automation": { "type": "object" },
           "closeToTray": { "type": "boolean" },
@@ -237,6 +238,14 @@
           "systemVolume": { "type": "integer", "minimum": 0, "maximum": 200, "default": 100, "description": "Computer sound volume in percent." },
           "microphoneVolume": { "type": "integer", "minimum": 0, "maximum": 200, "default": 100, "description": "Microphone volume in percent." },
           "noiseSuppression": { "type": "boolean", "default": true, "description": "Reduce background noise on the microphone." }
+        }
+      },
+      "ScreenAidSettings": {
+        "type": "object",
+        "properties": {
+          "showCursor": { "type": "boolean", "default": true, "description": "Record the mouse pointer." },
+          "highlightClicks": { "type": "boolean", "default": false, "description": "Show a ring at each click in display and region recordings." },
+          "annotation": { "type": "boolean", "default": false, "description": "Offer the pen on the desktop recording bar in display and region recordings." }
         }
       },
       "Hotkeys": {
@@ -278,6 +287,7 @@
           "quality": { "$ref": "#/components/schemas/Quality" },
           "audio": { "$ref": "#/components/schemas/AudioSettings" },
           "overlay": { "type": "object" },
+          "screenAids": { "$ref": "#/components/schemas/ScreenAidSettings" },
           "hotkeys": { "$ref": "#/components/schemas/Hotkeys" },
           "automation": { "type": "object" },
           "recordingFormat": { "type": "string", "enum": ["mp4", "mkv", "mov", "flv"] }

@@ -29,6 +29,8 @@ public sealed class RecordingBarWindow : Window
     private readonly ProgressBar _systemMeter;
     private readonly ProgressBar _micMeter;
     private readonly bool _showMeters;
+    private readonly ScreenInkOverlay? _ink;
+    private readonly ToggleButton? _penButton;
     private bool? _shownPaused;
     private string? _shownMicGlyph;
 
@@ -49,9 +51,11 @@ public sealed class RecordingBarWindow : Window
         Action<bool> mute,
         bool micOn,
         Func<(double System, double Mic)> levels,
-        bool systemOn)
+        bool systemOn,
+        ScreenInkOverlay? ink)
     {
         _levels = levels;
+        _ink = ink;
         _showMeters = micOn || systemOn;
         Title = "Luma";
         AppIcon.Apply(this);
@@ -104,6 +108,28 @@ public sealed class RecordingBarWindow : Window
         row.Children.Add(_pauseButton);
         row.Children.Add(_stopButton);
         row.Children.Add(_micButton);
+        if (_ink is not null)
+        {
+            var penTip = UiCopy.T("bar.ink");
+            _penButton = new ToggleButton
+            {
+                Width = 36,
+                Height = 36,
+                Padding = new Thickness(0),
+                Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent),
+                BorderThickness = new Thickness(0),
+                Content = Symbol("\uE70F")
+            };
+            ToolTipService.SetToolTip(_penButton, penTip);
+            AutomationProperties.SetName(_penButton, penTip);
+            _penButton.Click += (_, _) => _ink.SetDrawing(_penButton.IsChecked == true);
+            var clearButton = IconButton(Symbol("\uE75C"), UiCopy.T("bar.ink.clear"));
+            AutomationProperties.SetName(clearButton, UiCopy.T("bar.ink.clear"));
+            clearButton.Click += (_, _) => _ink.Clear();
+            row.Children.Add(_penButton);
+            row.Children.Add(clearButton);
+        }
+
         _systemMeter = Meter(systemOn);
         _micMeter = Meter(micOn);
         if (_showMeters)
@@ -135,6 +161,11 @@ public sealed class RecordingBarWindow : Window
         {
             _elapsedText.Text = _elapsed().ToString(@"hh\:mm\:ss");
             ApplyTransport(_isPaused());
+            if (_penButton is not null && _penButton.IsChecked != _ink!.IsDrawing)
+            {
+                _penButton.IsChecked = _ink.IsDrawing;
+            }
+
             if (_showMeters)
             {
                 var (system, mic) = _levels();
@@ -166,7 +197,7 @@ public sealed class RecordingBarWindow : Window
         var hwnd = WindowNative.GetWindowHandle(this);
         var scale = GetDpiForWindow(hwnd) / 96.0;
         if (scale <= 0) scale = 1;
-        var width = (int)((_showMeters ? 340 : 280) * scale);
+        var width = (int)(((_showMeters ? 340 : 280) + (_ink is not null ? 92 : 0)) * scale);
         AppWindow.Resize(new SizeInt32(width, (int)(48 * scale)));
         var work = DisplayArea.Primary.WorkArea;
         AppWindow.Move(new PointInt32(work.X + (work.Width - width) / 2, work.Y + 8));

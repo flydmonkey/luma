@@ -62,6 +62,9 @@ const I18N = {
     "settings.audio.only": "Audio only", "settings.audio.only.desc": "Export audio, no video",
     "settings.audio.sysvol": "Computer sound volume", "settings.audio.micvol": "Microphone volume",
     "settings.audio.denoise": "Microphone noise suppression", "settings.audio.denoise.desc": "Reduces keyboard, fan and other background noise",
+    "sec.aids": "Pointer and annotation", "settings.aids.cursor": "Record the mouse pointer",
+    "settings.aids.clicks": "Highlight clicks", "settings.aids.clicks.desc": "When recording the screen or a region, show a ring where you click",
+    "settings.aids.ink": "Screen annotation", "settings.aids.ink.desc": "When recording the screen or a region, draw with the pen on the desktop recording bar",
     "sec.quality": "Quality", "settings.quality": "Quality", "settings.quality.desc": "Capped by display",
     "settings.fps": "Frame rate", "settings.hw": "Hardware accel", "settings.monitor": "Display",
     "sec.camera": "Camera", "settings.camera": "Camera overlay", "settings.camera.dev": "Device",
@@ -145,6 +148,9 @@ const I18N = {
     "settings.audio.only": "只录声音", "settings.audio.only.desc": "不录画面，导出音频文件",
     "settings.audio.sysvol": "电脑播放声音量", "settings.audio.micvol": "麦克风音量",
     "settings.audio.denoise": "麦克风降噪", "settings.audio.denoise.desc": "减弱键盘、风扇等背景噪音",
+    "sec.aids": "鼠标与标注", "settings.aids.cursor": "录制鼠标指针",
+    "settings.aids.clicks": "高亮鼠标点击", "settings.aids.clicks.desc": "录全屏或区域时，在点击处显示一个圆圈",
+    "settings.aids.ink": "屏幕标注", "settings.aids.ink.desc": "录全屏或区域时，可用电脑上录制浮动条的画笔在屏幕上画线",
     "sec.quality": "画质", "settings.quality": "清晰度", "settings.quality.desc": "最高清晰度受当前显示器限制",
     "settings.fps": "帧率", "settings.hw": "硬件加速", "settings.monitor": "显示器",
     "sec.camera": "摄像头", "settings.camera": "嵌入摄像头", "settings.camera.dev": "设备",
@@ -228,6 +234,9 @@ const I18N = {
     "settings.audio.only": "只錄音", "settings.audio.only.desc": "不錄畫面，匯出音訊檔",
     "settings.audio.sysvol": "電腦播放聲音量", "settings.audio.micvol": "麥克風音量",
     "settings.audio.denoise": "麥克風降噪", "settings.audio.denoise.desc": "減弱鍵盤、風扇等背景噪音",
+    "sec.aids": "滑鼠與標註", "settings.aids.cursor": "錄製滑鼠指標",
+    "settings.aids.clicks": "醒目提示滑鼠點擊", "settings.aids.clicks.desc": "錄製全螢幕或區域時，在點擊處顯示一個圓圈",
+    "settings.aids.ink": "螢幕標註", "settings.aids.ink.desc": "錄製全螢幕或區域時，可用電腦上錄製浮動列的畫筆在螢幕上畫線",
     "sec.quality": "畫質", "settings.quality": "清晰度", "settings.quality.desc": "最高清晰度受目前顯示器限制",
     "settings.fps": "幀率", "settings.hw": "硬體加速", "settings.monitor": "顯示器",
     "sec.camera": "攝影機", "settings.camera": "嵌入攝影機", "settings.camera.dev": "裝置",
@@ -311,6 +320,9 @@ const I18N = {
     "settings.audio.only": "音声のみ", "settings.audio.only.desc": "映像なし、音声を書き出す",
     "settings.audio.sysvol": "PC の音の音量", "settings.audio.micvol": "マイクの音量",
     "settings.audio.denoise": "マイクのノイズ抑制", "settings.audio.denoise.desc": "キーボードやファンなどの雑音を抑えます",
+    "sec.aids": "ポインターと注釈", "settings.aids.cursor": "マウス ポインターを録画する",
+    "settings.aids.clicks": "クリックを強調表示", "settings.aids.clicks.desc": "画面全体や範囲を録画するとき、クリックした場所に円を表示します",
+    "settings.aids.ink": "画面への書き込み", "settings.aids.ink.desc": "画面全体や範囲を録画するとき、PC の録画バーのペンで画面に線を描けます",
     "sec.quality": "画質", "settings.quality": "画質", "settings.quality.desc": "解像度は画面に依存",
     "settings.fps": "フレームレート", "settings.hw": "ハードウェア加速", "settings.monitor": "画面",
     "sec.camera": "カメラ", "settings.camera": "カメラ重ね", "settings.camera.dev": "機器",
@@ -394,6 +406,9 @@ const I18N = {
     "settings.audio.only": "오디오만", "settings.audio.only.desc": "화면 없이 오디오 내보내기",
     "settings.audio.sysvol": "컴퓨터 소리 볼륨", "settings.audio.micvol": "마이크 볼륨",
     "settings.audio.denoise": "마이크 노이즈 제거", "settings.audio.denoise.desc": "키보드, 팬 등 배경 소음을 줄입니다",
+    "sec.aids": "포인터와 주석", "settings.aids.cursor": "마우스 포인터 녹화",
+    "settings.aids.clicks": "클릭 강조 표시", "settings.aids.clicks.desc": "전체 화면이나 영역을 녹화할 때 클릭한 곳에 원을 표시합니다",
+    "settings.aids.ink": "화면 주석", "settings.aids.ink.desc": "전체 화면이나 영역을 녹화할 때 PC 녹화 막대의 펜으로 화면에 그릴 수 있습니다",
     "sec.quality": "화질", "settings.quality": "화질", "settings.quality.desc": "해상도는 화면에 따름",
     "settings.fps": "프레임", "settings.hw": "하드웨어 가속", "settings.monitor": "화면",
     "sec.camera": "카메라", "settings.camera": "카메라 오버레이", "settings.camera.dev": "장치",
@@ -1540,6 +1555,10 @@ function renderSettings() {
     ${card(t("settings.audio.micvol"), sliderControl("sMicVol", 0, 200))}
     ${card(t("settings.audio.denoise"), toggleControl("sDenoise"), t("settings.audio.denoise.desc"))}
     ${card(t("settings.audio.only"), toggleControl("sAudioOnly"), t("settings.audio.only.desc"))}
+    <div class="h">${t("sec.aids")}</div>
+    ${card(t("settings.aids.cursor"), toggleControl("sCursor"))}
+    ${card(t("settings.aids.clicks"), toggleControl("sClicks"), t("settings.aids.clicks.desc"))}
+    ${card(t("settings.aids.ink"), toggleControl("sInk"), t("settings.aids.ink.desc"))}
     <div class="h">${t("sec.quality")}</div>
     ${card(t("settings.quality"), `<select id="sQ"><option value="0">${t("quality.sd")}</option><option value="1">${t("quality.hd")}</option><option value="2">${t("quality.qhd")}</option><option value="3">${t("quality.uhd")}</option></select>`, t("settings.quality.desc"))}
     ${card(t("settings.fps"), `<select id="sFps"><option value="10">10 fps</option><option value="15">15 fps</option><option value="30">30 fps</option><option value="60">60 fps</option></select>`)}
@@ -1612,6 +1631,10 @@ function renderSettings() {
   $("sSysVol").value = String(au.systemVolume ?? 100);
   $("sMicVol").value = String(au.microphoneVolume ?? 100);
   $("sDenoise").checked = au.noiseSuppression !== false;
+  const aids = s.screenAids || {};
+  $("sCursor").checked = aids.showCursor !== false;
+  $("sClicks").checked = !!aids.highlightClicks;
+  $("sInk").checked = !!aids.annotation;
   fillQuality($("sQ"), q.level, true);
   $("sFps").value = [10, 15, 30, 60].includes(q.frameRate) ? String(q.frameRate) : "30";
   $("sHw").checked = q.hardwareEncoding !== false;
@@ -1822,6 +1845,7 @@ async function saveSettingsFromForm() {
       microphoneVolume: Number($("sMicVol").value),
       noiseSuppression: $("sDenoise").checked
     },
+    screenAids: { showCursor: $("sCursor").checked, highlightClicks: $("sClicks").checked, annotation: $("sInk").checked },
     quality: { ...currentQuality(), level: qualityLevel($("sQ").value), frameRate: Number($("sFps").value), hardwareEncoding: $("sHw").checked },
     overlay: {
       cameraEnabled: $("sCam").checked,

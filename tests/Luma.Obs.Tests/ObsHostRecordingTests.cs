@@ -126,6 +126,114 @@ public sealed class ObsHostRecordingTests
         }
     }
 
+    [Fact]
+    public async Task Display_recording_includes_screen_ink()
+    {
+        if (ObsHostClient.FindHost() is null || FfmpegLocator.Find() is not { } ffmpeg)
+        {
+            return;
+        }
+
+        var width = GetSystemMetrics(0);
+        var height = GetSystemMetrics(1);
+        var path = Path.Combine(Path.GetTempPath(), $"luma-obs-ink-{Guid.NewGuid():N}.mp4");
+        var frame = Path.ChangeExtension(path, ".png");
+        using var host = new ObsHostClient();
+
+        // Like the app's UI thread, the overlay's thread must pump messages: capture skips windows of a hung thread.
+        var drawn = new TaskCompletionSource();
+        uint inkThread = 0;
+        var pump = new Thread(() =>
+        {
+            inkThread = GetCurrentThreadId();
+            using var ink = new Luma.App.Views.ScreenInkOverlay(0, 0, width, height);
+            ink.SetDrawing(true);
+            var band = height / 2;
+            for (var y = band - 30; y <= band + 30; y += 2)
+            {
+                SendMessage(ink.Handle, 0x201, 1, Pack(width / 4, y));
+                SendMessage(ink.Handle, 0x200, 1, Pack(width * 3 / 4, y));
+                SendMessage(ink.Handle, 0x202, 0, Pack(width * 3 / 4, y));
+            }
+
+            ink.SetDrawing(false);
+            drawn.SetResult();
+            while (GetMessage(out var message, 0, 0, 0) > 0)
+            {
+                DispatchMessage(ref message);
+            }
+        }) { IsBackground = true };
+        pump.SetApartmentState(ApartmentState.STA);
+        pump.Start();
+        try
+        {
+            await drawn.Task;
+            await host.StartAsync(new RecordingRequest
+            {
+                OutputPath = path,
+                Target = new CaptureTarget { Mode = CaptureMode.Display },
+                Quality = QualitySettings.FromLevel(QualityLevel.Sd, 30),
+                CaptureSystemAudio = false,
+                CaptureMicrophone = false
+            });
+            await Task.Delay(1500);
+            var result = await host.StopAsync();
+
+            var grab = Process.Start(new ProcessStartInfo(ffmpeg, $"-y -ss 1 -i \"{result.OutputPath}\" -frames:v 1 \"{frame}\"")
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardError = true
+            })!;
+            await grab.StandardError.ReadToEndAsync();
+            await grab.WaitForExitAsync();
+            using var image = new System.Drawing.Bitmap(frame);
+            var pixel = image.GetPixel(image.Width / 2, image.Height / 2);
+            Assert.True(pixel.R > 150 && pixel.G < 100 && pixel.B < 100, $"Expected the red ink band in the recording, got {pixel}.");
+        }
+        finally
+        {
+            PostThreadMessage(inkThread, 0x12, 0, 0);
+            pump.Join(5000);
+            foreach (var file in new[] { path, frame })
+            {
+                try { if (File.Exists(file)) File.Delete(file); } catch { /* ignore */ }
+            }
+        }
+    }
+
+    private static nint Pack(int x, int y) => (y << 16) | (x & 0xFFFF);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern int GetSystemMetrics(int index);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern nint SendMessage(nint hwnd, uint msg, nint wParam, nint lParam);
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    private struct NativeMessage
+    {
+        public nint Hwnd;
+        public uint Message;
+        public nint WParam;
+        public nint LParam;
+        public uint Time;
+        public int X;
+        public int Y;
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern int GetMessage(out NativeMessage message, nint hwnd, uint min, uint max);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern nint DispatchMessage(ref NativeMessage message);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool PostThreadMessage(uint thread, uint msg, nint wParam, nint lParam);
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
     private static int AudioStreams(string file)
     {
         var described = MediaProbe.Describe(file);
@@ -195,7 +303,12 @@ public sealed class ObsHostRecordingTests
                 CaptureSystemAudio = false,
                 CaptureMicrophone = false
             });
-            await Task.Delay(3000);
+            // Hybrid MP4 writes a fragment per keyframe interval, so wait for the first one to reach the disk.
+            for (var waited = 0; waited < 10000 && !(File.Exists(path) && new FileInfo(path).Length > 1024); waited += 250)
+            {
+                await Task.Delay(250);
+            }
+
             var sizeBeforeKill = File.Exists(path) ? new FileInfo(path).Length : -1;
             var created = Process.GetProcessesByName("Luma.ObsHost").First(item => !before.Contains(item.Id));
             created.Kill(entireProcessTree: true);
@@ -203,7 +316,7 @@ public sealed class ObsHostRecordingTests
             var partial = path;
             var leftovers = Directory.GetFiles(Path.GetTempPath(), "luma-obs-kill-*");
             Assert.True(File.Exists(partial), "beforeKill=" + sizeBeforeKill + " left " + string.Join(", ", leftovers));
-            Assert.True(new FileInfo(partial).Length > 1024);
+            Assert.True(new FileInfo(partial).Length > 1024, $"before kill {sizeBeforeKill} bytes, after {new FileInfo(partial).Length}");
             var repaired = await new MediaEditor().RepairAsync(partial);
             Assert.True(File.Exists(repaired));
             Assert.True(new FileInfo(repaired).Length > 0);

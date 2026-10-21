@@ -38,6 +38,9 @@ public sealed partial class MainWindow
         SystemVolumeSlider.Value = Math.Clamp(Settings.Audio.SystemVolume, 0, AudioSettings.MaxVolume);
         MicVolumeSlider.Value = Math.Clamp(Settings.Audio.MicrophoneVolume, 0, AudioSettings.MaxVolume);
         NoiseSuppressionBox.IsOn = Settings.Audio.NoiseSuppression;
+        ShowCursorBox.IsOn = Settings.ScreenAids.ShowCursor;
+        ClickHighlightBox.IsOn = Settings.ScreenAids.HighlightClicks;
+        AnnotationBox.IsOn = Settings.ScreenAids.Annotation;
         HardwareBox.IsOn = Settings.Quality.HardwareEncoding;
         CameraBox.IsOn = Settings.Overlay.CameraEnabled;
         CameraXSlider.Value = Settings.Overlay.CameraX * 100;
@@ -118,6 +121,9 @@ public sealed partial class MainWindow
         Settings.Audio.SystemVolume = (int)Math.Round(SystemVolumeSlider.Value);
         Settings.Audio.MicrophoneVolume = (int)Math.Round(MicVolumeSlider.Value);
         Settings.Audio.NoiseSuppression = NoiseSuppressionBox.IsOn;
+        Settings.ScreenAids.ShowCursor = ShowCursorBox.IsOn;
+        Settings.ScreenAids.HighlightClicks = ClickHighlightBox.IsOn;
+        Settings.ScreenAids.Annotation = AnnotationBox.IsOn;
         Settings.Audio.MicrophoneDeviceId = SelectedMicId();
         Settings.Lan.Enabled = LanPlaybackBox.IsOn;
         Settings.Lan.AccessKey = LanKeyBox.Password ?? "";
@@ -431,6 +437,14 @@ public sealed partial class MainWindow
         }
     }
 
+    private void ScreenAidBox_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_settingsReady && !_loadingSettings)
+        {
+            PersistSettingsFromUi();
+        }
+    }
+
     private void NoiseSuppressionBox_Toggled(object sender, RoutedEventArgs e)
     {
         if (_settingsReady && !_loadingSettings)
@@ -520,6 +534,12 @@ public sealed partial class MainWindow
         MicVolumeCard.Header = UiCopy.T("settings.audio.micvol");
         NoiseSuppressionCard.Header = UiCopy.T("settings.audio.denoise");
         NoiseSuppressionCard.Description = UiCopy.T("settings.audio.denoise.desc");
+        SecAids.Text = UiCopy.T("sec.aids");
+        ShowCursorCard.Header = UiCopy.T("settings.aids.cursor");
+        ClickHighlightCard.Header = UiCopy.T("settings.aids.clicks");
+        ClickHighlightCard.Description = UiCopy.T("settings.aids.clicks.desc");
+        AnnotationCard.Header = UiCopy.T("settings.aids.ink");
+        AnnotationCard.Description = UiCopy.T("settings.aids.ink.desc");
         FormatCard.Header = UiCopy.T("settings.format");
         FormatCard.Description = UiCopy.T("settings.format.desc");
         FpsCard.Header = UiCopy.T("settings.fps");

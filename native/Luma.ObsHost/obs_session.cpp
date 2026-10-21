@@ -1609,7 +1609,7 @@ SessionStatus ObsStart(const StartRequest& request)
         }
         obs_data_t* settings = obs_data_create();
         obs_data_set_string(settings, "window", request.windowId.c_str());
-        obs_data_set_bool(settings, "capture_cursor", true);
+        obs_data_set_bool(settings, "capture_cursor", request.showCursor);
         obs_data_set_int(settings, "priority", 2);
         obs_data_set_int(settings, "method", 2);
         obs_data_set_int(settings, "capture_mode", 0);
@@ -1624,7 +1624,7 @@ SessionStatus ObsStart(const StartRequest& request)
         {
             obs_data_set_string(settings, "monitor_id", monitorId.c_str());
         }
-        obs_data_set_bool(settings, "capture_cursor", true);
+        obs_data_set_bool(settings, "capture_cursor", request.showCursor);
         obs_data_set_int(settings, "method", ChooseDisplayCaptureMethod());
         obs_data_set_bool(settings, "force_sdr", true);
         g_videoSource = CreateInput("monitor_capture", "luma-display", settings);
@@ -2191,6 +2191,7 @@ StartRequest ParseStartRequest(const std::string& json)
     request.micVolume = JsonDouble(json, "micVolume", 1);
     request.noiseSuppression = JsonBool(json, "noiseSuppression", false);
     request.separateTracks = JsonBool(json, "separateTracks", true);
+    request.showCursor = JsonBool(json, "showCursor", true);
     request.camera = JsonBool(json, "camera", false);
     request.cameraId = JsonString(json, "cameraId");
     request.cameraName = JsonString(json, "cameraName");

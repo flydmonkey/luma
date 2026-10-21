@@ -22,7 +22,7 @@ public static class LanControlApi
     private static readonly HashSet<string> Allowed = new(StringComparer.OrdinalIgnoreCase)
     {
         "theme", "saveFolder", "showRecordingBar", "silentMode", "closeToTray", "launchToTray",
-        "hideTrayIcon", "monitorIndex", "lastMode", "quality", "audio", "overlay", "hotkeys",
+        "hideTrayIcon", "monitorIndex", "lastMode", "quality", "audio", "overlay", "screenAids", "hotkeys",
         "automation", "uiLanguage", "recordingFormat"
     };
 

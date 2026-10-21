@@ -1038,6 +1038,7 @@ public sealed partial class MainWindow : Window
         SystemVolume = AudioSettings.Gain(Settings.Audio.SystemVolume),
         MicrophoneVolume = AudioSettings.Gain(Settings.Audio.MicrophoneVolume),
         NoiseSuppression = Settings.Audio.NoiseSuppression,
+        ShowCursor = Settings.ScreenAids.ShowCursor,
         Overlay = BuildOverlay()
     };
 
@@ -1150,10 +1151,51 @@ public sealed partial class MainWindow : Window
         _tray.SetSession(recording, recording && _session.Phase == SessionPhase.Paused);
         if (recording) _timer.Start();
         else _timer.Stop();
+        if (recording) StartScreenAids();
+        else StopScreenAids();
         if (!recording)
         {
             UpdateIdleSummary();
         }
+    }
+
+    private ClickHighlighter? _clicks;
+    private ScreenInkOverlay? _ink;
+
+    private void StartScreenAids()
+    {
+        if (!ScreenAidSettings.AppliesTo(_mode))
+        {
+            return;
+        }
+
+        try
+        {
+            if (Settings.ScreenAids.HighlightClicks)
+            {
+                _clicks ??= new ClickHighlighter(DispatcherQueue);
+            }
+
+            if (Settings.ScreenAids.Annotation && _ink is null)
+            {
+                var displays = DisplayCatalog.ListDisplays();
+                var display = displays.FirstOrDefault(item => item.Index == Settings.MonitorIndex) ?? displays[0];
+                _ink = new ScreenInkOverlay(display.X, display.Y, display.Width, display.Height);
+            }
+        }
+        catch (Exception)
+        {
+            // Highlights and ink are extras; the recording must go on without them.
+            StopScreenAids();
+        }
+    }
+
+    private void StopScreenAids()
+    {
+        _clicks?.Dispose();
+        _clicks = null;
+        _ink?.Dispose();
+        _ink = null;
     }
 
     private void ShowBusyMask()
@@ -1201,7 +1243,8 @@ public sealed partial class MainWindow : Window
                     var status = _session.GetStatus();
                     return (status.SystemLevel, status.MicrophoneLevel);
                 },
-                Settings.Audio.CaptureSystem);
+                Settings.Audio.CaptureSystem,
+                _ink);
             bar.Closed += (_, _) =>
             {
                 if (ReferenceEquals(_bar, bar))

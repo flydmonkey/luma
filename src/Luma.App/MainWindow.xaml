@@ -399,6 +399,17 @@
                     <ToggleSwitch x:Name="AudioOnlyBox" OnContent="" OffContent="" Toggled="SettingsDependents_Changed"/>
                 </controls:SettingsCard>
 
+                <TextBlock x:Name="SecAids" Text="鼠标与标注" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
+                <controls:SettingsCard x:Name="ShowCursorCard" Header="录制鼠标指针">
+                    <ToggleSwitch x:Name="ShowCursorBox" OnContent="" OffContent="" IsOn="True" Toggled="ScreenAidBox_Toggled"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="ClickHighlightCard" Header="高亮鼠标点击" Description="录全屏或区域时，在点击处显示一个圆圈">
+                    <ToggleSwitch x:Name="ClickHighlightBox" OnContent="" OffContent="" Toggled="ScreenAidBox_Toggled"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="AnnotationCard" Header="屏幕标注" Description="录全屏或区域时，可用录制浮动条上的画笔在屏幕上画线；按 Esc 或右键收起画笔">
+                    <ToggleSwitch x:Name="AnnotationBox" OnContent="" OffContent="" Toggled="ScreenAidBox_Toggled"/>
+                </controls:SettingsCard>
+
                 <TextBlock x:Name="SecQuality" Text="画质" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
                 <controls:SettingsCard x:Name="FormatCard" Header="录制格式" Description="只录音时仍是 m4a">
                     <ComboBox x:Name="FormatBox" MinWidth="120" SelectionChanged="FormatBox_Changed"/>

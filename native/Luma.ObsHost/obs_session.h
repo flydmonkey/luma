@@ -26,6 +26,7 @@ struct StartRequest
     double micVolume = 1;
     bool noiseSuppression = false;
     bool separateTracks = true;
+    bool showCursor = true;
     bool camera = false;
     std::string cameraId;
     std::string cameraName;

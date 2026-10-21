@@ -615,6 +615,7 @@ public sealed class LanServer : IDisposable
         target.RecordingFormat = copy.RecordingFormat;
         target.Audio = copy.Audio;
         target.Overlay = copy.Overlay;
+        target.ScreenAids = copy.ScreenAids;
         target.Hotkeys = copy.Hotkeys;
         target.Automation = copy.Automation;
         target.CloseToTray = copy.CloseToTray;
