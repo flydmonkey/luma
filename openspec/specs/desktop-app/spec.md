@@ -29,7 +29,7 @@ The main window SHALL expose exactly three primary surfaces — 录制, 我的�
 - **THEN** that surface replaces the previous page without opening a second main window
 
 ### Requirement: Persistent settings
-The application SHALL persist user settings locally, including save folder, hotkeys, quality defaults, audio device choices, overlay defaults, automation rules, appearance theme, UI language, recording-bar visibility, LAN enabled state, LAN listen port, LAN access key, silent mode, launch-to-tray, hide-tray-icon, and close-to-tray, and restore them on the next launch.
+The application SHALL persist user settings locally, including save folder, hotkeys, quality defaults, audio device choices, overlay defaults, segmented recording rules, appearance theme, UI language, recording-bar visibility, LAN enabled state, LAN listen port, LAN access key, silent mode, launch-to-tray, hide-tray-icon, and close-to-tray, and restore them on the next launch. The last capture mode and display MUST NOT be restored.
 
 #### Scenario: Settings survive restart
 - **WHEN** the user changes the save folder and restarts the application

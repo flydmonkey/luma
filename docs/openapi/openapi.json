@@ -188,6 +188,10 @@
             "type": "string",
             "nullable": true,
             "description": "data:image/jpeg;base64,... or null."
+          },
+          "previewMissing": {
+            "type": "boolean",
+            "description": "True when preview is null, for example a minimized window or a device."
           }
         }
       },
@@ -284,8 +288,12 @@
           "name": { "type": "string" },
           "length": { "type": "integer", "description": "Size in bytes." },
           "duration": { "type": "string", "example": "00:00:11.8000000" },
-          "date": { "type": "string", "format": "date-time" },
-          "isAudio": { "type": "boolean" }
+          "date": { "type": "string", "format": "date-time", "nullable": true },
+          "isAudio": { "type": "boolean" },
+          "missing": {
+            "type": "boolean",
+            "description": "True when the file was moved or deleted outside Luma. length is 0, duration is empty, date is null, and /media returns 404."
+          }
         }
       },
       "RenameBody": {
@@ -1048,10 +1056,20 @@
       "get": {
         "tags": ["Library"],
         "summary": "Recording bytes",
-        "description": "Video or audio bytes for a library id.",
-        "parameters": [{ "$ref": "#/components/parameters/LibraryId" }],
+        "description": "Video or audio bytes for a library id. Supports HEAD and a single Range: bytes=start-end header for seeking.",
+        "parameters": [
+          { "$ref": "#/components/parameters/LibraryId" },
+          {
+            "name": "Range",
+            "in": "header",
+            "required": false,
+            "schema": { "type": "string", "example": "bytes=0-1048575" }
+          }
+        ],
         "responses": {
-          "200": { "description": "File bytes." },
+          "200": { "description": "Whole file. Accept-Ranges: bytes." },
+          "206": { "description": "Requested byte range, with Content-Range." },
+          "416": { "description": "Range outside the file, with Content-Range: bytes */size." },
           "404": { "$ref": "#/components/responses/NotFound" },
           "401": { "$ref": "#/components/responses/Unauthorized" }
         }

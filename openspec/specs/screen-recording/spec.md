@@ -17,21 +17,6 @@ A user-initiated start SHALL show a 3-second countdown, then hide the main windo
 - **WHEN** the user cancels during the countdown
 - **THEN** no recording session starts and the home surface returns to idle
 
-### Requirement: Recording session control
-The application SHALL let the user start, pause, resume, and stop a single active recording session, MUST display elapsed time while a session is active or paused, and MUST keep the home surface responsive after stop is requested. The elapsed clock SHALL freeze at the moment stop is requested.
-
-#### Scenario: Pause and resume
-- **WHEN** the user pauses an active recording and later resumes
-- **THEN** the final file is one continuous recording that omits the paused interval
-
-#### Scenario: Only one session
-- **WHEN** a recording session is already active
-- **THEN** starting another session MUST be rejected until the current session is stopped
-
-#### Scenario: Stop stays on the record page
-- **WHEN** the user stops a recording that produced a playable file
-- **THEN** the record page remains visible, a processing then saved overlay offers preview and dismiss, and the application MUST NOT automatically navigate to the library
-
 ### Requirement: Home quick audio and quality controls
 The idle record page SHALL let the user toggle system audio, toggle the microphone, and change the quality preset without opening settings.
 
@@ -73,11 +58,15 @@ The application SHALL provide an audio-only mode that records enabled audio sour
 - **THEN** the application saves an audio file in the library instead of a video file
 
 ### Requirement: Webcam and custom watermarks
-The application SHALL let the user enable a camera overlay and add text, image, and at most one timestamp watermark, each with position, size, and opacity. The application MUST NOT burn a product brand watermark the user cannot remove.
+The application SHALL let the user enable a camera overlay with position and size, and add text, image, and at most one timestamp watermark, each with position and size. Text and image watermarks SHALL also have opacity. The application MUST NOT burn a product brand watermark the user cannot remove.
 
 #### Scenario: Overlay appears in output
 - **WHEN** the camera overlay is enabled and a recording completes
 - **THEN** the output video contains the live camera image at the configured size and position
+
+#### Scenario: Watermark opacity is applied
+- **WHEN** the user adds a text watermark at 50% opacity and a recording completes
+- **THEN** the output shows that text semi-transparent over the captured picture
 
 #### Scenario: Clean output by default
 - **WHEN** the user records with no custom watermarks configured
@@ -90,17 +79,6 @@ The application SHALL let the user choose resolution presets from 720p to 4K and
 - **WHEN** the user records with a high-quality or 60 fps preset for longer than 30 seconds
 - **THEN** the recording continues until the user stops it or a configured automation limit is reached
 
-### Requirement: Automation
-The application SHALL support start-at-logon, a scheduled start and stop, and splitting a long recording into sequential playable files by elapsed time or file size.
-
-#### Scenario: Split by duration
-- **WHEN** segmented recording is enabled with a 10-minute interval and recording continues past 10 minutes
-- **THEN** the first segment is saved as a playable file and a new segment continues without a user stop action
-
-#### Scenario: Overlap rejected
-- **WHEN** a schedule would start while another recording session is already active
-- **THEN** the application MUST skip or queue the schedule and notify the user instead of starting a second session
-
 ### Requirement: Crash-safe output
 The application SHALL write recordings so that an unexpected process exit leaves a file that is either immediately playable or repairable by the library repair action.
 
@@ -109,7 +87,11 @@ The application SHALL write recordings so that an unexpected process exit leaves
 - **THEN** a partial file exists in the save folder and can be opened after repair if it is not already playable
 
 ### Requirement: Four capture modes
-The application SHALL provide display, region, window, and audio-only capture modes, and MUST require the user to choose one of those modes before the first recording in a session can start. The home mode row SHALL show those four modes plus a screenshot tile. The screenshot tile MUST NOT be a capture mode.
+The application SHALL provide display, region, window, and audio-only capture modes. Each launch SHALL start in display mode on the default display and MUST NOT restore the previous launch's mode or display. The home mode row SHALL show those four modes plus a screenshot tile. The screenshot tile MUST NOT be a capture mode.
+
+#### Scenario: Launch starts in display mode
+- **WHEN** the user last recorded in window mode on a second display and restarts the application
+- **THEN** the home page selects display mode on the default display
 
 #### Scenario: Fullscreen desktop capture
 - **WHEN** the user selects display mode and starts recording
@@ -137,3 +119,37 @@ The application SHALL require a concrete capture target before a user-initiated 
 #### Scenario: Window without a target
 - **WHEN** the current mode is window and no window has been chosen
 - **THEN** the start action MUST stay disabled or fail with a visible explanation, and no recording file is created
+
+### Requirement: Session control and stop preview
+The application SHALL let the user start, pause, resume, and stop a single active recording session, MUST display elapsed time while a session is active or paused, and MUST keep the home surface responsive after stop is requested. Elapsed time MUST stay visible when the recording bar is turned off, for example in the tray tooltip. The elapsed clock SHALL freeze at the moment stop is requested. WHEN stop completes with a playable file and the main window is visible or is brought back, the application SHALL show a processing indicator and then open that file in the library preview. WHEN the main window stays hidden for the session, or silent mode is on and the stop came from the LAN control API, the application MUST NOT change pages or show the main window. WHEN a web client stops the recording, the web app SHALL show its own saved notice with the file name and a way to open that file in the web library preview.
+
+#### Scenario: Pause and resume
+- **WHEN** the user pauses an active recording and later resumes
+- **THEN** the final file is one continuous recording that omits the paused interval
+
+#### Scenario: Only one session
+- **WHEN** a recording session is already active
+- **THEN** starting another session MUST be rejected until the current session is stopped
+
+#### Scenario: Stop opens the new file
+- **WHEN** the user stops a recording from the desktop and the stop produced a playable file
+- **THEN** a processing indicator appears and the library preview then plays the new file
+
+#### Scenario: Silent web stop stays hidden
+- **WHEN** silent mode is on and a web client stops a recording
+- **THEN** the main window stays hidden and no page changes
+
+#### Scenario: Web stop shows the saved file
+- **WHEN** a web client stops a recording and the stop produced a playable file
+- **THEN** the web app shows the saved file name and can open it in the web library preview
+
+### Requirement: Segmented recording
+The application SHALL support splitting a long recording into sequential playable files by elapsed time or file size. The application MUST NOT offer start-at-logon recording or scheduled start and stop.
+
+#### Scenario: Split by duration
+- **WHEN** segmented recording is enabled with a 10-minute interval and recording continues past 10 minutes
+- **THEN** the first segment is saved as a playable file and a new segment continues without a user stop action
+
+#### Scenario: No logon or schedule controls
+- **WHEN** the user opens desktop or web settings
+- **THEN** there is no control to start recording at sign-in or on a schedule

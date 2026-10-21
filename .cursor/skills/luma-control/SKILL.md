@@ -24,7 +24,7 @@ Control a running Luma instance only through the shipped LAN API. Do not invent 
 5. **Record.** List the needed targets, `PUT {base}/api/v1/target`, then `POST {base}/api/v1/session/start`. Region and window need a chosen target. `mode` `game` or `3` is rejected. If start fails, report the API error.
 6. **Pause / stop.** `POST .../session/pause` or `.../session/stop`. Both return the session snapshot, not `{session, target}`. Stop returns before the file is finished. Poll `GET .../session` until `state` is `idle`. `session.lastSaved.name` is the file name.
 7. **Settings.** `PATCH {base}/api/v1/settings` with only the fields asked. `lan`, `lanPort`, `port`, and `lanPlayback` are rejected. A successful patch clears `automation.startAtLogon` and `automation.schedules`. `POST .../settings/reset` only when the user explicitly asked.
-8. **Library.** `GET {base}/api/v1/library`. Items are camelCase: `id`, `name`, `length`, `duration`, `date`, `isAudio`. Delete only after the user confirmed, with `?confirm=true`. Compress, trim, and repair return a `jobId`; poll `GET /api/v1/jobs/{jobId}`.
+8. **Library.** `GET {base}/api/v1/library`. Items are camelCase: `id`, `name`, `length`, `duration`, `date`, `isAudio`, `missing`. Skip `missing: true` items for playback. Delete only after the user confirmed, with `?confirm=true`. Compress, trim, and repair return a `jobId`; poll `GET /api/v1/jobs/{jobId}`.
 9. **Still.** Only when the user asked for a picture or OCR. `GET /api/v1/screenshot`, or `?windowIndex=` for one window from the windows list. `POST /api/v1/screenshot/ocr` with `{"png":"<base64>"}`. The browser saves and copies. There is no save or copy route.
 
 Before any JSON body, read `reference.md` in this folder. Schemas live in `docs/openapi/openapi.json`. Do not guess field names.
@@ -51,7 +51,7 @@ Invoke-RestMethod "$base/api/v1/session"
 | "LAN is off, I'll click Start" | Fail closed. Ask to enable LAN access. |
 | "Start first, pick the window later" | `PUT /target` then start. |
 | "Stop returns the filename" | Poll `GET /session` until `idle`. |
-| "Library fields are PascalCase" | `id`, `name`, `length`, `duration`, `date`, `isAudio`. |
+| "Library fields are PascalCase" | `id`, `name`, `length`, `duration`, `date`, `isAudio`, `missing`. |
 | "Delete it, they implied it" | No `confirm=true` until they confirm. |
 | "Patch the port from here" | `lan`, `lanPort`, `port`, and `lanPlayback` are rejected. Change the port on the desktop. |
 | "Show the key so they can check" | Never echo the access key. |

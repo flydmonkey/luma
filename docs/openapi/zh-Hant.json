@@ -31,7 +31,7 @@
     "/api/v1/library/{id}/trim": { "post": { "summary": "裁剪", "description": "請求本文 startSeconds 和 endSeconds。回傳 { jobId }。" } },
     "/api/v1/library/{id}/repair": { "post": { "summary": "修復", "description": "回傳 { jobId }。" } },
     "/api/v1/jobs/{jobId}": { "get": { "summary": "作業", "description": "status 為 running、done 或 error。" } },
-    "/media/{id}": { "get": { "summary": "媒體檔案", "description": "錄製檔案位元組。" } },
+    "/media/{id}": { "get": { "summary": "媒體檔案", "description": "錄製檔案位元組。支援 HEAD 與單一 Range 請求標頭（回傳 206，超出範圍回傳 416）。" } },
     "/poster/{id}": { "get": { "summary": "海報", "description": "有海報時回傳 JPEG。" } },
     "/openapi.json": { "get": { "summary": "OpenAPI", "description": "本文件。查詢參數 lang 選擇語言。" } },
     "/api/docs": { "get": { "summary": "介面文件頁", "description": "HTML 文件。" } },

@@ -31,7 +31,7 @@
     "/api/v1/library/{id}/trim": { "post": { "summary": "자르기", "description": "본문은 startSeconds와 endSeconds. { jobId }를 반환합니다." } },
     "/api/v1/library/{id}/repair": { "post": { "summary": "복구", "description": "{ jobId }를 반환합니다." } },
     "/api/v1/jobs/{jobId}": { "get": { "summary": "작업", "description": "status는 running, done, error 입니다." } },
-    "/media/{id}": { "get": { "summary": "미디어", "description": "녹화 바이트." } },
+    "/media/{id}": { "get": { "summary": "미디어", "description": "녹화 바이트. HEAD와 단일 Range 헤더를 지원합니다(206, 범위를 벗어나면 416)." } },
     "/poster/{id}": { "get": { "summary": "포스터", "description": "있으면 JPEG를 반환합니다." } },
     "/openapi.json": { "get": { "summary": "OpenAPI", "description": "이 문서. 쿼리 lang으로 언어를 고릅니다." } },
     "/api/docs": { "get": { "summary": "API 문서", "description": "HTML 페이지." } },

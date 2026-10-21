@@ -31,7 +31,7 @@
     "/api/v1/library/{id}/trim": { "post": { "summary": "トリム", "description": "本文は startSeconds と endSeconds。{ jobId } を返します。" } },
     "/api/v1/library/{id}/repair": { "post": { "summary": "修復", "description": "{ jobId } を返します。" } },
     "/api/v1/jobs/{jobId}": { "get": { "summary": "ジョブ", "description": "status は running、done、error です。" } },
-    "/media/{id}": { "get": { "summary": "メディア", "description": "録画のバイト列。" } },
+    "/media/{id}": { "get": { "summary": "メディア", "description": "録画のバイト列。HEAD と単一の Range ヘッダーに対応します（206、範囲外は 416）。" } },
     "/poster/{id}": { "get": { "summary": "ポスター", "description": "あるとき JPEG を返します。" } },
     "/openapi.json": { "get": { "summary": "OpenAPI", "description": "この文書。クエリ lang で言語を選びます。" } },
     "/api/docs": { "get": { "summary": "API ドキュメント", "description": "HTML ページ。" } },

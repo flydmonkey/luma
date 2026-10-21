@@ -54,11 +54,15 @@ System audio, microphone, camera overlay, and watermarks that are enabled for a 
 - **THEN** the finished file has one audio timeline aligned with the video and does not drift by more than one second over a five-minute recording
 
 ### Requirement: Output containers
-Video sessions SHALL write `.mp4` with H.264 video and AAC audio. Audio-only sessions SHALL write `.m4a` with AAC audio. Frame orientation MUST match the captured screen (top of the screen stays at the top of the file).
+Video sessions SHALL write H.264 video and AAC audio into the container chosen in settings: `.mp4` by default, or `.mkv`, `.mov`, or `.flv`. Audio-only sessions SHALL write `.m4a` with AAC audio. Frame orientation MUST match the captured screen (top of the screen stays at the top of the file).
 
 #### Scenario: Default video container
 - **WHEN** the user finishes a display recording
 - **THEN** the library item is an `.mp4` that plays in the built-in previewer
+
+#### Scenario: Chosen container
+- **WHEN** the user sets the recording format to `mkv` and finishes a display recording
+- **THEN** the library item is an `.mkv` file
 
 #### Scenario: Top of the screen stays at the top
 - **WHEN** the user records a display whose taskbar is at the bottom

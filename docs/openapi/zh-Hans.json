@@ -31,7 +31,7 @@
     "/api/v1/library/{id}/trim": { "post": { "summary": "裁剪", "description": "请求体 startSeconds 和 endSeconds。返回 { jobId }。" } },
     "/api/v1/library/{id}/repair": { "post": { "summary": "修复", "description": "返回 { jobId }。" } },
     "/api/v1/jobs/{jobId}": { "get": { "summary": "作业", "description": "status 为 running、done 或 error。" } },
-    "/media/{id}": { "get": { "summary": "媒体文件", "description": "录制文件字节。" } },
+    "/media/{id}": { "get": { "summary": "媒体文件", "description": "录制文件字节。支持 HEAD 和单个 Range 请求头（返回 206，越界返回 416）。" } },
     "/poster/{id}": { "get": { "summary": "海报", "description": "有海报时返回 JPEG。" } },
     "/openapi.json": { "get": { "summary": "OpenAPI", "description": "本文档。查询参数 lang 选择语言。" } },
     "/api/docs": { "get": { "summary": "接口文档页", "description": "HTML 文档。" } },

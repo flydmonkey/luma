@@ -31,7 +31,7 @@
     "/api/v1/library/{id}/trim": { "post": { "summary": "Trim", "description": "Body startSeconds and endSeconds. Returns { jobId }." } },
     "/api/v1/library/{id}/repair": { "post": { "summary": "Repair", "description": "Returns { jobId }." } },
     "/api/v1/jobs/{jobId}": { "get": { "summary": "Job", "description": "status is running, done, or error." } },
-    "/media/{id}": { "get": { "summary": "Media", "description": "Recording bytes." } },
+    "/media/{id}": { "get": { "summary": "Media", "description": "Recording bytes. Supports HEAD and a single Range header (206, or 416 when out of range)." } },
     "/poster/{id}": { "get": { "summary": "Poster", "description": "JPEG when one exists." } },
     "/openapi.json": { "get": { "summary": "OpenAPI", "description": "This document. Query lang selects the overlay." } },
     "/api/docs": { "get": { "summary": "Docs", "description": "HTML API page." } },

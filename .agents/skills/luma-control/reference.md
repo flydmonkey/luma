@@ -14,21 +14,21 @@ Every JSON response is `{ "ok": true, "data": {}, "error": null }`. Failure sets
 | POST | `/api/v1/session/pause` | Toggles pause when recording or paused. Idle stays idle. `data` is the session snapshot. |
 | POST | `/api/v1/session/stop` | Starts saving and returns the snapshot immediately. Poll `GET /session`. |
 | GET | `/api/v1/targets` | Query `kind`. Same list as the path below. |
-| GET | `/api/v1/targets/{kind}` | `{id, title, detail, preview}`. `kind` is `displays`, `windows`, `games`, `cameras`, `microphones`, or `mics`. |
+| GET | `/api/v1/targets/{kind}` | `{id, title, detail, preview, previewMissing}`. `kind` is `displays`, `windows`, `games`, `cameras`, `microphones`, or `mics`. |
 | GET | `/api/v1/screenshot` | Host still. Optional `windowIndex` selects one window by list index. |
 | POST | `/api/v1/screenshot/ocr` | `{"png":"<base64>"}`. `data` is `{text}`. |
 | PUT | `/api/v1/target` | See below. `data` is the target summary. |
 | GET | `/api/v1/settings` | Full settings. `lan.accessKey` is `""` or `***`. |
 | PATCH | `/api/v1/settings` | Partial settings. `POST` is the same. |
 | POST | `/api/v1/settings/reset` | Factory settings, keeping the current LAN object and save folder. |
-| GET | `/api/v1/library` | `{id, name, length, duration, date, isAudio}` |
+| GET | `/api/v1/library` | `{id, name, length, duration, date, isAudio, missing}` |
 | PATCH | `/api/v1/library/{id}` | `{"name":"..."}` |
 | DELETE | `/api/v1/library/{id}?confirm=true` | Required. `data` is `{deleted}`. |
 | POST | `/api/v1/library/{id}/compress` | `{jobId}` |
 | POST | `/api/v1/library/{id}/trim` | `startSeconds`, `endSeconds`. `{jobId}` |
 | POST | `/api/v1/library/{id}/repair` | `{jobId}` |
 | GET | `/api/v1/jobs/{jobId}` | `{id, kind, status, result, error}` |
-| GET | `/media/{id}` | File bytes. |
+| GET | `/media/{id}` | File bytes. Also HEAD. One `Range: bytes=a-b` header returns 206 with `Content-Range`; out of range is 416. |
 | GET | `/poster/{id}` | Poster JPEG when one exists. |
 | GET | `/openapi.json` | This API. Query `lang` selects the overlay. Also at `/skill/openapi.json`. |
 | GET | `/api/docs` | RapiDoc page. |
@@ -72,7 +72,7 @@ If `lan.accessKey` is set: `X-Record-Key`, `Authorization: Bearer`, or the `luma
 
 ## Targets
 
-`preview` is a `data:image/jpeg;base64,...` string or null. Games are always an empty array. Any other `kind` lists displays. `windowIndex` on the still is the index in that windows array, not `id`.
+`preview` is a `data:image/jpeg;base64,...` string or null; `previewMissing` is true when it is null. A library item with `missing: true` was moved or deleted outside Luma: `length` is 0, `duration` is empty, `date` is null, and `/media` is 404. Games are always an empty array. Any other `kind` lists displays. `windowIndex` on the still is the index in that windows array, not `id`.
 
 ## Screenshot
 
