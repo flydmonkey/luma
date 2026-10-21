@@ -20,6 +20,7 @@ public static class HostText
         ("文字水印不可用。", "warn.text"),
         ("图片水印不可用。", "warn.image"),
         ("时间戳不可用。", "warn.timestamp"),
+        ("麦克风降噪不可用。", "warn.denoise"),
         ("水印透明度不可用。", "warn.opacity"),
         ("已有录制正在进行。", "session.busy"),
         ("录制正在结束。", "session.stopping"),

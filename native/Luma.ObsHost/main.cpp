@@ -75,6 +75,10 @@ static SessionStatus Handle(const std::string& request)
     {
         return ObsMute(JsonBool(request, "muted", true));
     }
+    if (op == "volume")
+    {
+        return ObsVolume(JsonDouble(request, "systemVolume", 1), JsonDouble(request, "micVolume", 1));
+    }
 
     SessionStatus status = ObsStatus();
     status.ok = false;

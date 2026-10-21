@@ -49,6 +49,7 @@ public static class CoreText
             ["op.pause"] = "Couldn't pause.",
             ["op.resume"] = "Couldn't resume.",
             ["op.mute"] = "Couldn't mute the microphone.",
+            ["op.volume"] = "Couldn't change the volume.",
             ["op.stop"] = "Couldn't stop recording.",
             ["source.create"] = "Couldn't create the capture source.",
             ["warn.system"] = "System audio isn't available.",
@@ -58,6 +59,7 @@ public static class CoreText
             ["warn.text"] = "The text watermark isn't available.",
             ["warn.image"] = "The image watermark isn't available.",
             ["warn.timestamp"] = "The timestamp isn't available.",
+            ["warn.denoise"] = "Microphone noise suppression isn't available.",
             ["warn.opacity"] = "Watermark opacity isn't available."
         },
         [UiLanguages.SimplifiedChinese] = new()
@@ -87,6 +89,7 @@ public static class CoreText
             ["op.pause"] = "暂停失败。",
             ["op.resume"] = "恢复失败。",
             ["op.mute"] = "麦克风静音失败。",
+            ["op.volume"] = "调整音量失败。",
             ["op.stop"] = "停止录制失败。",
             ["source.create"] = "无法创建采集源。",
             ["warn.system"] = "系统声采集不可用。",
@@ -96,6 +99,7 @@ public static class CoreText
             ["warn.text"] = "文字水印不可用。",
             ["warn.image"] = "图片水印不可用。",
             ["warn.timestamp"] = "时间戳不可用。",
+            ["warn.denoise"] = "麦克风降噪不可用。",
             ["warn.opacity"] = "水印透明度不可用。"
         },
         [UiLanguages.TraditionalChinese] = new()
@@ -125,6 +129,7 @@ public static class CoreText
             ["op.pause"] = "無法暫停。",
             ["op.resume"] = "無法繼續。",
             ["op.mute"] = "無法將麥克風靜音。",
+            ["op.volume"] = "無法調整音量。",
             ["op.stop"] = "無法停止錄製。",
             ["source.create"] = "無法建立擷取來源。",
             ["warn.system"] = "系統聲音擷取無法使用。",
@@ -134,6 +139,7 @@ public static class CoreText
             ["warn.text"] = "文字浮水印無法使用。",
             ["warn.image"] = "圖片浮水印無法使用。",
             ["warn.timestamp"] = "時間戳記無法使用。",
+            ["warn.denoise"] = "麥克風降噪無法使用。",
             ["warn.opacity"] = "浮水印透明度無法使用。"
         },
         [UiLanguages.Japanese] = new()
@@ -163,6 +169,7 @@ public static class CoreText
             ["op.pause"] = "一時停止できません。",
             ["op.resume"] = "再開できません。",
             ["op.mute"] = "マイクをミュートできません。",
+            ["op.volume"] = "音量を変更できません。",
             ["op.stop"] = "録画を停止できません。",
             ["source.create"] = "キャプチャ ソースを作成できません。",
             ["warn.system"] = "システム音声を取り込めません。",
@@ -172,6 +179,7 @@ public static class CoreText
             ["warn.text"] = "テキストの透かしを使用できません。",
             ["warn.image"] = "画像の透かしを使用できません。",
             ["warn.timestamp"] = "タイムスタンプを使用できません。",
+            ["warn.denoise"] = "マイクのノイズ抑制を使用できません。",
             ["warn.opacity"] = "透かしの不透明度を使用できません。"
         },
         [UiLanguages.Korean] = new()
@@ -201,6 +209,7 @@ public static class CoreText
             ["op.pause"] = "일시 중지할 수 없습니다.",
             ["op.resume"] = "다시 시작할 수 없습니다.",
             ["op.mute"] = "마이크를 음소거할 수 없습니다.",
+            ["op.volume"] = "볼륨을 변경할 수 없습니다.",
             ["op.stop"] = "녹화를 중지할 수 없습니다.",
             ["source.create"] = "캡처 소스를 만들 수 없습니다.",
             ["warn.system"] = "시스템 오디오를 캡처할 수 없습니다.",
@@ -210,6 +219,7 @@ public static class CoreText
             ["warn.text"] = "텍스트 워터마크를 사용할 수 없습니다.",
             ["warn.image"] = "이미지 워터마크를 사용할 수 없습니다.",
             ["warn.timestamp"] = "타임스탬프를 사용할 수 없습니다.",
+            ["warn.denoise"] = "마이크 노이즈 제거를 사용할 수 없습니다.",
             ["warn.opacity"] = "워터마크 불투명도를 사용할 수 없습니다."
         }
     };

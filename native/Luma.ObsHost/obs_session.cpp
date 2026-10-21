@@ -9,6 +9,7 @@
 #include "json_util.h"
 
 #include <obs.h>
+#include <obs-audio-controls.h>
 #include <util/base.h>
 
 #include <windows.h>
@@ -52,10 +53,22 @@ std::atomic<bool> g_stampRun{false};
 std::thread g_stampThread;
 obs_encoder_t* g_venc = nullptr;
 obs_encoder_t* g_aenc = nullptr;
+std::vector<obs_encoder_t*> g_trackEncoders;
 obs_output_t* g_output = nullptr;
+obs_volmeter_t* g_systemMeter = nullptr;
+obs_volmeter_t* g_micMeter = nullptr;
+std::atomic<float> g_systemPeak{-100.0f};
+std::atomic<float> g_micPeak{-100.0f};
+
+// Set before a requested stop so the output's own "stop" signal is not mistaken for a failure.
+std::atomic<bool> g_expectStop{false};
+std::atomic<bool> g_outputLost{false};
+std::atomic<long long> g_lostCode{0};
 
 SessionStatus g_status{};
 ULONGLONG g_startTick = 0;
+uint32_t g_laggedAtStart = 0;
+uint32_t g_skippedAtStart = 0;
 double g_pauseAccum = 0;
 ULONGLONG g_pauseTick = 0;
 
@@ -480,12 +493,77 @@ void StartPoster(const std::string& path)
     g_posterThread = std::thread(RunPoster);
 }
 
+extern "C" static void OutputLostSignal(void*, calldata_t* params)
+{
+    if (!g_expectStop.load())
+    {
+        g_lostCode.store(calldata_int(params, "code"));
+        g_outputLost.store(true);
+    }
+}
+
+extern "C" static void MeterUpdated(void* param, const float[MAX_AUDIO_CHANNELS], const float peak[MAX_AUDIO_CHANNELS], const float[MAX_AUDIO_CHANNELS])
+{
+    float loudest = -100.0f;
+    for (int channel = 0; channel < MAX_AUDIO_CHANNELS; ++channel)
+    {
+        if (peak[channel] > loudest)
+        {
+            loudest = peak[channel];
+        }
+    }
+    static_cast<std::atomic<float>*>(param)->store(loudest);
+}
+
+obs_volmeter_t* AttachMeter(obs_source_t* source, std::atomic<float>& peak)
+{
+    peak.store(-100.0f);
+    obs_volmeter_t* meter = obs_volmeter_create(OBS_FADER_LOG);
+    if (meter && obs_volmeter_attach_source(meter, source))
+    {
+        obs_volmeter_add_callback(meter, MeterUpdated, &peak);
+        return meter;
+    }
+    if (meter)
+    {
+        obs_volmeter_destroy(meter);
+    }
+    return nullptr;
+}
+
+void DetachMeter(obs_volmeter_t*& meter, std::atomic<float>& peak)
+{
+    if (meter)
+    {
+        obs_volmeter_remove_callback(meter, MeterUpdated, &peak);
+        obs_volmeter_destroy(meter);
+        meter = nullptr;
+    }
+    peak.store(-100.0f);
+}
+
+// -60 dB and quieter reads as silence; 0 dB is full scale.
+double MeterLevel(float db)
+{
+    if (db <= -60.0f)
+    {
+        return 0;
+    }
+    return db >= 0 ? 1 : (db + 60.0) / 60.0;
+}
+
 void ReleaseGraph(bool drain = true)
 {
     StopPoster();
     StopStamp();
+    DetachMeter(g_systemMeter, g_systemPeak);
+    DetachMeter(g_micMeter, g_micPeak);
     if (g_output)
     {
+        if (signal_handler_t* handler = obs_output_get_signal_handler(g_output))
+        {
+            signal_handler_disconnect(handler, "stop", OutputLostSignal, nullptr);
+        }
         if (obs_output_active(g_output))
         {
             obs_output_stop(g_output);
@@ -514,6 +592,11 @@ void ReleaseGraph(bool drain = true)
         obs_encoder_release(g_aenc);
         g_aenc = nullptr;
     }
+    for (obs_encoder_t* encoder : g_trackEncoders)
+    {
+        obs_encoder_release(encoder);
+    }
+    g_trackEncoders.clear();
     obs_set_output_source(0, nullptr);
     if (g_scene)
     {
@@ -616,26 +699,32 @@ obs_source_t* CreateInput(const char* unversionedId, const char* name, obs_data_
     return obs_source_create(id, name, settings, nullptr);
 }
 
-void ApplyCommonEncoderSettings(obs_data_t* settings, const StartRequest& request)
+void ApplyCommonEncoderSettings(obs_data_t* settings, const StartRequest& request, bool software)
 {
-    obs_data_set_string(settings, "rate_control", "CBR");
+    // Quality mode spends bits where the picture changes, so a still desktop stays small and motion stays sharp.
+    // x264 calls it CRF; NVENC, AMF and QSV call it CQP with a "cqp" value.
+    if (request.quality > 0)
+    {
+        obs_data_set_string(settings, "rate_control", software ? "CRF" : "CQP");
+        obs_data_set_int(settings, software ? "crf" : "cqp", request.quality);
+    }
+    else
+    {
+        obs_data_set_string(settings, "rate_control", "CBR");
+    }
     obs_data_set_int(settings, "bitrate", request.bitrateKbps);
     obs_data_set_int(settings, "max_bitrate", request.bitrateKbps);
     obs_data_set_int(settings, "keyint_sec", 2);
-    obs_data_set_string(settings, "preset", "p5");
+    obs_data_set_string(settings, "preset", software ? "veryfast" : "p5");
     obs_data_set_string(settings, "profile", "high");
-    obs_data_set_string(settings, "tune", "zerolatency");
+    obs_data_set_string(settings, "tune", software ? "" : "hq");
     obs_data_set_bool(settings, "psycho_aq", false);
 }
 
 obs_encoder_t* CreateVideoEncoderById(const char* id, const StartRequest& request)
 {
     obs_data_t* settings = obs_data_create();
-    ApplyCommonEncoderSettings(settings, request);
-    if (strcmp(id, "obs_x264") == 0)
-    {
-        obs_data_set_string(settings, "preset", "veryfast");
-    }
+    ApplyCommonEncoderSettings(settings, request, strcmp(id, "obs_x264") == 0);
     obs_encoder_t* enc = obs_video_encoder_create(id, "luma-video", settings, nullptr);
     obs_data_release(settings);
     return enc;
@@ -1010,12 +1099,16 @@ void RefreshDurationLocked()
         {
             g_status.encodedDurationSeconds = static_cast<double>(frames) / static_cast<double>(g_fps);
         }
-        g_status.skippedFrames = dropped;
-        // Below one second of active time the ratio is noise, so report the configured rate until then.
-        if (g_fps > 0 && frames > 0 && active >= 1)
+        // Frames lost to render lag or an overloaded encoder lower the rate; encoder start-up latency does not,
+        // so the ratio is taken against frames OBS failed to produce rather than wall-clock time.
+        const uint32_t lagged = obs_get_lagged_frames() - g_laggedAtStart;
+        const uint32_t skipped = video_output_get_skipped_frames(obs_get_video()) - g_skippedAtStart;
+        const long long missed = static_cast<long long>(lagged) + skipped + (dropped > 0 ? dropped : 0);
+        const long long written = static_cast<long long>(frames) - (dropped > 0 ? dropped : 0);
+        g_status.skippedFrames = missed;
+        if (g_fps > 0 && written > 0)
         {
-            const double measured = static_cast<double>(frames - dropped) / active;
-            g_status.effectiveFps = measured < 0 ? 0 : (measured > g_fps ? static_cast<double>(g_fps) : measured);
+            g_status.effectiveFps = static_cast<double>(g_fps) * written / static_cast<double>(written + missed);
         }
         else
         {
@@ -1223,6 +1316,10 @@ void FinishStop()
     g_pauseTick = 0;
     g_status.phase = 0;
     g_status.stopForced = forced;
+    g_status.outputLost = false;
+    g_status.lostReason.clear();
+    g_status.systemLevel = 0;
+    g_status.micLevel = 0;
     if (!stopped)
     {
         g_status.ok = false;
@@ -1424,6 +1521,9 @@ SessionStatus ObsStart(const StartRequest& request)
     g_status.ok = true;
     g_pauseAccum = 0;
     g_pauseTick = 0;
+    g_expectStop.store(false);
+    g_outputLost.store(false);
+    g_lostCode.store(0);
 
     if (request.outputPath.empty())
     {
@@ -1568,7 +1668,9 @@ SessionStatus ObsStart(const StartRequest& request)
         obs_data_release(settings);
         if (g_systemAudio)
         {
+            obs_source_set_volume(g_systemAudio, static_cast<float>(std::clamp(request.systemVolume, 0.0, 2.0)));
             obs_scene_add(g_scene, g_systemAudio);
+            g_systemMeter = AttachMeter(g_systemAudio, g_systemPeak);
         }
         else
         {
@@ -1584,7 +1686,29 @@ SessionStatus ObsStart(const StartRequest& request)
         obs_data_release(settings);
         if (g_mic)
         {
+            obs_source_set_volume(g_mic, static_cast<float>(std::clamp(request.micVolume, 0.0, 2.0)));
+            if (request.noiseSuppression)
+            {
+                obs_data_t* denoise = obs_data_create();
+                obs_data_set_string(denoise, "method", "rnnoise");
+                obs_source_t* filter = obs_source_create_private("noise_suppress_filter_v2", "luma-denoise", denoise);
+                if (!filter)
+                {
+                    filter = obs_source_create_private("noise_suppress_filter", "luma-denoise", denoise);
+                }
+                obs_data_release(denoise);
+                if (filter)
+                {
+                    obs_source_filter_add(g_mic, filter);
+                    obs_source_release(filter);
+                }
+                else
+                {
+                    Warn("麦克风降噪不可用。");
+                }
+            }
             obs_scene_add(g_scene, g_mic);
+            g_micMeter = AttachMeter(g_mic, g_micPeak);
         }
         else if (g_status.warning.empty())
         {
@@ -1611,6 +1735,18 @@ SessionStatus ObsStart(const StartRequest& request)
     }
 
     AddOverlays(request, canvasW, canvasH);
+
+    // Track 1 keeps the mix every player expects; tracks 2 and 3 carry system sound and the microphone alone for editing.
+    const bool splitTracks = request.separateTracks && g_systemAudio && g_mic && mode != "AudioOnly";
+    if (splitTracks)
+    {
+        obs_source_set_audio_mixers(g_systemAudio, 1 | 2);
+        obs_source_set_audio_mixers(g_mic, 1 | 4);
+        for (obs_source_t* source : g_extra)
+        {
+            obs_source_set_audio_mixers(source, 1);
+        }
+    }
 
     obs_source_t* sceneSource = obs_scene_get_source(g_scene);
     obs_set_output_source(0, sceneSource);
@@ -1651,6 +1787,11 @@ SessionStatus ObsStart(const StartRequest& request)
             obs_encoder_release(g_aenc);
             g_aenc = nullptr;
         }
+        for (obs_encoder_t* encoder : g_trackEncoders)
+        {
+            obs_encoder_release(encoder);
+        }
+        g_trackEncoders.clear();
         if (g_output)
         {
             obs_output_release(g_output);
@@ -1686,6 +1827,24 @@ SessionStatus ObsStart(const StartRequest& request)
             return false;
         }
         obs_encoder_set_audio(g_aenc, obs_get_audio());
+        if (splitTracks)
+        {
+            const char* names[] = {"luma-audio-system", "luma-audio-mic"};
+            for (size_t track = 1; track <= 2; ++track)
+            {
+                obs_data_t* trackSettings = obs_data_create();
+                obs_data_set_int(trackSettings, "bitrate", 160);
+                obs_encoder_t* encoder = obs_audio_encoder_create("ffmpeg_aac", names[track - 1], trackSettings, track, nullptr);
+                obs_data_release(trackSettings);
+                if (!encoder)
+                {
+                    error = "无法创建 AAC 编码器。";
+                    return false;
+                }
+                obs_encoder_set_audio(encoder, obs_get_audio());
+                g_trackEncoders.push_back(encoder);
+            }
+        }
 
         obs_data_t* mux = obs_data_create();
         obs_data_set_string(mux, "path", livePath.c_str());
@@ -1707,6 +1866,10 @@ SessionStatus ObsStart(const StartRequest& request)
             obs_output_set_video_encoder(g_output, g_venc);
         }
         obs_output_set_audio_encoder(g_output, g_aenc, 0);
+        for (size_t track = 0; track < g_trackEncoders.size(); ++track)
+        {
+            obs_output_set_audio_encoder(g_output, g_trackEncoders[track], track + 1);
+        }
         const char* label = id && id[0] ? id : "aac";
         if (!obs_output_start(g_output))
         {
@@ -1759,12 +1922,19 @@ SessionStatus ObsStart(const StartRequest& request)
         return Fail(error.empty() ? "无法开始输出。" : error);
     }
 
+    if (signal_handler_t* handler = obs_output_get_signal_handler(g_output))
+    {
+        signal_handler_connect(handler, "stop", OutputLostSignal, nullptr);
+    }
+
     if (request.mode != "AudioOnly")
     {
         StartPoster(request.posterPath);
     }
 
     g_startTick = GetTickCount64();
+    g_laggedAtStart = obs_get_lagged_frames();
+    g_skippedAtStart = video_output_get_skipped_frames(obs_get_video());
     g_status.ok = true;
     g_status.phase = 2;
     g_status.encoderName = encoderId;
@@ -1873,6 +2043,7 @@ SessionStatus ObsStop()
         }
 
         RefreshDurationLocked();
+        g_expectStop.store(true);
         g_status.phase = 4;
         g_status.ok = true;
         g_status.error.clear();
@@ -1940,6 +2111,35 @@ SessionStatus ObsStatus()
         g_status.phase = obs_output_paused(g_output) ? 3 : 2;
         g_status.ok = true;
     }
+    if ((g_status.phase == 2 || g_status.phase == 3) && g_output
+        && (g_outputLost.load() || !obs_output_active(g_output)) && !g_status.outputLost)
+    {
+        const long long code = g_lostCode.load();
+        g_status.outputLost = true;
+        g_status.lostReason = code == OBS_OUTPUT_NO_SPACE ? "disk" : code == OBS_OUTPUT_ENCODE_ERROR ? "encoder" : "other";
+        const char* last = obs_output_get_last_error(g_output);
+        LogLine("output stopped on its own (code %lld): %s", code, last && last[0] ? last : "");
+    }
+    if (g_status.phase == 2 || g_status.phase == 3)
+    {
+        g_status.systemLevel = g_systemMeter ? MeterLevel(g_systemPeak.load()) : 0;
+        g_status.micLevel = g_micMeter ? MeterLevel(g_micPeak.load()) : 0;
+    }
+    return g_status;
+}
+
+SessionStatus ObsVolume(double system, double mic)
+{
+    std::lock_guard lock(g_mutex);
+    if (g_systemAudio)
+    {
+        obs_source_set_volume(g_systemAudio, static_cast<float>(std::clamp(system, 0.0, 2.0)));
+    }
+    if (g_mic)
+    {
+        obs_source_set_volume(g_mic, static_cast<float>(std::clamp(mic, 0.0, 2.0)));
+    }
+    g_status.ok = true;
     return g_status;
 }
 
@@ -1958,7 +2158,11 @@ std::string StatusToJson(const SessionStatus& status)
         << ",\"outputPath\":\"" << JsonEscape(status.outputPath) << "\""
         << ",\"error\":\"" << JsonEscape(status.error) << "\""
         << ",\"warning\":\"" << JsonEscape(status.warning) << "\""
-        << ",\"stopForced\":" << (status.stopForced ? "true" : "false") << "}";
+        << ",\"stopForced\":" << (status.stopForced ? "true" : "false")
+        << ",\"outputLost\":" << (status.outputLost ? "true" : "false")
+        << ",\"lostReason\":\"" << JsonEscape(status.lostReason) << "\""
+        << ",\"systemLevel\":" << status.systemLevel
+        << ",\"micLevel\":" << status.micLevel << "}";
     return oss.str();
 }
 
@@ -1978,10 +2182,15 @@ StartRequest ParseStartRequest(const std::string& json)
     request.height = static_cast<int>(JsonInt(json, "height", 1080));
     request.fps = static_cast<int>(JsonInt(json, "fps", 30));
     request.bitrateKbps = static_cast<int>(JsonInt(json, "bitrateKbps", 8000));
+    request.quality = static_cast<int>(JsonInt(json, "quality", 0));
     request.hardware = JsonBool(json, "hardware", true);
     request.systemAudio = JsonBool(json, "systemAudio", true);
     request.microphone = JsonBool(json, "microphone", false);
     request.micId = JsonString(json, "micId");
+    request.systemVolume = JsonDouble(json, "systemVolume", 1);
+    request.micVolume = JsonDouble(json, "micVolume", 1);
+    request.noiseSuppression = JsonBool(json, "noiseSuppression", false);
+    request.separateTracks = JsonBool(json, "separateTracks", true);
     request.camera = JsonBool(json, "camera", false);
     request.cameraId = JsonString(json, "cameraId");
     request.cameraName = JsonString(json, "cameraName");

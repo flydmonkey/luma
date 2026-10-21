@@ -51,6 +51,13 @@ public sealed class AudioSettings
     public bool CaptureMicrophone { get; set; }
     public string? MicrophoneDeviceId { get; set; }
     public bool AudioOnly { get; set; }
+    public int SystemVolume { get; set; } = 100;
+    public int MicrophoneVolume { get; set; } = 100;
+    public bool NoiseSuppression { get; set; } = true;
+
+    public const int MaxVolume = 200;
+
+    public static double Gain(int percent) => Math.Clamp(percent, 0, MaxVolume) / 100.0;
 }
 
 public sealed class OverlaySettings

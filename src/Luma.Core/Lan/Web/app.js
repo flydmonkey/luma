@@ -60,6 +60,8 @@ const I18N = {
     "sec.audio": "Audio", "settings.audio.system": "System audio", "settings.audio.mic": "Microphone",
     "settings.audio.micdev": "Mic device", "settings.audio.micdev.ph": "Default mic",
     "settings.audio.only": "Audio only", "settings.audio.only.desc": "Export audio, no video",
+    "settings.audio.sysvol": "Computer sound volume", "settings.audio.micvol": "Microphone volume",
+    "settings.audio.denoise": "Microphone noise suppression", "settings.audio.denoise.desc": "Reduces keyboard, fan and other background noise",
     "sec.quality": "Quality", "settings.quality": "Quality", "settings.quality.desc": "Capped by display",
     "settings.fps": "Frame rate", "settings.hw": "Hardware accel", "settings.monitor": "Display",
     "sec.camera": "Camera", "settings.camera": "Camera overlay", "settings.camera.dev": "Device",
@@ -141,6 +143,8 @@ const I18N = {
     "sec.audio": "声音", "settings.audio.system": "电脑播放声", "settings.audio.mic": "麦克风",
     "settings.audio.micdev": "麦克风设备", "settings.audio.micdev.ph": "默认麦克风",
     "settings.audio.only": "只录声音", "settings.audio.only.desc": "不录画面，导出音频文件",
+    "settings.audio.sysvol": "电脑播放声音量", "settings.audio.micvol": "麦克风音量",
+    "settings.audio.denoise": "麦克风降噪", "settings.audio.denoise.desc": "减弱键盘、风扇等背景噪音",
     "sec.quality": "画质", "settings.quality": "清晰度", "settings.quality.desc": "最高清晰度受当前显示器限制",
     "settings.fps": "帧率", "settings.hw": "硬件加速", "settings.monitor": "显示器",
     "sec.camera": "摄像头", "settings.camera": "嵌入摄像头", "settings.camera.dev": "设备",
@@ -222,6 +226,8 @@ const I18N = {
     "sec.audio": "聲音", "settings.audio.system": "電腦播放聲", "settings.audio.mic": "麥克風",
     "settings.audio.micdev": "麥克風裝置", "settings.audio.micdev.ph": "預設麥克風",
     "settings.audio.only": "只錄音", "settings.audio.only.desc": "不錄畫面，匯出音訊檔",
+    "settings.audio.sysvol": "電腦播放聲音量", "settings.audio.micvol": "麥克風音量",
+    "settings.audio.denoise": "麥克風降噪", "settings.audio.denoise.desc": "減弱鍵盤、風扇等背景噪音",
     "sec.quality": "畫質", "settings.quality": "清晰度", "settings.quality.desc": "最高清晰度受目前顯示器限制",
     "settings.fps": "幀率", "settings.hw": "硬體加速", "settings.monitor": "顯示器",
     "sec.camera": "攝影機", "settings.camera": "嵌入攝影機", "settings.camera.dev": "裝置",
@@ -303,6 +309,8 @@ const I18N = {
     "sec.audio": "音声", "settings.audio.system": "システム音声", "settings.audio.mic": "マイク",
     "settings.audio.micdev": "マイク機器", "settings.audio.micdev.ph": "既定マイク",
     "settings.audio.only": "音声のみ", "settings.audio.only.desc": "映像なし、音声を書き出す",
+    "settings.audio.sysvol": "PC の音の音量", "settings.audio.micvol": "マイクの音量",
+    "settings.audio.denoise": "マイクのノイズ抑制", "settings.audio.denoise.desc": "キーボードやファンなどの雑音を抑えます",
     "sec.quality": "画質", "settings.quality": "画質", "settings.quality.desc": "解像度は画面に依存",
     "settings.fps": "フレームレート", "settings.hw": "ハードウェア加速", "settings.monitor": "画面",
     "sec.camera": "カメラ", "settings.camera": "カメラ重ね", "settings.camera.dev": "機器",
@@ -384,6 +392,8 @@ const I18N = {
     "sec.audio": "소리", "settings.audio.system": "시스템 소리", "settings.audio.mic": "마이크",
     "settings.audio.micdev": "마이크 장치", "settings.audio.micdev.ph": "기본 마이크",
     "settings.audio.only": "오디오만", "settings.audio.only.desc": "화면 없이 오디오 내보내기",
+    "settings.audio.sysvol": "컴퓨터 소리 볼륨", "settings.audio.micvol": "마이크 볼륨",
+    "settings.audio.denoise": "마이크 노이즈 제거", "settings.audio.denoise.desc": "키보드, 팬 등 배경 소음을 줄입니다",
     "sec.quality": "화질", "settings.quality": "화질", "settings.quality.desc": "해상도는 화면에 따름",
     "settings.fps": "프레임", "settings.hw": "하드웨어 가속", "settings.monitor": "화면",
     "sec.camera": "카메라", "settings.camera": "카메라 오버레이", "settings.camera.dev": "장치",
@@ -1104,6 +1114,9 @@ function syncDeviceEnabled() {
     $("sMicId").disabled = !$("sMic")?.checked;
     if ($("sMicId")._syncCombo) $("sMicId")._syncCombo();
   }
+  if ($("sMicVol")) $("sMicVol").disabled = !$("sMic")?.checked;
+  if ($("sDenoise")) $("sDenoise").disabled = !$("sMic")?.checked;
+  if ($("sSysVol")) $("sSysVol").disabled = !$("sSys")?.checked;
   if ($("sCamId")) {
     $("sCamId").disabled = !$("sCam")?.checked;
     if ($("sCamId")._syncCombo) $("sCamId")._syncCombo();
@@ -1523,6 +1536,9 @@ function renderSettings() {
     ${card(t("settings.audio.system"), toggleControl("sSys"))}
     ${card(t("settings.audio.mic"), toggleControl("sMic"))}
     ${card(t("settings.audio.micdev"), `<select id="sMicId"></select>`)}
+    ${card(t("settings.audio.sysvol"), sliderControl("sSysVol", 0, 200))}
+    ${card(t("settings.audio.micvol"), sliderControl("sMicVol", 0, 200))}
+    ${card(t("settings.audio.denoise"), toggleControl("sDenoise"), t("settings.audio.denoise.desc"))}
     ${card(t("settings.audio.only"), toggleControl("sAudioOnly"), t("settings.audio.only.desc"))}
     <div class="h">${t("sec.quality")}</div>
     ${card(t("settings.quality"), `<select id="sQ"><option value="0">${t("quality.sd")}</option><option value="1">${t("quality.hd")}</option><option value="2">${t("quality.qhd")}</option><option value="3">${t("quality.uhd")}</option></select>`, t("settings.quality.desc"))}
@@ -1593,6 +1609,9 @@ function renderSettings() {
   $("sSys").checked = !!au.captureSystem;
   $("sMic").checked = !!au.captureMicrophone;
   $("sAudioOnly").checked = !!au.audioOnly;
+  $("sSysVol").value = String(au.systemVolume ?? 100);
+  $("sMicVol").value = String(au.microphoneVolume ?? 100);
+  $("sDenoise").checked = au.noiseSuppression !== false;
   fillQuality($("sQ"), q.level, true);
   $("sFps").value = [10, 15, 30, 60].includes(q.frameRate) ? String(q.frameRate) : "30";
   $("sHw").checked = q.hardwareEncoding !== false;
@@ -1614,6 +1633,11 @@ function renderSettings() {
   syncDeviceEnabled();
   $("sCam").onchange = () => { syncDeviceEnabled(); placeOverlayBoxes(); saveSettingsFromForm().catch((err) => toast(err.message)); };
   $("sMic").onchange = () => { syncDeviceEnabled(); saveSettingsFromForm().catch((err) => toast(err.message)); };
+  $("sSys").onchange = () => { syncDeviceEnabled(); saveSettingsFromForm().catch((err) => toast(err.message)); };
+  ["sSysVol", "sMicVol"].forEach((id) => {
+    $(id).oninput = () => syncSliderFill($(id));
+    syncSliderFill($(id));
+  });
   ["sCamX", "sCamY", "sCamW", "sCamH", "sMarkX", "sMarkY", "sMarkW", "sMarkH", "sTextOp", "sImgOp"].forEach((id) => {
     $(id).oninput = () => { syncSliderFill($(id)); placeOverlayBoxes(); };
     syncSliderFill($(id));
@@ -1793,7 +1817,10 @@ async function saveSettingsFromForm() {
       captureSystem: $("sSys").checked,
       captureMicrophone: $("sMic").checked,
       microphoneDeviceId: $("sMicId").value || null,
-      audioOnly: $("sAudioOnly").checked
+      audioOnly: $("sAudioOnly").checked,
+      systemVolume: Number($("sSysVol").value),
+      microphoneVolume: Number($("sMicVol").value),
+      noiseSuppression: $("sDenoise").checked
     },
     quality: { ...currentQuality(), level: qualityLevel($("sQ").value), frameRate: Number($("sFps").value), hardwareEncoding: $("sHw").checked },
     overlay: {

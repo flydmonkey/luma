@@ -386,6 +386,15 @@
                 <controls:SettingsCard x:Name="MicDeviceCard" Header="麦克风设备">
                     <ComboBox x:Name="MicDeviceBox" MinWidth="140" PlaceholderText="默认麦克风" SelectionChanged="DeviceBox_Changed"/>
                 </controls:SettingsCard>
+                <controls:SettingsCard x:Name="SystemVolumeCard" Header="电脑播放声音量">
+                    <Slider x:Name="SystemVolumeSlider" Width="180" Minimum="0" Maximum="200" StepFrequency="5" Value="100" ValueChanged="VolumeSlider_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="MicVolumeCard" Header="麦克风音量">
+                    <Slider x:Name="MicVolumeSlider" Width="180" Minimum="0" Maximum="200" StepFrequency="5" Value="100" ValueChanged="VolumeSlider_Changed"/>
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="NoiseSuppressionCard" Header="麦克风降噪" Description="减弱键盘、风扇等背景噪音">
+                    <ToggleSwitch x:Name="NoiseSuppressionBox" OnContent="" OffContent="" IsOn="True" Toggled="NoiseSuppressionBox_Toggled"/>
+                </controls:SettingsCard>
                 <controls:SettingsCard x:Name="AudioOnlyCard" Header="只录声音" Description="不录画面，导出音频文件">
                     <ToggleSwitch x:Name="AudioOnlyBox" OnContent="" OffContent="" Toggled="SettingsDependents_Changed"/>
                 </controls:SettingsCard>

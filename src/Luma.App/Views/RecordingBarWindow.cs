@@ -25,6 +25,10 @@ public sealed class RecordingBarWindow : Window
     private readonly Button _stopButton;
     private readonly ToggleButton _micButton;
     private readonly Ellipse _liveDot;
+    private readonly Func<(double System, double Mic)> _levels;
+    private readonly ProgressBar _systemMeter;
+    private readonly ProgressBar _micMeter;
+    private readonly bool _showMeters;
     private bool? _shownPaused;
     private string? _shownMicGlyph;
 
@@ -37,8 +41,18 @@ public sealed class RecordingBarWindow : Window
     [DllImport("user32.dll")]
     private static extern bool ShowWindow(IntPtr hwnd, int nCmdShow);
 
-    public RecordingBarWindow(Func<TimeSpan> elapsed, Func<bool> isPaused, Func<Task> pause, Func<Task> stop, Action<bool> mute, bool micOn)
+    public RecordingBarWindow(
+        Func<TimeSpan> elapsed,
+        Func<bool> isPaused,
+        Func<Task> pause,
+        Func<Task> stop,
+        Action<bool> mute,
+        bool micOn,
+        Func<(double System, double Mic)> levels,
+        bool systemOn)
     {
+        _levels = levels;
+        _showMeters = micOn || systemOn;
         Title = "Luma";
         AppIcon.Apply(this);
         AppWindow.IsShownInSwitchers = false;
@@ -90,6 +104,19 @@ public sealed class RecordingBarWindow : Window
         row.Children.Add(_pauseButton);
         row.Children.Add(_stopButton);
         row.Children.Add(_micButton);
+        _systemMeter = Meter(systemOn);
+        _micMeter = Meter(micOn);
+        if (_showMeters)
+        {
+            var meters = new StackPanel { Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+            meters.Children.Add(_systemMeter);
+            meters.Children.Add(_micMeter);
+            var tip = UiCopy.T("bar.levels");
+            ToolTipService.SetToolTip(meters, tip);
+            AutomationProperties.SetName(meters, tip);
+            row.Children.Add(meters);
+        }
+
         Content = new Grid { Padding = new Thickness(14, 8, 14, 8), Children = { row } };
         AppTheme.ApplyToWindow(this, App.Settings.Theme);
         ExtendsContentIntoTitleBar = true;
@@ -108,6 +135,12 @@ public sealed class RecordingBarWindow : Window
         {
             _elapsedText.Text = _elapsed().ToString(@"hh\:mm\:ss");
             ApplyTransport(_isPaused());
+            if (_showMeters)
+            {
+                var (system, mic) = _levels();
+                _systemMeter.Value = system;
+                _micMeter.Value = _micButton.IsChecked == true ? mic : 0;
+            }
         };
         _timer.Start();
         ApplyTransport(_isPaused());
@@ -133,9 +166,9 @@ public sealed class RecordingBarWindow : Window
         var hwnd = WindowNative.GetWindowHandle(this);
         var scale = GetDpiForWindow(hwnd) / 96.0;
         if (scale <= 0) scale = 1;
-        AppWindow.Resize(new SizeInt32((int)(280 * scale), (int)(48 * scale)));
+        var width = (int)((_showMeters ? 340 : 280) * scale);
+        AppWindow.Resize(new SizeInt32(width, (int)(48 * scale)));
         var work = DisplayArea.Primary.WorkArea;
-        var width = (int)(280 * scale);
         AppWindow.Move(new PointInt32(work.X + (work.Width - width) / 2, work.Y + 8));
         Activate();
     }
@@ -155,6 +188,14 @@ public sealed class RecordingBarWindow : Window
         ToolTipService.SetToolTip(_pauseButton, tip);
         AutomationProperties.SetName(_pauseButton, tip);
     }
+
+    private static ProgressBar Meter(bool enabled) => new()
+    {
+        Width = 44,
+        Minimum = 0,
+        Maximum = 1,
+        Opacity = enabled ? 1 : 0.35
+    };
 
     private static FontIcon Symbol(string glyph) => new()
     {

@@ -41,6 +41,9 @@ public sealed class RecordingRequest
     public required bool CaptureSystemAudio { get; init; }
     public required bool CaptureMicrophone { get; init; }
     public string? MicrophoneDeviceId { get; init; }
+    public double SystemVolume { get; init; } = 1;
+    public double MicrophoneVolume { get; init; } = 1;
+    public bool NoiseSuppression { get; init; }
     public OverlaySettings? Overlay { get; init; }
 }
 
@@ -56,6 +59,17 @@ public sealed class EngineStatus
     public TimeSpan EncodedDuration { get; init; }
     public string? Warning { get; init; }
     public bool StopForced { get; init; }
+
+    /// <summary>The output stopped by itself while recording, for example because the disk filled up.</summary>
+    public bool OutputLost { get; init; }
+
+    /// <summary>"disk", "encoder" or "other" when <see cref="OutputLost"/> is set.</summary>
+    public string? LostReason { get; init; }
+
+    /// <summary>Peak level from 0 (silence) to 1 (full scale) while recording.</summary>
+    public double SystemLevel { get; init; }
+
+    public double MicrophoneLevel { get; init; }
 }
 
 public sealed class RecordingResult

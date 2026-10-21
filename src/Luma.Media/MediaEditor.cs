@@ -4,11 +4,14 @@ namespace Luma.Media;
 
 public sealed class MediaEditor
 {
+    // ffmpeg keeps one audio stream unless told otherwise; recordings can carry separate system and microphone tracks.
+    private static readonly string[] AllStreams = ["-map", "0:v?", "-map", "0:a?"];
+
     public Task<string> CompressAsync(string input, bool replace = false, CancellationToken token = default) =>
-        RunAsync(input, replace, ["-y", "-i", input, "-c:v", "libx264", "-crf", "28", "-c:a", "copy"], ".min.mp4", token);
+        RunAsync(input, replace, ["-y", "-i", input, .. AllStreams, "-c:v", "libx264", "-crf", "28", "-c:a", "copy"], ".min.mp4", token);
 
     public Task<string> RepairAsync(string input, CancellationToken token = default) =>
-        RunAsync(input, replace: false, ["-y", "-i", input, "-c", "copy"], ".fixed.mp4", token);
+        RunAsync(input, replace: false, ["-y", "-i", input, .. AllStreams, "-c", "copy"], ".fixed.mp4", token);
 
     public async Task<string> TrimAsync(string input, TimeSpan start, TimeSpan end, bool replace = false, CancellationToken token = default)
     {
@@ -18,7 +21,7 @@ public sealed class MediaEditor
         }
 
         return await RunAsync(input, replace, [
-            "-y", "-ss", Format(start), "-to", Format(end), "-i", input, "-c", "copy"
+            "-y", "-ss", Format(start), "-to", Format(end), "-i", input, .. AllStreams, "-c", "copy"
         ], ".trim.mp4", token).ConfigureAwait(false);
     }
 
@@ -33,7 +36,7 @@ public sealed class MediaEditor
         File.WriteAllLines(list, inputs.Select(path => $"file '{path.Replace("'", "'\\''")}'"));
         try
         {
-            return await RunAsync(inputs[0], replace, ["-y", "-f", "concat", "-safe", "0", "-i", list, "-c", "copy"], ".merge.mp4", token).ConfigureAwait(false);
+            return await RunAsync(inputs[0], replace, ["-y", "-f", "concat", "-safe", "0", "-i", list, .. AllStreams, "-c", "copy"], ".merge.mp4", token).ConfigureAwait(false);
         }
         finally
         {
@@ -44,7 +47,7 @@ public sealed class MediaEditor
     public Task<string> BurnSubtitlesAsync(string input, string subtitlePath, bool replace = false, CancellationToken token = default)
     {
         var escaped = subtitlePath.Replace("\\", "\\\\", StringComparison.Ordinal).Replace(":", "\\:", StringComparison.Ordinal);
-        return RunAsync(input, replace, ["-y", "-i", input, "-vf", $"subtitles='{escaped}'", "-c:a", "copy"], ".sub.mp4", token);
+        return RunAsync(input, replace, ["-y", "-i", input, .. AllStreams, "-vf", $"subtitles='{escaped}'", "-c:a", "copy"], ".sub.mp4", token);
     }
 
     public async Task<string> BurnCaptionTextAsync(string input, string text, bool replace = false, CancellationToken token = default)

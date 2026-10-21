@@ -35,6 +35,9 @@ public sealed partial class MainWindow
         SystemAudioBox.IsOn = Settings.Audio.CaptureSystem;
         MicBox.IsOn = Settings.Audio.CaptureMicrophone;
         AudioOnlyBox.IsOn = Settings.Audio.AudioOnly;
+        SystemVolumeSlider.Value = Math.Clamp(Settings.Audio.SystemVolume, 0, AudioSettings.MaxVolume);
+        MicVolumeSlider.Value = Math.Clamp(Settings.Audio.MicrophoneVolume, 0, AudioSettings.MaxVolume);
+        NoiseSuppressionBox.IsOn = Settings.Audio.NoiseSuppression;
         HardwareBox.IsOn = Settings.Quality.HardwareEncoding;
         CameraBox.IsOn = Settings.Overlay.CameraEnabled;
         CameraXSlider.Value = Settings.Overlay.CameraX * 100;
@@ -112,6 +115,9 @@ public sealed partial class MainWindow
         Settings.Audio.CaptureSystem = SystemAudioBox.IsOn;
         Settings.Audio.CaptureMicrophone = MicBox.IsOn;
         Settings.Audio.AudioOnly = AudioOnlyBox.IsOn;
+        Settings.Audio.SystemVolume = (int)Math.Round(SystemVolumeSlider.Value);
+        Settings.Audio.MicrophoneVolume = (int)Math.Round(MicVolumeSlider.Value);
+        Settings.Audio.NoiseSuppression = NoiseSuppressionBox.IsOn;
         Settings.Audio.MicrophoneDeviceId = SelectedMicId();
         Settings.Lan.Enabled = LanPlaybackBox.IsOn;
         Settings.Lan.AccessKey = LanKeyBox.Password ?? "";
@@ -416,6 +422,23 @@ public sealed partial class MainWindow
         PersistSettingsFromUi();
     }
 
+    private void VolumeSlider_Changed(object sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_settingsReady && !_loadingSettings)
+        {
+            PersistSettingsFromUi();
+            ApplyLiveVolume();
+        }
+    }
+
+    private void NoiseSuppressionBox_Toggled(object sender, RoutedEventArgs e)
+    {
+        if (_settingsReady && !_loadingSettings)
+        {
+            PersistSettingsFromUi();
+        }
+    }
+
     private void OpacitySlider_Changed(object sender, RangeBaseValueChangedEventArgs e)
     {
         if (_settingsReady && !_loadingSettings)
@@ -493,6 +516,10 @@ public sealed partial class MainWindow
         MicDeviceCard.Header = UiCopy.T("settings.audio.micdev");
         AudioOnlyCard.Header = UiCopy.T("settings.audio.only");
         AudioOnlyCard.Description = UiCopy.T("settings.audio.only.desc");
+        SystemVolumeCard.Header = UiCopy.T("settings.audio.sysvol");
+        MicVolumeCard.Header = UiCopy.T("settings.audio.micvol");
+        NoiseSuppressionCard.Header = UiCopy.T("settings.audio.denoise");
+        NoiseSuppressionCard.Description = UiCopy.T("settings.audio.denoise.desc");
         FormatCard.Header = UiCopy.T("settings.format");
         FormatCard.Description = UiCopy.T("settings.format.desc");
         FpsCard.Header = UiCopy.T("settings.fps");
@@ -753,6 +780,9 @@ public sealed partial class MainWindow
         }
 
         MicDeviceBox.IsEnabled = MicBox.IsOn;
+        MicVolumeSlider.IsEnabled = MicBox.IsOn;
+        NoiseSuppressionBox.IsEnabled = MicBox.IsOn;
+        SystemVolumeSlider.IsEnabled = SystemAudioBox.IsOn;
         CameraDeviceBox.IsEnabled = CameraBox.IsOn;
         var markOn = TextWatermarkBox.IsOn || ImageWatermarkBox.IsOn;
         OverlayCanvas.IsHitTestVisible = true;

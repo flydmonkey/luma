@@ -74,6 +74,71 @@ public sealed class ObsHostRecordingTests
     }
 
     [Fact]
+    public async Task Host_splits_system_and_microphone_tracks_and_repair_keeps_them()
+    {
+        if (ObsHostClient.FindHost() is null)
+        {
+            return;
+        }
+
+        var path = Path.Combine(Path.GetTempPath(), $"luma-obs-tracks-{Guid.NewGuid():N}.mp4");
+        using var host = new ObsHostClient();
+        string? repaired = null;
+        try
+        {
+            await host.StartAsync(new RecordingRequest
+            {
+                OutputPath = path,
+                Target = new CaptureTarget { Mode = CaptureMode.Display },
+                Quality = QualitySettings.FromLevel(QualityLevel.Sd, 30),
+                CaptureSystemAudio = true,
+                CaptureMicrophone = true,
+                MicrophoneDeviceId = "default",
+                SystemVolume = 0.8,
+                MicrophoneVolume = 1.2,
+                NoiseSuppression = true
+            });
+            var started = host.GetStatus();
+            await Task.Delay(800);
+            await host.SetVolumeAsync(1.0, 0.5);
+            await host.TryRefreshStatusAsync();
+            var live = host.GetStatus();
+            Assert.False(live.OutputLost);
+            Assert.InRange(live.SystemLevel, 0, 1);
+            Assert.InRange(live.MicrophoneLevel, 0, 1);
+            await Task.Delay(800);
+            var result = await host.StopAsync();
+
+            var micMissing = (started.Warning ?? "").Contains("麦克风", StringComparison.Ordinal)
+                && !(started.Warning ?? "").Contains("降噪", StringComparison.Ordinal);
+            var expectedTracks = micMissing ? 1 : 3;
+            Assert.Equal(expectedTracks, AudioStreams(result.OutputPath));
+
+            repaired = await new MediaEditor().RepairAsync(result.OutputPath);
+            Assert.Equal(expectedTracks, AudioStreams(repaired));
+        }
+        finally
+        {
+            foreach (var file in new[] { path, repaired })
+            {
+                try { if (file is not null && File.Exists(file)) File.Delete(file); } catch { /* ignore */ }
+            }
+        }
+    }
+
+    private static int AudioStreams(string file)
+    {
+        var described = MediaProbe.Describe(file);
+        var count = 0;
+        for (var at = described.IndexOf("Audio:", StringComparison.Ordinal); at >= 0; at = described.IndexOf("Audio:", at + 6, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    [Fact]
     public async Task Host_records_audio_only_m4a()
     {
         if (ObsHostClient.FindHost() is null)

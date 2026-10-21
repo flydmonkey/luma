@@ -233,7 +233,10 @@
           "captureSystem": { "type": "boolean" },
           "captureMicrophone": { "type": "boolean" },
           "microphoneDeviceId": { "type": "string", "nullable": true },
-          "audioOnly": { "type": "boolean" }
+          "audioOnly": { "type": "boolean" },
+          "systemVolume": { "type": "integer", "minimum": 0, "maximum": 200, "default": 100, "description": "Computer sound volume in percent." },
+          "microphoneVolume": { "type": "integer", "minimum": 0, "maximum": 200, "default": 100, "description": "Microphone volume in percent." },
+          "noiseSuppression": { "type": "boolean", "default": true, "description": "Reduce background noise on the microphone." }
         }
       },
       "Hotkeys": {

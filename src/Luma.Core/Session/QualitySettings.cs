@@ -33,6 +33,16 @@ public sealed class QualitySettings
         _ => new QualitySettings { Level = QualityLevel.Hd, FrameRate = frameRate, BitrateKbps = 8000 }
     };
 
+    /// <summary>Constant-quality value for the encoder (CRF or CQP); lower is sharper and larger.</summary>
+    public static int QualityTarget(QualityLevel level) => level switch
+    {
+        QualityLevel.Sd => 25,
+        QualityLevel.Hd => 23,
+        QualityLevel.ExtraHd => 22,
+        QualityLevel.FourK => 21,
+        _ => 23
+    };
+
     public static readonly QualityLevel[] Ascending = [QualityLevel.Sd, QualityLevel.Hd, QualityLevel.ExtraHd, QualityLevel.FourK];
 
     public static bool Fits(QualityLevel level, int width, int height)

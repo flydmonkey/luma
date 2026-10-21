@@ -105,10 +105,15 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
                 height = request.Quality.Resolution.Height,
                 fps = request.Quality.FrameRate,
                 bitrateKbps = request.Quality.BitrateKbps,
+                quality = QualitySettings.QualityTarget(request.Quality.Level),
                 hardware = request.Quality.HardwareEncoding,
                 systemAudio = request.CaptureSystemAudio,
                 microphone = request.CaptureMicrophone,
                 micId = Luma.Core.Session.AudioDeviceId.ToWasapi(request.MicrophoneDeviceId),
+                systemVolume = request.SystemVolume,
+                micVolume = request.MicrophoneVolume,
+                noiseSuppression = request.NoiseSuppression,
+                separateTracks = true,
                 camera = overlay?.CameraEnabled == true,
                 cameraId = string.IsNullOrWhiteSpace(overlay?.CameraDeviceId) ? "default" : overlay!.CameraDeviceId,
                 cameraName = overlay?.CameraDeviceName ?? "",
@@ -160,6 +165,12 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
         await EnsureStartedAsync().ConfigureAwait(false);
         var status = await SendAsync(new { op = "mute", muted }).ConfigureAwait(false);
         ThrowIfFailed(status, CoreText.T("op.mute"));
+    }
+
+    public async Task SetVolumeAsync(double system, double microphone)
+    {
+        var status = await SendAsync(new { op = "volume", systemVolume = system, micVolume = microphone }).ConfigureAwait(false);
+        ThrowIfFailed(status, CoreText.T("op.volume"));
     }
 
     public Task<RecordingResult> StopAsync()
@@ -347,6 +358,11 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
         start.ArgumentList.Add("-y");
         start.ArgumentList.Add("-i");
         start.ArgumentList.Add(source);
+        foreach (var arg in new[] { "-map", "0:v?", "-map", "0:a?" })
+        {
+            start.ArgumentList.Add(arg);
+        }
+
         start.ArgumentList.Add("-c");
         start.ArgumentList.Add("copy");
         start.ArgumentList.Add(destination);
@@ -386,6 +402,8 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
         start.ArgumentList.Add("-y");
         start.ArgumentList.Add("-i");
         start.ArgumentList.Add(path);
+        start.ArgumentList.Add("-map");
+        start.ArgumentList.Add("0:a?");
         start.ArgumentList.Add("-vn");
         start.ArgumentList.Add("-c:a");
         start.ArgumentList.Add("copy");

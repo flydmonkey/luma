@@ -176,6 +176,7 @@ public sealed partial class MainWindow : Window
             }
 
             ApplyLogonTask();
+            ApplyLiveVolume();
             if (WatchSaveFolder())
             {
                 RefreshLibrary();
@@ -382,6 +383,22 @@ public sealed partial class MainWindow : Window
         ElapsedText.Text = status.EncodedDuration.ToString(@"hh\:mm\:ss");
         _tray.SetElapsed(status.EncodedDuration);
         TitleRecBadge.Visibility = Visibility.Visible;
+        if (_busy)
+        {
+            return;
+        }
+
+        if (status.OutputLost)
+        {
+            FinishWithNotice(UiCopy.T(status.LostReason == "disk" ? "rec.lost.disk" : "rec.lost.other"));
+            return;
+        }
+
+        if (CheckDiskWhileRecording())
+        {
+            return;
+        }
+
         if (_session.Phase == SessionPhase.Recording && SegmentDue())
         {
             _ = RotateSegmentAsync();
@@ -389,6 +406,93 @@ public sealed partial class MainWindow : Window
     }
 
     private int _statusPoll;
+    private DateTime _lastDiskCheck;
+    private bool _diskWarned;
+
+    private int AudioTrackCount()
+    {
+        var system = Settings.Audio.CaptureSystem;
+        var mic = Settings.Audio.CaptureMicrophone && !_micMuted;
+        return system && mic && _mode != CaptureMode.AudioOnly ? 3 : 1;
+    }
+
+    private int VideoKbps() => _mode == CaptureMode.AudioOnly ? 0 : Settings.Quality.BitrateKbps;
+
+    /// <summary>Returns a message when the save folder can't hold a useful recording, or null when it can.</summary>
+    private string? DiskNoticeBeforeStart(out bool refuse)
+    {
+        refuse = false;
+        var free = DiskSpaceRules.FreeBytes(Settings.SaveFolder);
+        if (free is not { } bytes)
+        {
+            return null;
+        }
+
+        var verdict = DiskSpaceRules.BeforeStart(bytes, VideoKbps(), AudioTrackCount());
+        refuse = verdict == DiskVerdict.Full;
+        return verdict switch
+        {
+            DiskVerdict.Full => string.Format(UiCopy.T("rec.disk.full"), FormatBytes(bytes)),
+            DiskVerdict.Low => LowDiskText(bytes),
+            _ => null
+        };
+    }
+
+    private bool CheckDiskWhileRecording()
+    {
+        if (DateTime.UtcNow - _lastDiskCheck < TimeSpan.FromSeconds(10))
+        {
+            return false;
+        }
+
+        _lastDiskCheck = DateTime.UtcNow;
+        var folder = Path.GetDirectoryName(_lastFile) is { Length: > 0 } dir ? dir : Settings.SaveFolder;
+        if (DiskSpaceRules.FreeBytes(folder) is not { } bytes)
+        {
+            return false;
+        }
+
+        switch (DiskSpaceRules.WhileRecording(bytes, VideoKbps(), AudioTrackCount()))
+        {
+            case DiskVerdict.Full:
+                FinishWithNotice(UiCopy.T("rec.disk.stop"));
+                return true;
+            case DiskVerdict.Low when !_diskWarned:
+                _diskWarned = true;
+                Announce(LowDiskText(bytes));
+                return false;
+            default:
+                return false;
+        }
+    }
+
+    private string LowDiskText(long bytes)
+    {
+        var minutes = Math.Max(1, (int)DiskSpaceRules.Remaining(bytes, VideoKbps(), AudioTrackCount()).TotalMinutes);
+        return string.Format(UiCopy.T("rec.disk.low"), FormatBytes(bytes), minutes);
+    }
+
+    private static string FormatBytes(long bytes) => bytes >= 1L << 30
+        ? $"{bytes / (double)(1L << 30):0.0} GB"
+        : $"{bytes / (double)(1L << 20):0} MB";
+
+    private void Announce(string text)
+    {
+        if (_windowConcealed) _tray.Notify(text);
+        else ShowBanner(text, InfoBarSeverity.Warning);
+    }
+
+    /// <summary>Stops the recording on Luma's own initiative and makes sure the reason reaches the user.</summary>
+    private void FinishWithNotice(string notice)
+    {
+        _sessionNotice = string.Join(" ", new[] { notice, _sessionNotice }.Where(text => !string.IsNullOrWhiteSpace(text)));
+        if (_windowConcealed && !_hiddenForRecording)
+        {
+            _tray.Notify(notice);
+        }
+
+        _ = StopAsync();
+    }
 
     private async Task RotateSegmentAsync()
     {
@@ -801,11 +905,25 @@ public sealed partial class MainWindow : Window
             }
 
             Directory.CreateDirectory(Settings.SaveFolder);
+            var diskNotice = DiskNoticeBeforeStart(out var diskFull);
+            if (diskFull)
+            {
+                if (_hiddenForRecording || !fromLan)
+                {
+                    RevealWindow();
+                }
+
+                ShowBanner(diskNotice!, InfoBarSeverity.Error);
+                return;
+            }
+
             var path = NewOutputPath();
             var request = BuildRequest(path);
             await _session.StartAsync(request);
             _lastFile = path;
             _segmentStart = DateTime.UtcNow;
+            _lastDiskCheck = DateTime.UtcNow;
+            _diskWarned = diskNotice is not null;
             SetRecordingUi(true);
             if (RecordingChrome.ShowBar(Settings.ShowRecordingBar, fromLan, Settings.SilentMode))
             {
@@ -823,7 +941,7 @@ public sealed partial class MainWindow : Window
             var fallback = EncoderNotice.FellBackToSoftware(request.Quality.HardwareEncoding, request.Target.Mode, status)
                 ? UiCopy.T("rec.encoder.fallback")
                 : null;
-            var notice = string.Join(" ", new[] { fallback, status.Warning }.Where(text => !string.IsNullOrWhiteSpace(text)));
+            var notice = string.Join(" ", new[] { fallback, status.Warning, diskNotice }.Where(text => !string.IsNullOrWhiteSpace(text)));
             _sessionNotice = notice.Length > 0 ? notice : null;
             if (_sessionNotice is not null && !(fromLan && Settings.SilentMode))
             {
@@ -917,8 +1035,20 @@ public sealed partial class MainWindow : Window
         CaptureSystemAudio = Settings.Audio.CaptureSystem,
         CaptureMicrophone = Settings.Audio.CaptureMicrophone && !_micMuted,
         MicrophoneDeviceId = _micId,
+        SystemVolume = AudioSettings.Gain(Settings.Audio.SystemVolume),
+        MicrophoneVolume = AudioSettings.Gain(Settings.Audio.MicrophoneVolume),
+        NoiseSuppression = Settings.Audio.NoiseSuppression,
         Overlay = BuildOverlay()
     };
+
+    private void ApplyLiveVolume()
+    {
+        if (_session.Phase is SessionPhase.Recording or SessionPhase.Paused)
+        {
+            _ = _host.SetVolumeAsync(AudioSettings.Gain(Settings.Audio.SystemVolume), AudioSettings.Gain(Settings.Audio.MicrophoneVolume))
+                .ContinueWith(task => _ = task.Exception, TaskContinuationOptions.OnlyOnFaulted);
+        }
+    }
 
     private string NewOutputPath()
     {
@@ -1065,7 +1195,13 @@ public sealed partial class MainWindow : Window
                         _ = _host.MuteAsync(muted);
                     }
                 },
-                Settings.Audio.CaptureMicrophone);
+                Settings.Audio.CaptureMicrophone,
+                () =>
+                {
+                    var status = _session.GetStatus();
+                    return (status.SystemLevel, status.MicrophoneLevel);
+                },
+                Settings.Audio.CaptureSystem);
             bar.Closed += (_, _) =>
             {
                 if (ReferenceEquals(_bar, bar))

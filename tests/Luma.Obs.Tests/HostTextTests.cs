@@ -18,6 +18,12 @@ public class HostTextTests
     }
 
     [Fact]
+    public void MapsTheNoiseSuppressionWarning()
+    {
+        Assert.Equal("麦克风降噪不可用。", HostText.Localize("麦克风降噪不可用。"));
+    }
+
+    [Fact]
     public void LeavesEmptyTextAlone()
     {
         Assert.Null(HostText.Localize(null));

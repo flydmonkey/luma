@@ -17,6 +17,10 @@ public sealed class HostStatus
     public string Error { get; set; } = "";
     public string Warning { get; set; } = "";
     public bool StopForced { get; set; }
+    public bool OutputLost { get; set; }
+    public string LostReason { get; set; } = "";
+    public double SystemLevel { get; set; }
+    public double MicLevel { get; set; }
 
     public EngineStatus ToEngineStatus() => new()
     {
@@ -31,6 +35,10 @@ public sealed class HostStatus
         Warning = HostText.Localize(string.IsNullOrWhiteSpace(Warning)
             ? (string.IsNullOrWhiteSpace(Error) ? null : Error)
             : Warning) is { Length: > 0 } warning ? warning : null,
-        StopForced = StopForced
+        StopForced = StopForced,
+        OutputLost = OutputLost,
+        LostReason = string.IsNullOrWhiteSpace(LostReason) ? null : LostReason,
+        SystemLevel = Math.Clamp(SystemLevel, 0, 1),
+        MicrophoneLevel = Math.Clamp(MicLevel, 0, 1)
     };
 }
