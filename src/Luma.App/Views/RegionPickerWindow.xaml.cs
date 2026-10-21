@@ -102,7 +102,23 @@ public sealed partial class RegionPickerWindow : Window
 
     private void Confirm_Click(object sender, RoutedEventArgs e) => Confirm();
 
-    private void Cancel_Click(object sender, RoutedEventArgs e)
+    private void Cancel_Click(object sender, RoutedEventArgs e) => Cancel();
+
+    private void OnKeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Escape)
+        {
+            e.Handled = true;
+            Cancel();
+        }
+        else if (e.Key == Windows.System.VirtualKey.Enter)
+        {
+            e.Handled = true;
+            Confirm();
+        }
+    }
+
+    private void Cancel()
     {
         _pick.TrySetResult(null);
         Close();

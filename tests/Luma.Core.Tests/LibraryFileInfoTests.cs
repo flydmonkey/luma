@@ -7,6 +7,28 @@ namespace Luma.Core.Tests;
 public sealed class LibraryFileInfoTests
 {
     [Fact]
+    public void Partial_file_is_hidden_only_while_the_recorder_holds_it()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "luma-file-info-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            var partial = Path.Combine(folder, "Luma-take.mp4.partial.mkv");
+            using (var writer = new FileStream(partial, FileMode.Create, FileAccess.Write, FileShare.Read))
+            {
+                writer.Write([1, 2, 3, 4]);
+                Assert.Empty(new LibraryCatalog().List(folder));
+            }
+
+            Assert.Single(new LibraryCatalog().List(folder));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Saved_duration_is_read_back_without_probing()
     {
         var folder = Path.Combine(Path.GetTempPath(), "luma-file-info-" + Guid.NewGuid().ToString("N"));

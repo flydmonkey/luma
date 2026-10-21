@@ -13,7 +13,7 @@ public static class LanTargetCatalog
         var monitors = DisplayCatalog.ListDisplays()
             .Select(display => (display.X, display.Y, display.Width, display.Height))
             .ToArray();
-        var windows = DisplayCatalog.ListWindows(false)
+        var windows = DisplayCatalog.ListWindows()
             .Where(window => !window.Minimized && window.Width > 0 && window.Height > 0)
             .Select(window => (
                 window.ObsWindowId,
@@ -28,7 +28,7 @@ public static class LanTargetCatalog
 
     public static WebStillPayload? CaptureWindowStill(int index)
     {
-        var windows = DisplayCatalog.ListWindows(false);
+        var windows = DisplayCatalog.ListWindows();
         if ((uint)index >= (uint)windows.Count)
         {
             return null;
@@ -97,7 +97,7 @@ public static class LanTargetCatalog
         }).ToArray();
 
     private static object Windows()
-        => DisplayCatalog.ListWindows(false).Select(window => new
+        => DisplayCatalog.ListWindows().Select(window => new
         {
             id = window.ObsWindowId,
             title = string.IsNullOrWhiteSpace(window.Title) ? window.ProcessName : window.Title,

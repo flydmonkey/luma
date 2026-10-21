@@ -820,6 +820,47 @@ obs_source_t* MakeText(const char* name, const char* text)
     return source;
 }
 
+void ApplyOpacity(obs_source_t* source, double opacity)
+{
+    if (!source || opacity >= 1)
+    {
+        return;
+    }
+    if (opacity < 0)
+    {
+        opacity = 0;
+    }
+
+    // obs_source_create returns a placeholder for unknown ids, so probe the type first.
+    const bool v2 = obs_source_get_display_name("color_filter_v2") != nullptr;
+    const char* id = v2 ? "color_filter_v2" : "color_filter";
+    if (!obs_source_get_display_name(id))
+    {
+        LogLine("opacity filter unavailable");
+        Warn("水印透明度不可用。");
+        return;
+    }
+
+    obs_data_t* settings = obs_data_create();
+    if (v2)
+    {
+        obs_data_set_double(settings, "opacity", opacity);
+    }
+    else
+    {
+        obs_data_set_int(settings, "opacity", static_cast<long long>(opacity * 100 + 0.5));
+    }
+    obs_source_t* filter = obs_source_create_private(id, "luma-opacity", settings);
+    obs_data_release(settings);
+    if (!filter)
+    {
+        Warn("水印透明度不可用。");
+        return;
+    }
+    obs_source_filter_add(source, filter);
+    obs_source_release(filter);
+}
+
 void StampLoop()
 {
     while (g_stampRun)
@@ -881,6 +922,7 @@ void AddOverlays(const StartRequest& request, int canvasW, int canvasH)
         obs_source_t* source = MakeText("luma-text", request.textMark.c_str());
         if (source)
         {
+            ApplyOpacity(source, request.textOpacity);
             PlaceItem(source, canvasW, canvasH, request.markX, request.markY, request.markW, request.markH);
         }
         else
@@ -898,6 +940,7 @@ void AddOverlays(const StartRequest& request, int canvasW, int canvasH)
         if (source)
         {
             g_extra.push_back(source);
+            ApplyOpacity(source, request.imageOpacity);
             PlaceItem(source, canvasW, canvasH, request.markX, request.markY, request.markW, request.markH);
         }
         else
@@ -937,12 +980,28 @@ void FitItem(obs_sceneitem_t* item, int width, int height)
     obs_sceneitem_set_bounds(item, &bounds);
 }
 
+double ActiveSecondsLocked()
+{
+    if (g_startTick == 0)
+    {
+        return 0;
+    }
+    const ULONGLONG now = GetTickCount64();
+    double live = (now - g_startTick) / 1000.0 - g_pauseAccum;
+    if (g_status.phase == 3 && g_pauseTick != 0)
+    {
+        live -= (now - g_pauseTick) / 1000.0;
+    }
+    return live < 0 ? 0 : live;
+}
+
 void RefreshDurationLocked()
 {
     if (g_status.phase == 0 || g_status.phase == 4)
     {
         return;
     }
+    const double active = ActiveSecondsLocked();
     if (g_output)
     {
         const int frames = obs_output_get_total_frames(g_output);
@@ -952,21 +1011,20 @@ void RefreshDurationLocked()
             g_status.encodedDurationSeconds = static_cast<double>(frames) / static_cast<double>(g_fps);
         }
         g_status.skippedFrames = dropped;
-        g_status.effectiveFps = static_cast<double>(g_fps);
+        // Below one second of active time the ratio is noise, so report the configured rate until then.
+        if (g_fps > 0 && frames > 0 && active >= 1)
+        {
+            const double measured = static_cast<double>(frames - dropped) / active;
+            g_status.effectiveFps = measured < 0 ? 0 : (measured > g_fps ? static_cast<double>(g_fps) : measured);
+        }
+        else
+        {
+            g_status.effectiveFps = static_cast<double>(g_fps);
+        }
     }
-    if (g_status.encodedDurationSeconds <= 0 && g_startTick != 0)
+    if (g_status.encodedDurationSeconds <= 0)
     {
-        ULONGLONG now = GetTickCount64();
-        double live = (now - g_startTick) / 1000.0 - g_pauseAccum;
-        if (g_status.phase == 3 && g_pauseTick != 0)
-        {
-            live -= (now - g_pauseTick) / 1000.0;
-        }
-        if (live < 0)
-        {
-            live = 0;
-        }
-        g_status.encodedDurationSeconds = live;
+        g_status.encodedDurationSeconds = active;
     }
 }
 

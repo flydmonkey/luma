@@ -4,7 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Select region">
     <Grid x:Name="Root" Background="Transparent" IsTabStop="True"
-          PointerPressed="OnPressed" PointerMoved="OnMoved" PointerReleased="OnReleased" DoubleTapped="OnDoubleTapped">
+          PointerPressed="OnPressed" PointerMoved="OnMoved" PointerReleased="OnReleased" DoubleTapped="OnDoubleTapped"
+          KeyDown="OnKeyDown">
         <Image x:Name="DesktopImage" Stretch="Fill"/>
         <Rectangle Fill="#22000000" IsHitTestVisible="False"/>
         <StackPanel VerticalAlignment="Top" HorizontalAlignment="Center" Background="{ThemeResource LayerFillColorDefaultBrush}" Padding="12" PointerPressed="Toolbar_PointerPressed">

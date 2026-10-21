@@ -213,7 +213,7 @@ public sealed class LanServer : IDisposable
 
             if (context.Request.HttpMethod == "GET" && path is "/" or "/index.html")
             {
-                await WriteHtml(context.Response, LanWebAssets.UnlockHtml(wrongKey: false)).ConfigureAwait(false);
+                await WriteHtml(context.Response, LanWebAssets.UnlockHtml(wrongKey: false, UiLanguages.ResolveEffective(_settings().UiLanguage))).ConfigureAwait(false);
                 return;
             }
 
@@ -458,7 +458,11 @@ public sealed class LanServer : IDisposable
     {
         var poster = path.StartsWith("/poster/", StringComparison.Ordinal);
         var id = Uri.UnescapeDataString(path[(poster ? "/poster/" : "/media/").Length..]);
-        var item = LanControlApi.Find(_settings().SaveFolder, id);
+        var item = LanControlApi.FindMedia(_settings().SaveFolder, id);
+        if (poster && item is not null && (string.IsNullOrWhiteSpace(item.PosterPath) || !File.Exists(item.PosterPath)))
+        {
+            item = LanControlApi.Find(_settings().SaveFolder, id);
+        }
         if (item is null)
         {
             await WriteAsync(context.Response, 404, LanControlApi.Fail("未找到这个文件。")).ConfigureAwait(false);
@@ -472,8 +476,75 @@ public sealed class LanServer : IDisposable
             return;
         }
 
-        var type = poster ? "image/jpeg" : ContentTypeFor(file);
-        await WriteBytesAsync(context.Response, 200, await File.ReadAllBytesAsync(file).ConfigureAwait(false), type).ConfigureAwait(false);
+        if (poster)
+        {
+            await WriteBytesAsync(context.Response, 200, await File.ReadAllBytesAsync(file).ConfigureAwait(false), "image/jpeg").ConfigureAwait(false);
+            return;
+        }
+
+        await WriteMediaAsync(context, file, ContentTypeFor(file)).ConfigureAwait(false);
+    }
+
+    private static async Task WriteMediaAsync(HttpListenerContext context, string file, string contentType)
+    {
+        var response = context.Response;
+        await using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, useAsync: true);
+        var size = stream.Length;
+        var range = ByteRange.Parse(context.Request.Headers["Range"], size);
+        response.Headers["Accept-Ranges"] = "bytes";
+
+        if (range.Kind == ByteRangeKind.Unsatisfiable)
+        {
+            response.StatusCode = 416;
+            response.Headers["Content-Range"] = $"bytes */{size}";
+            response.ContentLength64 = 0;
+            response.Close();
+            return;
+        }
+
+        response.ContentType = contentType;
+        if (range.Kind == ByteRangeKind.Partial)
+        {
+            response.StatusCode = 206;
+            response.Headers["Content-Range"] = $"bytes {range.Start}-{range.End}/{size}";
+        }
+        else
+        {
+            response.StatusCode = 200;
+        }
+
+        var length = size == 0 ? 0 : range.Length;
+        response.ContentLength64 = length;
+        if (context.Request.HttpMethod == "HEAD" || length == 0)
+        {
+            response.Close();
+            return;
+        }
+
+        stream.Position = range.Start;
+        var buffer = new byte[1 << 16];
+        var left = length;
+        try
+        {
+            while (left > 0)
+            {
+                var read = await stream.ReadAsync(buffer.AsMemory(0, (int)Math.Min(buffer.Length, left))).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    break;
+                }
+
+                await response.OutputStream.WriteAsync(buffer.AsMemory(0, read)).ConfigureAwait(false);
+                left -= read;
+            }
+
+            response.Close();
+        }
+        catch (Exception ex) when (ex is HttpListenerException or IOException or ObjectDisposedException)
+        {
+            // The player cancels requests while seeking.
+            response.Abort();
+        }
     }
 
     private static byte[] ScreenshotPng(string bodyText)
@@ -598,7 +669,7 @@ public sealed class LanServer : IDisposable
 
         if (!string.Equals(key, _settings().Lan.AccessKey, StringComparison.Ordinal))
         {
-            await WriteHtml(context.Response, LanWebAssets.UnlockHtml(wrongKey: true)).ConfigureAwait(false);
+            await WriteHtml(context.Response, LanWebAssets.UnlockHtml(wrongKey: true, UiLanguages.ResolveEffective(_settings().UiLanguage))).ConfigureAwait(false);
             return;
         }
 

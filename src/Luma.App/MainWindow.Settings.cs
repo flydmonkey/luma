@@ -560,13 +560,8 @@ public sealed partial class MainWindow
             if (ModeBox.Items[2] is ComboBoxItem window) window.Content = UiCopy.T("home.mode.window");
         }
 
-        PreviewSavedButton.Content = UiCopy.T("home.preview");
         CountdownCancelButton.Content = UiCopy.T("common.cancel");
-        ProcessingText.Text = UiCopy.T("rec.processing");
         BusyText.Text = UiCopy.T("rec.processing");
-        SavedTitleText.Text = UiCopy.T("rec.saved");
-        SavedPreviewButton.Content = UiCopy.T("home.preview");
-        SavedCloseButton.Content = UiCopy.T("common.close");
         FolderBarButton.Label = UiCopy.T("lib.folder");
         ToolTipService.SetToolTip(MoreBarButton, UiCopy.T("lib.more"));
         AutomationProperties.SetName(MoreBarButton, UiCopy.T("lib.more"));
@@ -868,6 +863,9 @@ public sealed partial class MainWindow
             : App.LanServer.IsRunning
                 ? lan ?? $"http://127.0.0.1:{App.LanServer.BoundPort}"
                 : App.LanServer.LastError ?? $"http://127.0.0.1:{Settings.Lan.Port}";
+        LanPortCard.IsEnabled = Settings.Lan.Enabled;
+        LanKeyCard.IsEnabled = Settings.Lan.Enabled;
+        LanCopyButton.IsEnabled = Settings.Lan.Enabled && App.LanServer.IsRunning;
     }
 
     private async void ChangeFolder_Click(object sender, RoutedEventArgs e)
@@ -888,11 +886,39 @@ public sealed partial class MainWindow
     private void RecordingBarBox_Toggled(object sender, RoutedEventArgs e) { if (!_loadingSettings) PersistSettingsFromUi(); }
     private void SilentModeBox_Toggled(object sender, RoutedEventArgs e) { if (!_loadingSettings) PersistSettingsFromUi(); }
 
-    private void ResetDefaults_Click(object sender, RoutedEventArgs e)
+    private async void ResetDefaults_Click(object sender, RoutedEventArgs e)
     {
+        var dialog = new ContentDialog
+        {
+            Title = UiCopy.T("settings.reset.header"),
+            Content = UiCopy.T("settings.reset.confirm"),
+            PrimaryButtonText = UiCopy.T("settings.reset"),
+            CloseButtonText = UiCopy.T("settings.cancel"),
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = Content.XamlRoot
+        };
+        try
+        {
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        }
+        catch (Exception ex)
+        {
+            ShowBanner(ex.Message, InfoBarSeverity.Error);
+            return;
+        }
+
         Settings = App.SettingsStore.Reset();
+        UiCopy.SetLanguage(UiLanguages.ResolveEffective(Settings.UiLanguage));
         LoadSettingsIntoUi();
+        AppTheme.ApplyToWindow(this, Settings.Theme);
+        NativeMenuTheme.Apply(Settings.Theme);
+        _tray.ApplyLanguage();
+        TryApplyHotkeys(silent: true);
+        if (Settings.Lan.Enabled) App.LanServer.Start();
+        else App.LanServer.Stop();
+        RefreshLanAddress();
         RefreshLibrary();
+        ShowBanner(UiCopy.T("settings.reset.done"), InfoBarSeverity.Success);
     }
 
     private void HotkeyBox_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -1039,12 +1065,32 @@ public sealed partial class MainWindow
         }
     }
 
-    private async void PrivacyCard_Click(object sender, RoutedEventArgs e) => await OpenLocalAsync("/legal/privacy");
-    private async void TermsCard_Click(object sender, RoutedEventArgs e) => await OpenLocalAsync("/legal/terms");
+    private async void PrivacyCard_Click(object sender, RoutedEventArgs e) => await OpenLegalAsync(Luma.Core.Legal.LegalDocuments.Privacy);
+    private async void TermsCard_Click(object sender, RoutedEventArgs e) => await OpenLegalAsync(Luma.Core.Legal.LegalDocuments.Terms);
     private async void ProjectCard_Click(object sender, RoutedEventArgs e)
-        => await Launcher.LaunchUriAsync(new Uri("https://www.github.com/flydmonkey/luma")).AsTask();
+        => await Launcher.LaunchUriAsync(new Uri("https://flydmonkey.github.io/luma/")).AsTask();
     private async void ApiDocsCard_Click(object sender, RoutedEventArgs e) => await OpenLocalAsync("/api/docs");
     private async void SkillCard_Click(object sender, RoutedEventArgs e) => await OpenLocalAsync("/skill");
+
+    private async Task OpenLegalAsync(string document)
+    {
+        try
+        {
+            var locale = UiLanguages.ResolveEffective(Settings.UiLanguage);
+            var html = Luma.Core.Legal.LegalDocuments.ApplyTheme(
+                Luma.Core.Legal.LegalDocuments.ReadHtml(document, locale),
+                Settings.Theme != AppThemeMode.Light);
+            var folder = Path.Combine(Path.GetTempPath(), "Luma", "legal");
+            Directory.CreateDirectory(folder);
+            var file = Path.Combine(folder, $"{document}-{locale}.html");
+            await File.WriteAllTextAsync(file, html, new System.Text.UTF8Encoding(true));
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(file) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ShowBanner(ex.Message, InfoBarSeverity.Error);
+        }
+    }
 
     private async Task OpenLocalAsync(string path)
     {

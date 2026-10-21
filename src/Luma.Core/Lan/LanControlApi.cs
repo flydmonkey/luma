@@ -44,6 +44,34 @@ public static class LanControlApi
         return catalog.List(folder).FirstOrDefault(item => SameItem(item, id));
     }
 
+    private static readonly object MediaGate = new();
+    private static (string Folder, DateTime At, IReadOnlyList<LibraryItem> Items)? _mediaItems;
+    private static readonly TimeSpan MediaLookupLifetime = TimeSpan.FromSeconds(5);
+
+    // Players send many range requests per file, so media and poster lookups reuse a short-lived listing.
+    public static LibraryItem? FindMedia(string folder, string id)
+    {
+        lock (MediaGate)
+        {
+            if (_mediaItems is { } cached
+                && string.Equals(cached.Folder, folder, StringComparison.OrdinalIgnoreCase)
+                && DateTime.UtcNow - cached.At < MediaLookupLifetime
+                && cached.Items.FirstOrDefault(item => SameItem(item, id)) is { } hit
+                && File.Exists(hit.Path))
+            {
+                return hit;
+            }
+        }
+
+        var items = new LibraryCatalog().List(folder);
+        lock (MediaGate)
+        {
+            _mediaItems = (folder, DateTime.UtcNow, items);
+        }
+
+        return items.FirstOrDefault(item => SameItem(item, id));
+    }
+
     private static bool SameItem(LibraryItem item, string id)
         => string.Equals(item.Id, id, StringComparison.OrdinalIgnoreCase)
             || string.Equals(item.Name, id, StringComparison.OrdinalIgnoreCase)
@@ -208,7 +236,7 @@ public static class LanControlApi
                 preview = previewText;
             }
 
-            return new { id, title, detail = obj?["detail"]?.ToString() ?? "", preview };
+            return new { id, title, detail = obj?["detail"]?.ToString() ?? "", preview, previewMissing = string.IsNullOrEmpty(preview) };
         }).ToArray();
     }
 

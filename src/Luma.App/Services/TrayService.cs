@@ -24,6 +24,7 @@ public sealed class TrayService : IDisposable
     private readonly Relay _stopCommand;
     private bool _recording;
     private bool _paused;
+    private TimeSpan _elapsed;
     private Icon? _trayIcon;
 
     public TrayService(DispatcherQueue dispatcher, Action showMain, Action showLibrary, Action exit, Action start, Action pause, Action stop)
@@ -74,6 +75,15 @@ public sealed class TrayService : IDisposable
         _dispatcher.TryEnqueue(() => ApplySession(recording, paused));
     }
 
+    public void SetElapsed(TimeSpan elapsed)
+    {
+        _elapsed = elapsed;
+        if (_recording)
+        {
+            _icon.ToolTipText = SessionToolTip();
+        }
+    }
+
     public void ApplyLanguage()
     {
         void Go()
@@ -117,11 +127,17 @@ public sealed class TrayService : IDisposable
         _pauseItem.IsEnabled = recording;
         _stopItem.IsEnabled = recording;
         _pauseItem.Text = paused ? UiCopy.T("tray.resume") : UiCopy.T("tray.pause");
-        _icon.ToolTipText = recording
-            ? (paused ? UiCopy.T("tray.resume") : UiCopy.T("tray.recording"))
-            : "Luma";
+        if (!recording)
+        {
+            _elapsed = TimeSpan.Zero;
+        }
+
+        _icon.ToolTipText = recording ? SessionToolTip() : "Luma";
         TrySetIcon(recording, paused);
     }
+
+    private string SessionToolTip()
+        => (_paused ? UiCopy.T("tray.resume") : UiCopy.T("tray.recording")) + "  " + _elapsed.ToString(@"hh\:mm\:ss");
 
     private Action OnUi(Action action) => () =>
     {

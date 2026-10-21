@@ -17,7 +17,6 @@ const state = {
   target: null,
   displays: [],
   windows: [],
-  games: [],
   region: null,
   windowId: null,
   displayId: "0",
@@ -36,7 +35,7 @@ const I18N = {
     "page.record": "Record", "page.library": "Library", "page.settings": "Settings",
     "nav.library": "Library", "nav.settings": "Settings", "nav.back": "Back",
     "mode.fullscreen": "Display", "mode.region": "Region", "mode.window": "Window",
-    "mode.game": "Game", "mode.audio": "Audio", "mode.shot": "Screenshot",
+    "mode.audio": "Audio", "mode.shot": "Screenshot",
     "shot.save": "Save", "shot.copy": "Copy", "shot.cancel": "Cancel",
     "shot.region": "Region", "shot.window": "Window", "shot.display": "Display",
     "shot.save.fail": "Couldn't save the screenshot.",
@@ -83,22 +82,22 @@ const I18N = {
     "settings.silent": "Silent mode", "settings.silent.desc": "No popups on start/stop",
     "sec.reset": "Reset", "settings.reset": "Reset", "settings.reset.header": "Reset defaults",
     "sec.about": "About", "about.tagline": "Local screen recorder", "about.privacy": "Privacy",
-    "about.terms": "Terms", "about.project": "GitHub",
+    "about.terms": "Terms", "about.project": "Website",
     "about.docs": "API docs",
     "about.skill": "SKILL",
     "settings.reset.desc": "Theme, hotkeys, audio, and toolbar",
     "settings.reset.confirm": "Theme, hotkeys, audio, and the toolbar go back to factory values.",
     "common.ok": "OK", "common.cancel": "Cancel", "common.close": "Close", "common.save": "Save",
     "sum.display": "Display {0}", "sum.region": "Region {0}×{1}", "sum.region.none": "Region · none",
-    "sum.window.none": "Window · none", "sum.window": "Window · {0}", "sum.game.none": "Game · none",
-    "sum.game": "Game · {0}", "sum.pick": "Pick a target", "sum.audio": "Audio only",
+    "sum.window.none": "Window · none", "sum.window": "Window · {0}",
+    "sum.pick": "Pick a target", "sum.audio": "Audio only",
     "sum.sys.on": "Sys on", "sum.sys.off": "Sys off", "sum.mic.on": "Mic on", "sum.mic.off": "Mic off",
     "quality.sd": "720p", "quality.hd": "1080p", "quality.qhd": "1440p", "quality.uhd": "4K",
     "rec.need.target": "Pick a target first.", "rec.need.region": "Pick a region first.",
     "rec.processing": "Processing", "rec.saved": "Saved", "modes.aria": "Capture mode",
     "lib.preview": "Preview", "lib.rename": "Rename", "lib.delete": "Delete", "lib.folder": "Open folder",
-    "lib.more": "More", "lib.repair": "Repair", "lib.merge": "Merge", "lib.subtitle": "Captions",
-    "lib.music": "Music", "lib.refresh": "Refresh", "lib.empty": "No videos yet",
+    "lib.more": "More", "lib.repair": "Repair",
+    "lib.refresh": "Refresh", "lib.empty": "No videos yet",
     "lib.empty.desc": "Finished recordings appear here", "lib.col.name": "Name", "lib.col.size": "Size",
     "lib.col.duration": "Time", "lib.col.date": "Date", "lib.fullscreen": "Full screen",
     "lib.trim": "Trim", "lib.compress": "Compress", "lib.rename.invalid": "Enter a valid name",
@@ -109,15 +108,15 @@ const I18N = {
     "lib.trim.start": "Start (sec)", "lib.trim.end": "End (sec)", "lib.export": "Export",
     "lib.repairing": "Repairing…", "lib.compressing": "Compressing…", "lib.trimming": "Trimming…",
     "lib.repaired": "Repaired", "lib.compress.exported": "Exported compressed file",
-    "lib.trim.exported": "Exported trim", "lib.merge.need": "Select at least two files with Ctrl.",
-    "lib.merge.web": "Merge on the PC.", "job.fail": "Job failed.", "job.timeout": "Job did not finish.",
+    "lib.trim.exported": "Exported trim",
+    "job.fail": "Job failed.", "job.timeout": "Job did not finish.",
     "api.bad": "Could not parse the response.", "api.fail": "Request failed."
   },
   "zh-Hans": {
     "page.record": "录制", "page.library": "我的视频", "page.settings": "设置",
     "nav.library": "我的视频", "nav.settings": "设置", "nav.back": "返回",
     "mode.fullscreen": "显示器", "mode.region": "区域", "mode.window": "窗口",
-    "mode.game": "游戏", "mode.audio": "录音", "mode.shot": "截图",
+    "mode.audio": "录音", "mode.shot": "截图",
     "shot.save": "保存", "shot.copy": "复制", "shot.cancel": "取消",
     "shot.region": "区域", "shot.window": "窗口", "shot.display": "整屏",
     "shot.save.fail": "无法保存截图。",
@@ -163,7 +162,7 @@ const I18N = {
     "settings.bar": "录制时显示浮动工具栏", "settings.bar.desc": "屏幕上方的暂停、停止和麦克风",
     "settings.silent": "静默模式", "settings.silent.desc": "网页开始或停止时，不弹出主窗口、浮动工具条和处理完成页",
     "sec.reset": "重置", "settings.reset": "恢复默认", "settings.reset.header": "恢复默认设置",
-    "sec.about": "关于", "about.tagline": "映录 · 本地录屏", "about.privacy": "隐私协议",
+    "sec.about": "关于", "about.tagline": "本地录屏", "about.privacy": "隐私协议",
     "about.terms": "使用条款", "about.project": "项目主页",
     "about.docs": "API 文档",
     "about.skill": "SKILL",
@@ -171,15 +170,15 @@ const I18N = {
     "settings.reset.confirm": "主题、热键、声音和工具栏等都会回到初始值，确定恢复默认？",
     "common.ok": "确定", "common.cancel": "取消", "common.close": "关闭", "common.save": "保存",
     "sum.display": "显示器 {0}", "sum.region": "区域 {0}×{1}", "sum.region.none": "区域 · 尚未选择",
-    "sum.window.none": "窗口 · 尚未选择", "sum.window": "窗口 · {0}", "sum.game.none": "游戏 · 尚未选择",
-    "sum.game": "游戏 · {0}", "sum.pick": "选择目标", "sum.audio": "只录音 · 不录画面",
+    "sum.window.none": "窗口 · 尚未选择", "sum.window": "窗口 · {0}",
+    "sum.pick": "选择目标", "sum.audio": "只录音 · 不录画面",
     "sum.sys.on": "系统声开", "sum.sys.off": "系统声关", "sum.mic.on": "麦开", "sum.mic.off": "麦关",
     "quality.sd": "标清 720p", "quality.hd": "高清 1080p", "quality.qhd": "超清 1440p", "quality.uhd": "蓝光 4K",
     "rec.need.target": "请先选择要录制的目标。", "rec.need.region": "请先选择要录制的区域。",
     "rec.processing": "正在处理中", "rec.saved": "已保存", "modes.aria": "采集模式",
     "lib.preview": "预览", "lib.rename": "重命名", "lib.delete": "删除", "lib.folder": "打开目录",
-    "lib.more": "更多", "lib.repair": "修复", "lib.merge": "合并", "lib.subtitle": "字幕",
-    "lib.music": "配乐", "lib.refresh": "刷新", "lib.empty": "还没有成片",
+    "lib.more": "更多", "lib.repair": "修复",
+    "lib.refresh": "刷新", "lib.empty": "还没有成片",
     "lib.empty.desc": "录完的视频会出现在这里", "lib.col.name": "名称", "lib.col.size": "大小",
     "lib.col.duration": "时长", "lib.col.date": "日期", "lib.fullscreen": "全屏",
     "lib.trim": "剪切", "lib.compress": "压缩", "lib.rename.invalid": "请输入有效的文件名",
@@ -190,15 +189,15 @@ const I18N = {
     "lib.trim.start": "开始秒", "lib.trim.end": "结束秒", "lib.export": "导出",
     "lib.repairing": "正在修复…", "lib.compressing": "正在压缩…", "lib.trimming": "正在剪切…",
     "lib.repaired": "已修复", "lib.compress.exported": "已导出压缩文件",
-    "lib.trim.exported": "已导出剪切文件", "lib.merge.need": "请在列表中按住 Ctrl 多选至少两个文件再合并。",
-    "lib.merge.web": "合并请在电脑端使用。", "job.fail": "作业失败。", "job.timeout": "作业未结束。",
+    "lib.trim.exported": "已导出剪切文件",
+    "job.fail": "作业失败。", "job.timeout": "作业未结束。",
     "api.bad": "无法解析响应。", "api.fail": "请求失败。"
   },
   "zh-Hant": {
     "page.record": "錄製", "page.library": "我的影片", "page.settings": "設定",
     "nav.library": "我的影片", "nav.settings": "設定", "nav.back": "返回",
     "mode.fullscreen": "顯示器", "mode.region": "區域", "mode.window": "視窗",
-    "mode.game": "遊戲", "mode.audio": "錄音", "mode.shot": "截圖",
+    "mode.audio": "錄音", "mode.shot": "截圖",
     "shot.save": "儲存", "shot.copy": "複製", "shot.cancel": "取消",
     "shot.region": "區域", "shot.window": "視窗", "shot.display": "整屏",
     "shot.save.fail": "無法儲存截圖。",
@@ -244,7 +243,7 @@ const I18N = {
     "settings.bar": "錄製時顯示浮動工具列", "settings.bar.desc": "螢幕上方的暫停、停止和麥克風",
     "settings.silent": "靜默模式", "settings.silent.desc": "開始或停止時不跳出主視窗、浮動工具列和處理完成頁",
     "sec.reset": "重設", "settings.reset": "還原預設", "settings.reset.header": "還原預設設定",
-    "sec.about": "關於", "about.tagline": "映錄 · 本機錄影", "about.privacy": "隱私權政策",
+    "sec.about": "關於", "about.tagline": "本機錄影", "about.privacy": "隱私權政策",
     "about.terms": "使用條款", "about.project": "專案首頁",
     "about.docs": "API 文件",
     "about.skill": "SKILL",
@@ -252,15 +251,15 @@ const I18N = {
     "settings.reset.confirm": "主題、熱鍵、聲音和工具列等都會回到初始值，確定還原預設？",
     "common.ok": "確定", "common.cancel": "取消", "common.close": "關閉", "common.save": "儲存",
     "sum.display": "顯示器 {0}", "sum.region": "區域 {0}×{1}", "sum.region.none": "區域 · 尚未選擇",
-    "sum.window.none": "視窗 · 尚未選擇", "sum.window": "視窗 · {0}", "sum.game.none": "遊戲 · 尚未選擇",
-    "sum.game": "遊戲 · {0}", "sum.pick": "選擇目標", "sum.audio": "只錄音 · 不錄畫面",
+    "sum.window.none": "視窗 · 尚未選擇", "sum.window": "視窗 · {0}",
+    "sum.pick": "選擇目標", "sum.audio": "只錄音 · 不錄畫面",
     "sum.sys.on": "系統聲開", "sum.sys.off": "系統聲關", "sum.mic.on": "麥開", "sum.mic.off": "麥關",
     "quality.sd": "標清 720p", "quality.hd": "高清 1080p", "quality.qhd": "超清 1440p", "quality.uhd": "藍光 4K",
     "rec.need.target": "請先選擇要錄製的目標。", "rec.need.region": "請先選擇要錄製的區域。",
     "rec.processing": "正在處理中", "rec.saved": "已儲存", "modes.aria": "擷取模式",
     "lib.preview": "預覽", "lib.rename": "重新命名", "lib.delete": "刪除", "lib.folder": "開啟目錄",
-    "lib.more": "更多", "lib.repair": "修復", "lib.merge": "合併", "lib.subtitle": "字幕",
-    "lib.music": "配樂", "lib.refresh": "重新整理", "lib.empty": "還沒有成片",
+    "lib.more": "更多", "lib.repair": "修復",
+    "lib.refresh": "重新整理", "lib.empty": "還沒有成片",
     "lib.empty.desc": "錄完的影片會出現在這裡", "lib.col.name": "名稱", "lib.col.size": "大小",
     "lib.col.duration": "時長", "lib.col.date": "日期", "lib.fullscreen": "全螢幕",
     "lib.trim": "剪輯", "lib.compress": "壓縮", "lib.rename.invalid": "請輸入有效的檔名",
@@ -271,15 +270,15 @@ const I18N = {
     "lib.trim.start": "開始秒", "lib.trim.end": "結束秒", "lib.export": "匯出",
     "lib.repairing": "正在修復…", "lib.compressing": "正在壓縮…", "lib.trimming": "正在剪輯…",
     "lib.repaired": "已修復", "lib.compress.exported": "已匯出壓縮檔",
-    "lib.trim.exported": "已匯出剪輯檔", "lib.merge.need": "請在清單中按住 Ctrl 多選至少兩個檔案再合併。",
-    "lib.merge.web": "合併請在電腦端使用。", "job.fail": "作業失敗。", "job.timeout": "作業未結束。",
+    "lib.trim.exported": "已匯出剪輯檔",
+    "job.fail": "作業失敗。", "job.timeout": "作業未結束。",
     "api.bad": "無法解析回應。", "api.fail": "請求失敗。"
   },
   ja: {
     "page.record": "録画", "page.library": "ライブラリ", "page.settings": "設定",
     "nav.library": "ライブラリ", "nav.settings": "設定", "nav.back": "戻る",
     "mode.fullscreen": "画面", "mode.region": "範囲", "mode.window": "ウィンドウ",
-    "mode.game": "ゲーム", "mode.audio": "音声", "mode.shot": "スクリーンショット",
+    "mode.audio": "音声", "mode.shot": "スクリーンショット",
     "shot.save": "保存", "shot.copy": "コピー", "shot.cancel": "キャンセル",
     "shot.region": "範囲", "shot.window": "ウィンドウ", "shot.display": "画面全体",
     "shot.save.fail": "スクリーンショットを保存できません。",
@@ -333,15 +332,15 @@ const I18N = {
     "settings.reset.confirm": "テーマ、ホットキー、音声、ツールバーを初期値に戻します。",
     "common.ok": "OK", "common.cancel": "キャンセル", "common.close": "閉じる", "common.save": "保存",
     "sum.display": "画面 {0}", "sum.region": "範囲 {0}×{1}", "sum.region.none": "範囲 · 未選択",
-    "sum.window.none": "ウィンドウ · 未選択", "sum.window": "ウィンドウ · {0}", "sum.game.none": "ゲーム · 未選択",
-    "sum.game": "ゲーム · {0}", "sum.pick": "対象を選択", "sum.audio": "音声のみ",
+    "sum.window.none": "ウィンドウ · 未選択", "sum.window": "ウィンドウ · {0}",
+    "sum.pick": "対象を選択", "sum.audio": "音声のみ",
     "sum.sys.on": "システムオン", "sum.sys.off": "システムオフ", "sum.mic.on": "マイクオン", "sum.mic.off": "マイクオフ",
     "quality.sd": "720p", "quality.hd": "1080p", "quality.qhd": "1440p", "quality.uhd": "4K",
     "rec.need.target": "先に対象を選んでください。", "rec.need.region": "先に範囲を選んでください。",
     "rec.processing": "処理中", "rec.saved": "保存しました", "modes.aria": "取り込みモード",
     "lib.preview": "プレビュー", "lib.rename": "名前変更", "lib.delete": "削除", "lib.folder": "フォルダを開く",
-    "lib.more": "その他", "lib.repair": "修復", "lib.merge": "結合", "lib.subtitle": "字幕",
-    "lib.music": "BGM", "lib.refresh": "更新", "lib.empty": "まだ映像がありません",
+    "lib.more": "その他", "lib.repair": "修復",
+    "lib.refresh": "更新", "lib.empty": "まだ映像がありません",
     "lib.empty.desc": "録画した映像がここに出ます", "lib.col.name": "名前", "lib.col.size": "サイズ",
     "lib.col.duration": "時間", "lib.col.date": "日付", "lib.fullscreen": "全画面",
     "lib.trim": "切り取り", "lib.compress": "圧縮", "lib.rename.invalid": "有効な名前を入力",
@@ -352,15 +351,15 @@ const I18N = {
     "lib.trim.start": "開始（秒）", "lib.trim.end": "終了（秒）", "lib.export": "書き出す",
     "lib.repairing": "修復中…", "lib.compressing": "圧縮中…", "lib.trimming": "切り取り中…",
     "lib.repaired": "修復しました", "lib.compress.exported": "圧縮を書き出し",
-    "lib.trim.exported": "切り取りを書き出し", "lib.merge.need": "Ctrl で 2 件以上選んで結合。",
-    "lib.merge.web": "結合は PC で行ってください。", "job.fail": "ジョブに失敗しました。", "job.timeout": "ジョブが終わりません。",
+    "lib.trim.exported": "切り取りを書き出し",
+    "job.fail": "ジョブに失敗しました。", "job.timeout": "ジョブが終わりません。",
     "api.bad": "応答を解析できません。", "api.fail": "リクエストに失敗しました。"
   },
   ko: {
     "page.record": "녹화", "page.library": "보관함", "page.settings": "설정",
     "nav.library": "보관함", "nav.settings": "설정", "nav.back": "뒤로",
     "mode.fullscreen": "화면", "mode.region": "영역", "mode.window": "창",
-    "mode.game": "게임", "mode.audio": "오디오", "mode.shot": "스크린샷",
+    "mode.audio": "오디오", "mode.shot": "스크린샷",
     "shot.save": "저장", "shot.copy": "복사", "shot.cancel": "취소",
     "shot.region": "영역", "shot.window": "창", "shot.display": "전체 화면",
     "shot.save.fail": "스크린샷을 저장할 수 없습니다.",
@@ -414,15 +413,15 @@ const I18N = {
     "settings.reset.confirm": "테마, 단축키, 소리, 도구 모음을 초기값으로 되돌릴까요?",
     "common.ok": "확인", "common.cancel": "취소", "common.close": "닫기", "common.save": "저장",
     "sum.display": "화면 {0}", "sum.region": "영역 {0}×{1}", "sum.region.none": "영역 · 미선택",
-    "sum.window.none": "창 · 미선택", "sum.window": "창 · {0}", "sum.game.none": "게임 · 미선택",
-    "sum.game": "게임 · {0}", "sum.pick": "대상 선택", "sum.audio": "오디오만",
+    "sum.window.none": "창 · 미선택", "sum.window": "창 · {0}",
+    "sum.pick": "대상 선택", "sum.audio": "오디오만",
     "sum.sys.on": "시스템 켜짐", "sum.sys.off": "시스템 꺼짐", "sum.mic.on": "마이크 켜짐", "sum.mic.off": "마이크 꺼짐",
     "quality.sd": "720p", "quality.hd": "1080p", "quality.qhd": "1440p", "quality.uhd": "4K",
     "rec.need.target": "먼저 대상을 선택하세요.", "rec.need.region": "먼저 영역을 선택하세요.",
     "rec.processing": "처리 중", "rec.saved": "저장됨", "modes.aria": "캡처 모드",
     "lib.preview": "미리보기", "lib.rename": "이름 바꾸기", "lib.delete": "삭제", "lib.folder": "폴더 열기",
-    "lib.more": "더보기", "lib.repair": "복구", "lib.merge": "병합", "lib.subtitle": "자막",
-    "lib.music": "배경음", "lib.refresh": "새로고침", "lib.empty": "아직 영상이 없습니다",
+    "lib.more": "더보기", "lib.repair": "복구",
+    "lib.refresh": "새로고침", "lib.empty": "아직 영상이 없습니다",
     "lib.empty.desc": "녹화한 영상이 여기에 나타납니다", "lib.col.name": "이름", "lib.col.size": "크기",
     "lib.col.duration": "길이", "lib.col.date": "날짜", "lib.fullscreen": "전체 화면",
     "lib.trim": "자르기", "lib.compress": "압축", "lib.rename.invalid": "올바른 이름을 입력하세요",
@@ -433,8 +432,8 @@ const I18N = {
     "lib.trim.start": "시작(초)", "lib.trim.end": "끝(초)", "lib.export": "내보내기",
     "lib.repairing": "복구 중…", "lib.compressing": "압축 중…", "lib.trimming": "자르는 중…",
     "lib.repaired": "복구됨", "lib.compress.exported": "압축 내보냄",
-    "lib.trim.exported": "자른 파일 내보냄", "lib.merge.need": "Ctrl로 파일을 두 개 이상 선택한 뒤 병합하세요.",
-    "lib.merge.web": "병합은 PC에서 하세요.", "job.fail": "작업 실패.", "job.timeout": "작업이 끝나지 않음.",
+    "lib.trim.exported": "자른 파일 내보냄",
+    "job.fail": "작업 실패.", "job.timeout": "작업이 끝나지 않음.",
     "api.bad": "응답을 해석할 수 없습니다.", "api.fail": "요청 실패."
   }
 };
@@ -768,8 +767,6 @@ function idleSummary() {
       : t("sum.region.none");
   } else if (state.mode === "window") {
     target = state.windowTitle ? tf("sum.window", state.windowTitle) : t("sum.window.none");
-  } else if (state.mode === "game") {
-    target = state.windowTitle ? tf("sum.game", state.windowTitle) : t("sum.game.none");
   }
   return target + "  ·  " + system + " · " + mic;
 }
@@ -850,8 +847,7 @@ function renderTargets() {
     pane.append(stage);
     return;
   }
-  const items = state.mode === "game" ? state.games : state.windows;
-  const list = cardList(items, "window", (item) => { state.windowId = item.id; state.windowTitle = item.title; updateIdleSummary(); });
+  const list = cardList(state.windows, "window", (item) => { state.windowId = item.id; state.windowTitle = item.title; updateIdleSummary(); });
   pane.append(list);
   clipCardRows(list, 2);
 }
@@ -915,7 +911,7 @@ function readyTarget() {
 async function putTarget() {
   const body = { mode: state.mode, displayId: state.displayId };
   if (state.mode === "region") body.region = state.region;
-  if (state.mode === "window" || state.mode === "game") {
+  if (state.mode === "window") {
     body.windowId = state.windowId;
     body.windowTitle = state.windowTitle;
   }
@@ -1065,16 +1061,14 @@ function startCountdown() {
 }
 
 async function loadTargets() {
-  const [displays, windows, games, cameras, microphones] = await Promise.all([
+  const [displays, windows, cameras, microphones] = await Promise.all([
     api("/targets/displays"),
     api("/targets/windows"),
-    api("/targets/games"),
     api("/targets/cameras"),
     api("/targets/microphones")
   ]);
   state.displays = displays || [];
   state.windows = windows || [];
-  state.games = games || [];
   state.cameras = cameras || [];
   state.microphones = microphones || [];
   if (!state.displayId && state.displays[0]) state.displayId = state.displays[0].id;
@@ -1272,9 +1266,6 @@ function updateLibraryCommands() {
   $("libRename").disabled = !usable;
   $("libDelete").disabled = count === 0;
   $("libRepair").disabled = !usable;
-  $("libMerge").disabled = !(count > 1 && selected.every((item) => !item.missing));
-  $("libSubtitle").disabled = true;
-  $("libMusic").disabled = true;
   $("libRefresh").disabled = state.items.length === 0;
 }
 
@@ -1591,7 +1582,7 @@ function renderSettings() {
       </summary>
       <a class="expander-item" href="/legal/privacy" target="_blank" rel="noopener">${t("about.privacy")}</a>
       <a class="expander-item" href="/legal/terms" target="_blank" rel="noopener">${t("about.terms")}</a>
-      <a class="expander-item" href="${s.websiteUrl || "https://www.github.com/flydmonkey/luma"}" target="_blank" rel="noopener">${t("about.project")}</a>
+      <a class="expander-item" href="${s.websiteUrl || "https://flydmonkey.github.io/luma/"}" target="_blank" rel="noopener">${t("about.project")}</a>
       <a class="expander-item" href="/api/docs" target="_blank" rel="noopener">${t("about.docs")}</a>
       <a class="expander-item" href="/skill" target="_blank" rel="noopener">${t("about.skill")}</a>
     </details>
@@ -2510,15 +2501,6 @@ async function boot() {
   $("libRename").onclick = renameSelected;
   $("libDelete").onclick = deleteSelected;
   $("libRepair").onclick = () => { setMoreOpen(false); runJob("repair"); };
-  $("libMerge").onclick = () => {
-    setMoreOpen(false);
-    const picked = selectedItems();
-    if (picked.length < 2 || picked.some((item) => item.missing)) {
-      toast(t("lib.merge.need"));
-      return;
-    }
-    toast(t("lib.merge.web"));
-  };
   $("libRefresh").onclick = () => { setMoreOpen(false); loadLibrary(); };
   $("libMore").onclick = (ev) => {
     ev.stopPropagation();

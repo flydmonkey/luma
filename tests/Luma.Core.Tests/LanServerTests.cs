@@ -92,12 +92,56 @@ public sealed class LanServerTests
 
         var targets = await client.GetStringAsync($"http://127.0.0.1:{settings.Lan.Port}/api/v1/targets?kind=displays");
         Assert.Contains("Display 1", targets);
+        using (var listed = JsonDocument.Parse(targets))
+        {
+            var first = listed.RootElement.ValueKind == JsonValueKind.Array
+                ? listed.RootElement[0]
+                : listed.RootElement.EnumerateObject().Select(p => p.Value).First(v => v.ValueKind == JsonValueKind.Array)[0];
+            Assert.True(first.GetProperty("previewMissing").GetBoolean());
+        }
         var remote = server.BoundUrls.FirstOrDefault(url => url.Contains("://") && !url.Contains("127.0.0.1") && !url.Contains("localhost"));
         if (remote is not null)
         {
             var page = await client.GetStringAsync(remote + "/");
             Assert.Contains("Luma", page);
         }
+    }
+
+    [Fact]
+    public async Task Media_supports_byte_ranges()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "luma-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        var bytes = Enumerable.Range(0, 1000).Select(i => (byte)(i % 251)).ToArray();
+        File.WriteAllBytes(Path.Combine(folder, "clip.mp4"), bytes);
+        var store = new SettingsStore(Path.Combine(folder, "settings.json"));
+        var settings = store.Load();
+        settings.Lan.Enabled = true;
+        settings.Lan.Port = FreePort();
+        settings.SaveFolder = folder;
+        using var server = new LanServer(store, () => settings);
+        server.Start();
+        Assert.True(server.IsRunning, server.LastError);
+
+        using var client = new HttpClient();
+        var url = $"http://127.0.0.1:{settings.Lan.Port}/media/clip";
+
+        using var whole = await client.GetAsync(url);
+        Assert.Equal(HttpStatusCode.OK, whole.StatusCode);
+        Assert.Equal("bytes", string.Join("", whole.Headers.AcceptRanges));
+        Assert.Equal(bytes, await whole.Content.ReadAsByteArrayAsync());
+
+        using var partRequest = new HttpRequestMessage(HttpMethod.Get, url);
+        partRequest.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(100, 199);
+        using var part = await client.SendAsync(partRequest);
+        Assert.Equal(HttpStatusCode.PartialContent, part.StatusCode);
+        Assert.Equal("bytes 100-199/1000", part.Content.Headers.ContentRange?.ToString());
+        Assert.Equal(bytes[100..200], await part.Content.ReadAsByteArrayAsync());
+
+        using var pastEnd = new HttpRequestMessage(HttpMethod.Get, url);
+        pastEnd.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(5000, null);
+        using var refused = await client.SendAsync(pastEnd);
+        Assert.Equal(HttpStatusCode.RequestedRangeNotSatisfiable, refused.StatusCode);
     }
 
     private static int FreePort()

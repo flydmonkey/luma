@@ -7,6 +7,19 @@ namespace Luma.Core.Tests;
 
 public sealed class LanWebTests
 {
+    [Theory]
+    [InlineData("en", "access key", "Open")]
+    [InlineData("zh-Hans", "访问密钥", "打开")]
+    [InlineData("ja", "アクセスキー", "開く")]
+    [InlineData("xx", "access key", "Open")]
+    public void Unlock_page_follows_the_ui_language(string locale, string prompt, string button)
+    {
+        var html = LanWebAssets.UnlockHtml(wrongKey: false, locale);
+        Assert.Contains(prompt, html);
+        Assert.Contains($">{button}</button>", html);
+        Assert.DoesNotContain("__", html);
+    }
+
     [Fact]
     public async Task Enabled_server_serves_three_pages_and_rejects_port_patch()
     {

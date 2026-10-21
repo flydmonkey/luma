@@ -14,7 +14,7 @@ public sealed class LibraryCatalog
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var path in Directory.EnumerateFiles(saveFolder))
         {
-            if (!IsMedia(path))
+            if (!IsMedia(path) || IsBeingRecorded(path))
             {
                 continue;
             }
@@ -70,6 +70,29 @@ public sealed class LibraryCatalog
             PosterPath = missing ? null : FindPoster(path),
             Missing = missing
         };
+    }
+
+    // Interrupted .partial.mkv files stay listed for repair; only one still held open by the recorder is hidden.
+    private static bool IsBeingRecorded(string path)
+    {
+        if (!path.EndsWith(".partial.mkv", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var _ = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            return false;
+        }
+        catch (IOException)
+        {
+            return true;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     private static bool IsMedia(string path)

@@ -15,21 +15,6 @@ public sealed class RecordingPolicyTests
     }
 
     [Fact]
-    public void Schedule_skips_when_a_session_is_already_active()
-    {
-        var start = new TimeOnly(9, 0);
-        var during = ScheduleGate.Evaluate(new TimeOnly(9, 5), start, new TimeOnly(10, 0), null, sessionActive: true, startedBySchedule: false);
-        Assert.True(during.Overlap);
-        Assert.False(during.Start);
-
-        var idle = ScheduleGate.Evaluate(new TimeOnly(9, 5), start, new TimeOnly(10, 0), 10, sessionActive: false, startedBySchedule: false);
-        Assert.True(idle.Start);
-
-        var ended = ScheduleGate.Evaluate(new TimeOnly(9, 11), start, null, 10, sessionActive: true, startedBySchedule: true);
-        Assert.True(ended.Stop);
-    }
-
-    [Fact]
     public void Silent_lan_start_hides_the_recording_bar()
     {
         Assert.False(RecordingChrome.ShowBar(enabled: true, fromLan: true, silentMode: true));

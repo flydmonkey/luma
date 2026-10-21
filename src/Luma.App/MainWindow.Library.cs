@@ -326,9 +326,22 @@ public sealed partial class MainWindow
 
     private bool _previewFullScreen;
 
-    private void PreviewFullScreen_Click(object sender, RoutedEventArgs e)
+    private void PreviewFullScreen_Click(object sender, RoutedEventArgs e) => SetPreviewFullScreen(!_previewFullScreen);
+
+    private void PreviewEscape_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
-        _previewFullScreen = !_previewFullScreen;
+        if (!_previewFullScreen)
+        {
+            return;
+        }
+
+        args.Handled = true;
+        SetPreviewFullScreen(false);
+    }
+
+    private void SetPreviewFullScreen(bool on)
+    {
+        _previewFullScreen = on;
         try
         {
             if (PreviewPlayer.IsFullWindow != _previewFullScreen)
@@ -478,6 +491,12 @@ public sealed partial class MainWindow
             XamlRoot = Content.XamlRoot
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        if (double.IsNaN(start.Value) || double.IsNaN(end.Value) || end.Value <= start.Value)
+        {
+            ShowBanner(UiCopy.T("lib.trim.invalid"), InfoBarSeverity.Warning);
+            return;
+        }
+
         try
         {
             await RunJob(UiCopy.T("lib.trimming"), () => _editor.TrimAsync(item.Path, TimeSpan.FromSeconds(start.Value), TimeSpan.FromSeconds(end.Value)), item.Path);
@@ -490,7 +509,7 @@ public sealed partial class MainWindow
 
     private async void Merge_Click(object sender, RoutedEventArgs e)
     {
-        var picked = LibraryList.SelectedItems.OfType<LibraryItem>().ToArray();
+        var picked = LibraryList.SelectedItems.OfType<LibraryItem>().OrderBy(item => item.Created).ToArray();
         if (picked.Length < 2 || picked.Any(item => item.Missing || !File.Exists(item.Path))) return;
         var items = picked.Select(item => item.Path).ToArray();
         if (items.Any(path => _session.Phase is SessionPhase.Recording or SessionPhase.Paused && string.Equals(path, _lastFile, StringComparison.OrdinalIgnoreCase)))

@@ -47,7 +47,7 @@ public sealed partial class MainWindow : Window
     private string _page = "record";
     private string? _lastFile;
     private bool _micMuted;
-    private bool _dropMic;
+    private string _micId = "default";
     private readonly Dictionary<string, TimeSpan> _durations = new(StringComparer.OrdinalIgnoreCase);
     private RecordingBarWindow? _bar;
     private SnipSession? _snip;
@@ -148,7 +148,7 @@ public sealed partial class MainWindow : Window
         };
         if (!_compatibility.IsSupported)
         {
-            ShowBanner(_compatibility.Message, InfoBarSeverity.Error);
+            ShowBanner(UiCopy.T("os.unsupported"), InfoBarSeverity.Error);
             StartButton.IsEnabled = false;
         }
 
@@ -294,7 +294,6 @@ public sealed partial class MainWindow : Window
 
     private void Poll()
     {
-        TryScheduledStart();
         if (_session.Phase is not (SessionPhase.Recording or SessionPhase.Paused))
         {
             return;
@@ -335,6 +334,7 @@ public sealed partial class MainWindow : Window
 
         var status = _session.GetStatus();
         ElapsedText.Text = status.EncodedDuration.ToString(@"hh\:mm\:ss");
+        _tray.SetElapsed(status.EncodedDuration);
         TitleRecBadge.Visibility = Visibility.Visible;
         if (_session.Phase == SessionPhase.Recording && SegmentDue())
         {
@@ -342,52 +342,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private DateTime _lastScheduleCheck = DateTime.MinValue;
-    private bool _scheduleFired;
-    private bool _scheduleOverlapNotified;
     private int _statusPoll;
-
-    private void TryScheduledStart()
-    {
-        if (DateTime.UtcNow - _lastScheduleCheck < TimeSpan.FromSeconds(20)) return;
-        _lastScheduleCheck = DateTime.UtcNow;
-        var rule = Settings.Automation.Schedules.FirstOrDefault(item => item.Enabled);
-        if (rule is null)
-        {
-            _scheduleFired = false;
-            _scheduleOverlapNotified = false;
-            return;
-        }
-
-        var active = _session.Phase is SessionPhase.Recording or SessionPhase.Paused;
-        var decision = ScheduleGate.Evaluate(TimeOnly.FromDateTime(DateTime.Now), rule.Start, rule.End, rule.DurationMinutes, active, _scheduleFired);
-        if (decision.Overlap && !_scheduleOverlapNotified)
-        {
-            _scheduleOverlapNotified = true;
-            ShowBanner("已有录制在进行，这次定时开录已跳过。", InfoBarSeverity.Warning);
-            return;
-        }
-
-        if (decision.Start)
-        {
-            _scheduleFired = true;
-            _scheduleOverlapNotified = false;
-            _ = StartAsync();
-            return;
-        }
-
-        if (decision.Stop)
-        {
-            _scheduleFired = false;
-            _ = StopAsync();
-            return;
-        }
-
-        if (!active && !_scheduleFired)
-        {
-            _scheduleOverlapNotified = false;
-        }
-    }
 
     private async Task RotateSegmentAsync()
     {
@@ -735,6 +690,12 @@ public sealed partial class MainWindow : Window
     private async Task StartWithCountdownAsync()
     {
         if (_busy || _session.Phase is SessionPhase.Recording or SessionPhase.Paused) return;
+        if (!_compatibility.IsSupported)
+        {
+            ShowBanner(UiCopy.T("os.unsupported"), InfoBarSeverity.Error);
+            return;
+        }
+
         if (!_target.IsReady && _mode is not (CaptureMode.Display or CaptureMode.AudioOnly))
         {
             ShowBanner(UiCopy.T("sum.needTarget"), InfoBarSeverity.Warning);
@@ -742,7 +703,7 @@ public sealed partial class MainWindow : Window
         }
 
         _countdownCanceled = false;
-        ShowOverlay("count");
+        ShowCountdownOverlay();
         for (var n = 3; n >= 1; n--)
         {
             CountdownText.Text = n.ToString();
@@ -781,7 +742,7 @@ public sealed partial class MainWindow : Window
         _busy = true;
         try
         {
-            var rejection = SessionStartRules.Reject(CurrentTarget());
+            var rejection = _compatibility.IsSupported ? SessionStartRules.Reject(CurrentTarget()) : UiCopy.T("os.unsupported");
             if (rejection is not null)
             {
                 if (_hiddenForRecording || !fromLan)
@@ -793,7 +754,13 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            RememberMissingMic();
+            await ResolveMicAsync();
+            if (fromLan && !_windowConcealed && _mode is CaptureMode.Display or CaptureMode.Region)
+            {
+                ConcealForRecording();
+                await Task.Delay(200);
+            }
+
             Directory.CreateDirectory(Settings.SaveFolder);
             var path = NewOutputPath();
             await _session.StartAsync(BuildRequest(path));
@@ -840,7 +807,7 @@ public sealed partial class MainWindow : Window
 
         if (_mode == CaptureMode.Window && !string.IsNullOrWhiteSpace(_target.WindowId))
         {
-            var window = DisplayCatalog.ListWindows(false)
+            var window = DisplayCatalog.ListWindows()
                 .FirstOrDefault(item => string.Equals(item.ObsWindowId, _target.WindowId, StringComparison.Ordinal));
             if (window is { Width: > 1, Height: > 1 })
             {
@@ -868,20 +835,27 @@ public sealed partial class MainWindow : Window
         CropHeight = _target.CropHeight
     };
 
-    private void RememberMissingMic()
+    private async Task ResolveMicAsync()
     {
-        _dropMic = false;
-        var id = SelectedMicId();
-        if (!Settings.Audio.CaptureMicrophone || _micMuted || string.IsNullOrEmpty(id) || id == "default")
+        var id = SelectedMicId() ?? Settings.Audio.MicrophoneDeviceId;
+        _micId = AudioDeviceId.IsDefault(id) ? "default" : id!;
+        if (!Settings.Audio.CaptureMicrophone || _micMuted || _micId == "default")
         {
             return;
         }
 
-        var found = MicDeviceBox.Items.OfType<ComboBoxItem>().Any(item => string.Equals(item.Tag as string, id, StringComparison.Ordinal));
-        if (!found)
+        try
         {
-            _dropMic = true;
-            ShowBanner("之前选择的麦克风已断开，本次不采集麦克风。", InfoBarSeverity.Warning);
+            var mics = await Windows.Devices.Enumeration.DeviceInformation.FindAllAsync(Windows.Devices.Enumeration.DeviceClass.AudioCapture);
+            if (!AudioDeviceId.Contains(mics.Select(mic => mic.Id), _micId))
+            {
+                _micId = "default";
+                ShowBanner(UiCopy.T("audio.mic.fallback"), InfoBarSeverity.Warning);
+            }
+        }
+        catch
+        {
+            // Keep the saved device when enumeration is unavailable.
         }
     }
 
@@ -891,8 +865,8 @@ public sealed partial class MainWindow : Window
         Target = CurrentTarget(),
         Quality = Settings.Quality,
         CaptureSystemAudio = Settings.Audio.CaptureSystem,
-        CaptureMicrophone = Settings.Audio.CaptureMicrophone && !_micMuted && !_dropMic,
-        MicrophoneDeviceId = SelectedMicId(),
+        CaptureMicrophone = Settings.Audio.CaptureMicrophone && !_micMuted,
+        MicrophoneDeviceId = _micId,
         Overlay = BuildOverlay()
     };
 
@@ -946,9 +920,6 @@ public sealed partial class MainWindow : Window
             SetRecordingUi(false);
             HideBar();
             RefreshLibrary();
-            SavedFileText.Text = Path.GetFileName(result.OutputPath);
-            SavedWarningText.Visibility = string.IsNullOrWhiteSpace(result.Status.Warning) ? Visibility.Collapsed : Visibility.Visible;
-            SavedWarningText.Text = result.Status.Warning ?? "";
             if (silentLan || (_windowConcealed && !bringBack))
             {
                 HideBusyMask();
@@ -1017,14 +988,11 @@ public sealed partial class MainWindow : Window
     private void HideOverlay()
     {
         CountdownOverlay.Visibility = Visibility.Collapsed;
-        ProcessingRing.IsActive = false;
         if (_session.Phase == SessionPhase.Idle)
         {
             SetRecordingUi(false);
         }
     }
-
-    private void DismissSavedOverlay_Click(object sender, RoutedEventArgs e) => HideOverlay();
 
     private void ShowBar()
     {
@@ -1063,26 +1031,10 @@ public sealed partial class MainWindow : Window
         _bar = null;
     }
 
-    private void ShowOverlay(string kind)
+    private void ShowCountdownOverlay()
     {
         CountdownOverlay.Visibility = Visibility.Visible;
-        CountdownPanel.Visibility = kind == "count" ? Visibility.Visible : Visibility.Collapsed;
-        ProcessingPanel.Visibility = kind == "processing" ? Visibility.Visible : Visibility.Collapsed;
-        SavedPanel.Visibility = kind == "saved" ? Visibility.Visible : Visibility.Collapsed;
-        ProcessingRing.IsActive = kind == "processing";
-    }
-
-    private async void PreviewSaved_Click(object sender, RoutedEventArgs e)
-    {
-        HideOverlay();
-        if (string.IsNullOrWhiteSpace(_lastFile) || !File.Exists(_lastFile))
-        {
-            ShowBanner("找不到刚录的文件。", InfoBarSeverity.Error);
-            return;
-        }
-
-        ShowPage("library");
-        await Play(_lastFile, Path.GetFileNameWithoutExtension(_lastFile));
+        CountdownPanel.Visibility = Visibility.Visible;
     }
 
     private async Task PickTargetAsync()
@@ -1132,7 +1084,7 @@ public sealed partial class MainWindow : Window
                 return SystemPickResult.Canceled;
             }
 
-            var match = DisplayCatalog.ListWindows(gamesOnly: false)
+            var match = DisplayCatalog.ListWindows()
                 .FirstOrDefault(window => string.Equals(window.Title, item.DisplayName, StringComparison.OrdinalIgnoreCase));
             if (match is null)
             {
@@ -1157,7 +1109,7 @@ public sealed partial class MainWindow : Window
 
     private async Task PickWindowFromListAsync()
     {
-        var windows = DisplayCatalog.ListWindows(gamesOnly: false);
+        var windows = DisplayCatalog.ListWindows();
         if (windows.Count == 0)
         {
             ShowBanner(UiCopy.T("sum.window.none"), InfoBarSeverity.Warning);
@@ -1283,6 +1235,11 @@ public sealed partial class MainWindow : Window
         using var doc = JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body);
         var start = doc.RootElement.TryGetProperty("startSeconds", out var s) ? s.GetDouble() : 0;
         var end = doc.RootElement.TryGetProperty("endSeconds", out var e) ? e.GetDouble() : 0;
+        if (end <= start)
+        {
+            throw new ArgumentException(UiCopy.T("lib.trim.invalid"));
+        }
+
         return _editor.TrimAsync(path, TimeSpan.FromSeconds(start), TimeSpan.FromSeconds(end));
     }
 

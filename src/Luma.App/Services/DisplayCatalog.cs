@@ -39,7 +39,7 @@ public static class DisplayCatalog
         return list;
     }
 
-    public static IReadOnlyList<WindowInfo> ListWindows(bool gamesOnly)
+    public static IReadOnlyList<WindowInfo> ListWindows()
     {
         var list = new List<WindowInfo>();
         EnumWindows((hwnd, _) =>
@@ -84,11 +84,6 @@ public static class DisplayCatalog
             var width = rect.Right - rect.Left;
             var height = rect.Bottom - rect.Top;
             var minimized = IsIconic(hwnd);
-            if (gamesOnly && (minimized || width < 800 || height < 600))
-            {
-                return true;
-            }
-
             list.Add(new WindowInfo(hwnd, text, cls.ToString(), processName, rect.Left, rect.Top, width, height, minimized));
             return true;
         }, 0);

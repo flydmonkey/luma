@@ -107,7 +107,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
                 hardware = request.Quality.HardwareEncoding,
                 systemAudio = request.CaptureSystemAudio,
                 microphone = request.CaptureMicrophone,
-                micId = request.MicrophoneDeviceId ?? "",
+                micId = Luma.Core.Session.AudioDeviceId.ToWasapi(request.MicrophoneDeviceId),
                 camera = overlay?.CameraEnabled == true,
                 cameraId = string.IsNullOrWhiteSpace(overlay?.CameraDeviceId) ? "default" : overlay!.CameraDeviceId,
                 cameraName = overlay?.CameraDeviceName ?? "",

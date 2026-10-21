@@ -154,26 +154,6 @@
                     <TextBlock x:Name="CountdownText" Text="3" FontSize="48" HorizontalAlignment="Center"/>
                     <Button x:Name="CountdownCancelButton" Content="取消" Click="CancelCountdown_Click" HorizontalAlignment="Center"/>
                 </StackPanel>
-                <StackPanel x:Name="ProcessingPanel" VerticalAlignment="Center" Spacing="12" Visibility="Collapsed"
-                            AutomationProperties.Name="正在处理中">
-                    <ProgressRing x:Name="ProcessingRing" IsActive="False" Width="40" Height="40" HorizontalAlignment="Center"/>
-                    <TextBlock x:Name="ProcessingText" Text="正在处理中" FontSize="16" HorizontalAlignment="Center"/>
-                </StackPanel>
-                <StackPanel x:Name="SavedPanel" VerticalAlignment="Center" Spacing="12" Visibility="Collapsed"
-                            AutomationProperties.Name="已保存">
-                    <TextBlock x:Name="SavedTitleText" Text="已保存" FontSize="28" FontWeight="SemiLight" HorizontalAlignment="Center"/>
-                    <TextBlock x:Name="SavedFileText" FontSize="12" HorizontalAlignment="Center"
-                               TextAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <TextBlock x:Name="SavedWarningText" FontSize="12" HorizontalAlignment="Center"
-                               TextAlignment="Center" TextWrapping="Wrap" MaxWidth="360" Visibility="Collapsed"
-                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
-                        <Button x:Name="SavedPreviewButton" Content="预览" Click="PreviewSaved_Click"
-                                Style="{StaticResource AccentButtonStyle}"/>
-                        <Button x:Name="SavedCloseButton" Content="关闭" Click="DismissSavedOverlay_Click"/>
-                    </StackPanel>
-                </StackPanel>
             </Grid>
         </Grid>
 
@@ -314,7 +294,12 @@
                 <TextBlock x:Name="PreviewTitle" Margin="20,12,20,8" TextTrimming="CharacterEllipsis"
                            Style="{StaticResource SubtitleTextBlockStyle}"/>
                 <MediaPlayerElement x:Name="PreviewPlayer" Grid.Row="1" AreTransportControlsEnabled="True"
-                                    AutoPlay="True" Stretch="Uniform" Margin="20,0,20,8"/>
+                                    AutoPlay="True" Stretch="Uniform" Margin="20,0,20,8"
+                                    KeyboardAcceleratorPlacementMode="Hidden">
+                    <MediaPlayerElement.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="Escape" Invoked="PreviewEscape_Invoked"/>
+                    </MediaPlayerElement.KeyboardAccelerators>
+                </MediaPlayerElement>
                 <CommandBar Grid.Row="2" DefaultLabelPosition="Right">
                     <AppBarButton x:Name="PreviewFullScreenButton" Label="全屏" Click="PreviewFullScreen_Click"
                                   ToolTipService.ToolTip="全屏预览"/>
@@ -666,11 +651,7 @@
 
         <Grid x:Name="BannerHost" Grid.Row="1" VerticalAlignment="Top" Canvas.ZIndex="10">
             <InfoBar x:Name="HomeInfoBar" IsClosable="True" IsOpen="False"
-                     Visibility="Collapsed" Margin="12,8,12,0" Closed="HomeInfoBar_Closed">
-                <InfoBar.ActionButton>
-                    <Button x:Name="PreviewSavedButton" Content="预览" Click="PreviewSaved_Click" Visibility="Collapsed"/>
-                </InfoBar.ActionButton>
-            </InfoBar>
+                     Visibility="Collapsed" Margin="12,8,12,0" Closed="HomeInfoBar_Closed"/>
         </Grid>
     </Grid>
 </Window>
