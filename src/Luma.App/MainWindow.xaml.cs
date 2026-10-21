@@ -49,6 +49,7 @@ public sealed partial class MainWindow : Window
     private CaptureMode _mode = CaptureMode.Display;
     private CaptureTarget _target = new() { Mode = CaptureMode.Display };
     private bool _loadingSettings = true;
+    private bool _fillingCaptureMethod;
     private bool _busy;
     private bool _countdownCanceled;
     private string _page = "record";
@@ -1039,6 +1040,7 @@ public sealed partial class MainWindow : Window
         MicrophoneVolume = AudioSettings.Gain(Settings.Audio.MicrophoneVolume),
         NoiseSuppression = Settings.Audio.NoiseSuppression,
         ShowCursor = Settings.ScreenAids.ShowCursor,
+        DisplayCapture = Settings.DisplayCapture,
         Overlay = BuildOverlay()
     };
 

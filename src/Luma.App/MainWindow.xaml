@@ -425,6 +425,9 @@
                 <controls:SettingsCard x:Name="HardwareCard" Header="硬件加速">
                     <ToggleSwitch x:Name="HardwareBox" OnContent="" OffContent="" IsOn="True" Toggled="SettingEdited"/>
                 </controls:SettingsCard>
+                <controls:SettingsCard x:Name="CaptureMethodCard" Header="屏幕采集方式" Description="录全屏或区域时读取屏幕的方式；画面发黑时可改用 GDI 兼容模式">
+                    <ComboBox x:Name="CaptureMethodBox" MinWidth="140" SelectionChanged="CaptureMethodBox_Changed"/>
+                </controls:SettingsCard>
 
                 <TextBlock x:Name="SecCamera" Text="摄像头" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,16,0,4"/>
                 <controls:SettingsCard x:Name="CameraCard" Header="嵌入摄像头">

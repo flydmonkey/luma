@@ -86,7 +86,7 @@ static SessionStatus Handle(const std::string& request)
     return status;
 }
 
-static int RunSelfTest(const std::wstring& pathW)
+static int RunSelfTest(const std::wstring& pathW, const std::string& captureMethod)
 {
     std::string error;
     if (!ObsInit(error))
@@ -110,6 +110,7 @@ static int RunSelfTest(const std::wstring& pathW)
     request.bitrateKbps = 4000;
     request.hardware = true;
     request.systemAudio = false;
+    request.captureMethod = captureMethod;
 
     SessionStatus started = ObsStart(request);
     if (!started.ok)
@@ -217,8 +218,15 @@ int wmain(int argc, wchar_t** argv)
         wchar_t temp[MAX_PATH]{};
         GetTempPathW(MAX_PATH, temp);
         std::wstring path = argc >= 3 ? argv[2] : (std::wstring(temp) + L"luma-self-test.mp4");
+        std::string method = "auto";
+        if (argc >= 4)
+        {
+            char methodA[32]{};
+            WideCharToMultiByte(CP_UTF8, 0, argv[3], -1, methodA, sizeof(methodA), nullptr, nullptr);
+            method = methodA;
+        }
         DeleteFileW(path.c_str());
-        code = RunSelfTest(path);
+        code = RunSelfTest(path, method);
     }
     else
     {

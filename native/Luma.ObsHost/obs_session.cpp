@@ -6,6 +6,7 @@
 #endif
 
 #include "obs_session.h"
+#include "gdi_capture.h"
 #include "json_util.h"
 
 #include <obs.h>
@@ -212,16 +213,51 @@ void GetMonitorSize(int index, int& width, int& height, std::string& monitorId)
     }
 }
 
-// duplicator-monitor-capture: 1 = DXGI, 2 = WGC.
-// DuplicateOutput1 is unsupported on some AMD drivers and the picture is black.
-// Forcing WGC on every machine blacks out Intel, where DXGI already works.
-int ChooseDisplayCaptureMethod()
+// duplicator-monitor-capture: 1 = DXGI, 2 = WGC. Luma adds GDI as a third way.
+constexpr int kCaptureDxgi = 1;
+constexpr int kCaptureWgc = 2;
+constexpr int kCaptureGdi = 3;
+
+DWORD WindowsBuild()
 {
-    static int cached = 0;
-    if (cached != 0)
+    using RtlGetVersionFn = LONG(WINAPI*)(OSVERSIONINFOW*);
+    static DWORD build = 0;
+    if (build != 0)
+    {
+        return build;
+    }
+    OSVERSIONINFOW info{};
+    info.dwOSVersionInfoSize = sizeof(info);
+    if (HMODULE ntdll = GetModuleHandleW(L"ntdll.dll"))
+    {
+        if (auto get = reinterpret_cast<RtlGetVersionFn>(GetProcAddress(ntdll, "RtlGetVersion")))
+        {
+            if (get(&info) == 0)
+            {
+                build = info.dwBuildNumber;
+            }
+        }
+    }
+    return build;
+}
+
+// win-capture only offers WGC from Windows 10 1903; below that it silently
+// switches a WGC request to DXGI.
+bool WgcAvailable()
+{
+    return WindowsBuild() >= 18362;
+}
+
+// Returns S_OK when desktop duplication works on the default adapter.
+HRESULT ProbeDesktopDuplication()
+{
+    static bool probed = false;
+    static HRESULT cached = S_OK;
+    if (probed)
     {
         return cached;
     }
+    probed = true;
 
     const HRESULT unsupported = static_cast<HRESULT>(0x887A0004);
     ID3D11Device* device = nullptr;
@@ -240,8 +276,7 @@ int ChooseDisplayCaptureMethod()
         &context);
     if (FAILED(created) || device == nullptr)
     {
-        LogLine("display capture WGC: D3D11 probe failed 0x%08lX", created);
-        cached = 2;
+        cached = FAILED(created) ? created : unsupported;
         return cached;
     }
 
@@ -300,9 +335,50 @@ int ChooseDisplayCaptureMethod()
     context->Release();
     device->Release();
 
-    cached = dxgiOk ? 1 : 2;
-    LogLine("display capture %s (DuplicateOutput1 0x%08lX)", dxgiOk ? "DXGI" : "WGC", duplication);
+    cached = dxgiOk ? S_OK : (FAILED(duplication) ? duplication : unsupported);
     return cached;
+}
+
+const char* CaptureMethodName(int method)
+{
+    return method == kCaptureDxgi ? "DXGI" : method == kCaptureWgc ? "WGC" : "GDI";
+}
+
+// DuplicateOutput1 is unsupported on some AMD drivers and the picture is black.
+// Forcing WGC on every machine blacks out Intel, where DXGI already works.
+// With neither (pre-1903 Windows, no GPU, Remote Desktop) only GDI sees the screen.
+int ChooseDisplayCaptureMethod(const std::string& requested)
+{
+    const HRESULT duplication = ProbeDesktopDuplication();
+    const bool wgc = WgcAvailable();
+    int method = kCaptureGdi;
+    const char* why = "auto";
+    if (requested == "dxgi")
+    {
+        method = kCaptureDxgi;
+        why = "requested";
+    }
+    else if (requested == "wgc")
+    {
+        method = kCaptureWgc;
+        why = wgc ? "requested" : "requested; win-capture will fall back to DXGI";
+    }
+    else if (requested == "gdi")
+    {
+        why = "requested";
+    }
+    else if (SUCCEEDED(duplication))
+    {
+        method = kCaptureDxgi;
+    }
+    else if (wgc)
+    {
+        method = kCaptureWgc;
+    }
+
+    LogLine("display capture %s (%s; Windows build %lu, WGC %s, DuplicateOutput1 0x%08lX)",
+        CaptureMethodName(method), why, WindowsBuild(), wgc ? "available" : "unavailable", duplication);
+    return method;
 }
 
 void StopStamp();
@@ -1456,6 +1532,7 @@ bool ObsInit(std::string& error)
     obs_load_all_modules();
     obs_log_loaded_modules();
     obs_post_load_modules();
+    RegisterGdiDisplayCapture();
     LogHardwareEncoders();
 
     g_ready = true;
@@ -1618,16 +1695,27 @@ SessionStatus ObsStart(const StartRequest& request)
     }
     else
     {
+        const int method = ChooseDisplayCaptureMethod(request.captureMethod);
         obs_data_t* settings = obs_data_create();
-        obs_data_set_int(settings, "monitor", request.monitorIndex);
-        if (!monitorId.empty())
+        if (method == kCaptureGdi)
         {
-            obs_data_set_string(settings, "monitor_id", monitorId.c_str());
+            obs_data_set_string(settings, "device", monitorId.c_str());
+            obs_data_set_int(settings, "fps", request.fps);
+            obs_data_set_bool(settings, "capture_cursor", request.showCursor);
+            g_videoSource = CreateInput(kGdiDisplayCaptureId, "luma-display", settings);
         }
-        obs_data_set_bool(settings, "capture_cursor", request.showCursor);
-        obs_data_set_int(settings, "method", ChooseDisplayCaptureMethod());
-        obs_data_set_bool(settings, "force_sdr", true);
-        g_videoSource = CreateInput("monitor_capture", "luma-display", settings);
+        else
+        {
+            obs_data_set_int(settings, "monitor", request.monitorIndex);
+            if (!monitorId.empty())
+            {
+                obs_data_set_string(settings, "monitor_id", monitorId.c_str());
+            }
+            obs_data_set_bool(settings, "capture_cursor", request.showCursor);
+            obs_data_set_int(settings, "method", method);
+            obs_data_set_bool(settings, "force_sdr", true);
+            g_videoSource = CreateInput("monitor_capture", "luma-display", settings);
+        }
         obs_data_release(settings);
         if (mode == "Region" && request.cropWidth > 0 && request.cropHeight > 0)
         {
@@ -2192,6 +2280,7 @@ StartRequest ParseStartRequest(const std::string& json)
     request.noiseSuppression = JsonBool(json, "noiseSuppression", false);
     request.separateTracks = JsonBool(json, "separateTracks", true);
     request.showCursor = JsonBool(json, "showCursor", true);
+    request.captureMethod = JsonString(json, "captureMethod", "auto");
     request.camera = JsonBool(json, "camera", false);
     request.cameraId = JsonString(json, "cameraId");
     request.cameraName = JsonString(json, "cameraName");

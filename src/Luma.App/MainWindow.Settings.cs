@@ -339,6 +339,24 @@ public sealed partial class MainWindow
             ? RecordingContainers.Normalize(item.Tag as string)
             : RecordingContainers.Mp4;
 
+    private void FillCaptureMethod()
+    {
+        var selected = DisplayCaptureMethods.Normalize(Settings.DisplayCapture);
+        _fillingCaptureMethod = true;
+        CaptureMethodBox.Items.Clear();
+        foreach (var method in DisplayCaptureMethods.Choices)
+        {
+            CaptureMethodBox.Items.Add(new ComboBoxItem
+            {
+                Content = UiCopy.T($"settings.capture.{method.ToString().ToLowerInvariant()}"),
+                Tag = method
+            });
+        }
+
+        CaptureMethodBox.SelectedIndex = Array.IndexOf(DisplayCaptureMethods.Choices, selected);
+        _fillingCaptureMethod = false;
+    }
+
     private void FillMonitors()
     {
         if (HomeMonitorBox is null)
@@ -545,6 +563,9 @@ public sealed partial class MainWindow
         FpsCard.Header = UiCopy.T("settings.fps");
         FpsCard.Description = UiCopy.T("settings.fps.desc");
         HardwareCard.Header = UiCopy.T("settings.hw");
+        CaptureMethodCard.Header = UiCopy.T("settings.capture");
+        CaptureMethodCard.Description = UiCopy.T("settings.capture.desc");
+        FillCaptureMethod();
         CameraCard.Header = UiCopy.T("settings.camera");
         CameraDeviceCard.Header = UiCopy.T("settings.camera.dev");
         TimestampCard.Header = UiCopy.T("settings.stamp");
@@ -747,6 +768,17 @@ public sealed partial class MainWindow
     {
         if (_loadingSettings) return;
         Settings.RecordingFormat = SelectedFormat();
+        SaveSettings();
+    }
+
+    private void CaptureMethodBox_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loadingSettings || _fillingCaptureMethod || CaptureMethodBox.SelectedItem is not ComboBoxItem { Tag: DisplayCaptureMethod method })
+        {
+            return;
+        }
+
+        Settings.DisplayCapture = method;
         SaveSettings();
     }
 

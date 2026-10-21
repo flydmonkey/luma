@@ -45,6 +45,7 @@ public sealed class RecordingRequest
     public double MicrophoneVolume { get; init; } = 1;
     public bool NoiseSuppression { get; init; }
     public bool ShowCursor { get; init; } = true;
+    public DisplayCaptureMethod DisplayCapture { get; init; } = DisplayCaptureMethod.Auto;
     public OverlaySettings? Overlay { get; init; }
 }
 

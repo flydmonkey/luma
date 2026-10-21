@@ -27,6 +27,8 @@ struct StartRequest
     bool noiseSuppression = false;
     bool separateTracks = true;
     bool showCursor = true;
+    // "auto", "dxgi", "wgc" or "gdi".
+    std::string captureMethod = "auto";
     bool camera = false;
     std::string cameraId;
     std::string cameraName;

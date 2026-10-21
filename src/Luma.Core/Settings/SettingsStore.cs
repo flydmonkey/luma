@@ -61,6 +61,7 @@ public sealed class SettingsStore
             loaded.SaveFolder = AppSettings.ResolveSaveFolder(loaded.SaveFolder);
             loaded.Quality ??= QualitySettings.FromLevel(QualityLevel.Hd, 30);
             loaded.RecordingFormat = RecordingContainers.Normalize(loaded.RecordingFormat);
+            loaded.DisplayCapture = DisplayCaptureMethods.Normalize(loaded.DisplayCapture);
             loaded.Audio ??= new AudioSettings();
             loaded.Overlay ??= new OverlaySettings();
             loaded.Hotkeys ??= new HotkeySettings();

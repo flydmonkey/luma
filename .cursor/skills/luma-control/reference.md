@@ -82,11 +82,11 @@ If `lan.accessKey` is set: `X-Record-Key`, `Authorization: Bearer`, or the `luma
 
 ## Settings
 
-Readable fields: `saveFolder`, `lastMode`, `monitorIndex`, `quality`, `recordingFormat`, `audio`, `overlay`, `hotkeys`, `automation`, `closeToTray`, `launchToTray`, `hideTrayIcon`, `showRecordingBar`, `silentMode`, `theme`, `uiLanguage`, `lan`, `resolvedLanguage`.
+Readable fields: `saveFolder`, `lastMode`, `monitorIndex`, `quality`, `recordingFormat`, `displayCapture`, `audio`, `overlay`, `hotkeys`, `automation`, `closeToTray`, `launchToTray`, `hideTrayIcon`, `showRecordingBar`, `silentMode`, `theme`, `uiLanguage`, `lan`, `resolvedLanguage`.
 
-`theme` is `Light` or `Dark`. `lastMode` is `Display`, `Region`, `Window`, `Game`, or `AudioOnly`. `quality.level` is `Sd`, `Hd`, `ExtraHd`, or `FourK`. `recordingFormat` is `mp4`, `mkv`, `mov`, or `flv`.
+`theme` is `Light` or `Dark`. `lastMode` is `Display`, `Region`, `Window`, `Game`, or `AudioOnly`. `quality.level` is `Sd`, `Hd`, `ExtraHd`, or `FourK`. `recordingFormat` is `mp4`, `mkv`, `mov`, or `flv`. `displayCapture` is `Auto`, `Dxgi`, `Wgc`, or `Gdi`; `Gdi` records fullscreen and region without a GPU, before Windows 10 1903, and over Remote Desktop.
 
-Writable fields: `theme`, `saveFolder`, `showRecordingBar`, `silentMode`, `closeToTray`, `launchToTray`, `hideTrayIcon`, `monitorIndex`, `lastMode`, `quality`, `audio`, `overlay`, `hotkeys`, `automation`, `uiLanguage`, `recordingFormat`.
+Writable fields: `theme`, `saveFolder`, `showRecordingBar`, `silentMode`, `closeToTray`, `launchToTray`, `hideTrayIcon`, `monitorIndex`, `lastMode`, `quality`, `audio`, `overlay`, `hotkeys`, `automation`, `uiLanguage`, `recordingFormat`, `displayCapture`.
 
 `lan`, `lanPort`, `port`, and `lanPlayback` return `不能从网页修改局域网端口或开关。` Any other name returns `不能修改字段 {name}。` An empty `saveFolder` is rejected. On write, `theme` may be `Light`, `Dark`, `1`, or `2`. A successful patch forces `automation.startAtLogon` to false and `automation.schedules` to `[]`. If `hotkeys` omits `screenshot`, the previous screenshot hotkey is kept.
 

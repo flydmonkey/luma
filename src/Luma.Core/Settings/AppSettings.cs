@@ -9,6 +9,7 @@ public sealed class AppSettings
     public int MonitorIndex { get; set; }
     public QualitySettings Quality { get; set; } = QualitySettings.FromLevel(QualityLevel.Hd, 30);
     public string RecordingFormat { get; set; } = RecordingContainers.Mp4;
+    public DisplayCaptureMethod DisplayCapture { get; set; } = DisplayCaptureMethod.Auto;
     public AudioSettings Audio { get; set; } = new();
     public OverlaySettings Overlay { get; set; } = new();
     public ScreenAidSettings ScreenAids { get; set; } = new();

@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Luma.Core.Library;
 using Luma.Core.Localization;
+using Luma.Core.Session;
 using Luma.Core.Settings;
 
 namespace Luma.Core.Lan;
@@ -23,7 +24,7 @@ public static class LanControlApi
     {
         "theme", "saveFolder", "showRecordingBar", "silentMode", "closeToTray", "launchToTray",
         "hideTrayIcon", "monitorIndex", "lastMode", "quality", "audio", "overlay", "screenAids", "hotkeys",
-        "automation", "uiLanguage", "recordingFormat"
+        "automation", "uiLanguage", "recordingFormat", "displayCapture"
     };
 
     private static readonly ConcurrentDictionary<string, LanJobView> Jobs = new(StringComparer.Ordinal);
@@ -169,6 +170,7 @@ public static class LanControlApi
         var updated = node.Deserialize<AppSettings>(Json) ?? throw new InvalidOperationException("无法应用设置。");
         updated.Lan = source.Lan;
         updated.UiLanguage = UiLanguages.Normalize(updated.UiLanguage);
+        updated.DisplayCapture = DisplayCaptureMethods.Normalize(updated.DisplayCapture);
         if (patch.TryGetProperty("hotkeys", out var hotkeys) && !hotkeys.TryGetProperty("screenshot", out _))
         {
             updated.Hotkeys.Screenshot = source.Hotkeys.Screenshot;

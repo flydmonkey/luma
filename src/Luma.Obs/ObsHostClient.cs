@@ -115,6 +115,7 @@ public sealed class ObsHostClient : IRecordingEngine, IDisposable
                 noiseSuppression = request.NoiseSuppression,
                 separateTracks = true,
                 showCursor = request.ShowCursor,
+                captureMethod = DisplayCaptureMethods.HostValue(request.DisplayCapture),
                 camera = overlay?.CameraEnabled == true,
                 cameraId = string.IsNullOrWhiteSpace(overlay?.CameraDeviceId) ? "default" : overlay!.CameraDeviceId,
                 cameraName = overlay?.CameraDeviceName ?? "",

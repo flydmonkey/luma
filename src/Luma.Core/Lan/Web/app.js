@@ -66,7 +66,9 @@ const I18N = {
     "settings.aids.clicks": "Highlight clicks", "settings.aids.clicks.desc": "When recording the screen or a region, show a ring where you click",
     "settings.aids.ink": "Screen annotation", "settings.aids.ink.desc": "When recording the screen or a region, draw with the pen on the desktop recording bar",
     "sec.quality": "Quality", "settings.quality": "Quality", "settings.quality.desc": "Capped by display",
-    "settings.fps": "Frame rate", "settings.hw": "Hardware accel", "settings.monitor": "Display",
+    "settings.fps": "Frame rate", "settings.hw": "Hardware accel",
+    "settings.capture": "Screen capture method", "settings.capture.desc": "Try GDI compatibility if fullscreen or region video is black",
+    "settings.capture.auto": "Auto (recommended)", "settings.capture.gdi": "GDI compatibility", "settings.monitor": "Display",
     "sec.camera": "Camera", "settings.camera": "Camera overlay", "settings.camera.dev": "Device",
     "settings.camera.dev.ph": "Default camera", "settings.pip": "Picture-in-picture",
     "settings.pip.hint": "Drag camera or watermark", "settings.overlay.camera": "Camera",
@@ -152,7 +154,9 @@ const I18N = {
     "settings.aids.clicks": "高亮鼠标点击", "settings.aids.clicks.desc": "录全屏或区域时，在点击处显示一个圆圈",
     "settings.aids.ink": "屏幕标注", "settings.aids.ink.desc": "录全屏或区域时，可用电脑上录制浮动条的画笔在屏幕上画线",
     "sec.quality": "画质", "settings.quality": "清晰度", "settings.quality.desc": "最高清晰度受当前显示器限制",
-    "settings.fps": "帧率", "settings.hw": "硬件加速", "settings.monitor": "显示器",
+    "settings.fps": "帧率", "settings.hw": "硬件加速",
+    "settings.capture": "屏幕采集方式", "settings.capture.desc": "全屏或区域录制画面发黑时可改用 GDI 兼容模式",
+    "settings.capture.auto": "自动（推荐）", "settings.capture.gdi": "GDI 兼容模式", "settings.monitor": "显示器",
     "sec.camera": "摄像头", "settings.camera": "嵌入摄像头", "settings.camera.dev": "设备",
     "settings.camera.dev.ph": "默认摄像头", "settings.pip": "画中画预览",
     "settings.pip.hint": "直接拖动摄像头或水印方块", "settings.overlay.camera": "摄像头",
@@ -238,7 +242,9 @@ const I18N = {
     "settings.aids.clicks": "醒目提示滑鼠點擊", "settings.aids.clicks.desc": "錄製全螢幕或區域時，在點擊處顯示一個圓圈",
     "settings.aids.ink": "螢幕標註", "settings.aids.ink.desc": "錄製全螢幕或區域時，可用電腦上錄製浮動列的畫筆在螢幕上畫線",
     "sec.quality": "畫質", "settings.quality": "清晰度", "settings.quality.desc": "最高清晰度受目前顯示器限制",
-    "settings.fps": "幀率", "settings.hw": "硬體加速", "settings.monitor": "顯示器",
+    "settings.fps": "幀率", "settings.hw": "硬體加速",
+    "settings.capture": "螢幕擷取方式", "settings.capture.desc": "全螢幕或區域錄製畫面發黑時可改用 GDI 相容模式",
+    "settings.capture.auto": "自動（建議）", "settings.capture.gdi": "GDI 相容模式", "settings.monitor": "顯示器",
     "sec.camera": "攝影機", "settings.camera": "嵌入攝影機", "settings.camera.dev": "裝置",
     "settings.camera.dev.ph": "預設攝影機", "settings.pip": "子母畫面預覽",
     "settings.pip.hint": "直接拖曳攝影機或浮水印", "settings.overlay.camera": "攝影機",
@@ -324,7 +330,9 @@ const I18N = {
     "settings.aids.clicks": "クリックを強調表示", "settings.aids.clicks.desc": "画面全体や範囲を録画するとき、クリックした場所に円を表示します",
     "settings.aids.ink": "画面への書き込み", "settings.aids.ink.desc": "画面全体や範囲を録画するとき、PC の録画バーのペンで画面に線を描けます",
     "sec.quality": "画質", "settings.quality": "画質", "settings.quality.desc": "解像度は画面に依存",
-    "settings.fps": "フレームレート", "settings.hw": "ハードウェア加速", "settings.monitor": "画面",
+    "settings.fps": "フレームレート", "settings.hw": "ハードウェア加速",
+    "settings.capture": "画面キャプチャ方式", "settings.capture.desc": "全画面・範囲録画が真っ黒なら GDI 互換モードを試してください",
+    "settings.capture.auto": "自動（推奨）", "settings.capture.gdi": "GDI 互換モード", "settings.monitor": "画面",
     "sec.camera": "カメラ", "settings.camera": "カメラ重ね", "settings.camera.dev": "機器",
     "settings.camera.dev.ph": "既定カメラ", "settings.pip": "ピクチャインピクチャ",
     "settings.pip.hint": "カメラや透かしをドラッグ", "settings.overlay.camera": "カメラ",
@@ -410,7 +418,9 @@ const I18N = {
     "settings.aids.clicks": "클릭 강조 표시", "settings.aids.clicks.desc": "전체 화면이나 영역을 녹화할 때 클릭한 곳에 원을 표시합니다",
     "settings.aids.ink": "화면 주석", "settings.aids.ink.desc": "전체 화면이나 영역을 녹화할 때 PC 녹화 막대의 펜으로 화면에 그릴 수 있습니다",
     "sec.quality": "화질", "settings.quality": "화질", "settings.quality.desc": "해상도는 화면에 따름",
-    "settings.fps": "프레임", "settings.hw": "하드웨어 가속", "settings.monitor": "화면",
+    "settings.fps": "프레임", "settings.hw": "하드웨어 가속",
+    "settings.capture": "화면 캡처 방식", "settings.capture.desc": "전체 화면·영역 영상이 검게 나오면 GDI 호환 모드를 사용해 보세요",
+    "settings.capture.auto": "자동(권장)", "settings.capture.gdi": "GDI 호환 모드", "settings.monitor": "화면",
     "sec.camera": "카메라", "settings.camera": "카메라 오버레이", "settings.camera.dev": "장치",
     "settings.camera.dev.ph": "기본 카메라", "settings.pip": "화면 속 화면",
     "settings.pip.hint": "카메라나 워터마크를 드래그", "settings.overlay.camera": "카메라",
@@ -1563,6 +1573,7 @@ function renderSettings() {
     ${card(t("settings.quality"), `<select id="sQ"><option value="0">${t("quality.sd")}</option><option value="1">${t("quality.hd")}</option><option value="2">${t("quality.qhd")}</option><option value="3">${t("quality.uhd")}</option></select>`, t("settings.quality.desc"))}
     ${card(t("settings.fps"), `<select id="sFps"><option value="10">10 fps</option><option value="15">15 fps</option><option value="30">30 fps</option><option value="60">60 fps</option></select>`)}
     ${card(t("settings.hw"), toggleControl("sHw"))}
+    ${card(t("settings.capture"), `<select id="sCapture"><option value="Auto">${t("settings.capture.auto")}</option><option value="Dxgi">DXGI</option><option value="Wgc">WGC</option><option value="Gdi">${t("settings.capture.gdi")}</option></select>`, t("settings.capture.desc"))}
     ${card(t("settings.monitor"), `<select id="sMon"></select>`)}
     <div class="h">${t("sec.camera")}</div>
     ${card(t("settings.camera"), toggleControl("sCam"))}
@@ -1638,6 +1649,7 @@ function renderSettings() {
   fillQuality($("sQ"), q.level, true);
   $("sFps").value = [10, 15, 30, 60].includes(q.frameRate) ? String(q.frameRate) : "30";
   $("sHw").checked = q.hardwareEncoding !== false;
+  $("sCapture").value = ["Auto", "Dxgi", "Wgc", "Gdi"].includes(s.displayCapture) ? s.displayCapture : "Auto";
   fillSelect($("sMon"), state.displays, String(s.monitorIndex ?? 0), null, monitorLabel);
   $("sCam").checked = !!ov.cameraEnabled;
   fillSelect($("sCamId"), state.cameras, ov.cameraDeviceId || "", t("settings.camera.dev.ph"));
@@ -1830,6 +1842,7 @@ async function saveSettingsFromForm() {
     uiLanguage: $("sLang")?.value || "system",
     saveFolder: $("sFolder").value,
     monitorIndex: Number($("sMon").value || 0),
+    displayCapture: $("sCapture").value || "Auto",
     launchToTray: $("sLaunch").checked,
     closeToTray: $("sTray").checked,
     hideTrayIcon: $("sHideTray").checked,

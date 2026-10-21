@@ -203,6 +203,7 @@
           "monitorIndex": { "type": "integer" },
           "quality": { "$ref": "#/components/schemas/Quality" },
           "recordingFormat": { "type": "string", "enum": ["mp4", "mkv", "mov", "flv"] },
+          "displayCapture": { "$ref": "#/components/schemas/DisplayCapture" },
           "audio": { "$ref": "#/components/schemas/AudioSettings" },
           "overlay": { "type": "object" },
           "screenAids": { "$ref": "#/components/schemas/ScreenAidSettings" },
@@ -269,9 +270,14 @@
           "accessKey": { "type": "string", "description": "Empty, or *** when a key is stored." }
         }
       },
+      "DisplayCapture": {
+        "type": "string",
+        "enum": ["Auto", "Dxgi", "Wgc", "Gdi"],
+        "description": "How fullscreen and region recordings read the screen. Auto uses DXGI where desktop duplication works, else WGC, else GDI. Gdi works without a GPU, before Windows 10 1903, and over Remote Desktop."
+      },
       "SettingsPatch": {
         "type": "object",
-        "description": "Only theme, saveFolder, showRecordingBar, silentMode, closeToTray, launchToTray, hideTrayIcon, monitorIndex, lastMode, quality, audio, overlay, hotkeys, automation, uiLanguage, and recordingFormat are applied. lan, lanPort, port, and lanPlayback are rejected. A successful patch clears automation.startAtLogon and automation.schedules.",
+        "description": "Only theme, saveFolder, showRecordingBar, silentMode, closeToTray, launchToTray, hideTrayIcon, monitorIndex, lastMode, quality, audio, overlay, hotkeys, automation, uiLanguage, recordingFormat, and displayCapture are applied. lan, lanPort, port, and lanPlayback are rejected. A successful patch clears automation.startAtLogon and automation.schedules.",
         "properties": {
           "theme": { "description": "Light, Dark, 1, or 2." },
           "uiLanguage": {
@@ -292,7 +298,8 @@
           "screenAids": { "$ref": "#/components/schemas/ScreenAidSettings" },
           "hotkeys": { "$ref": "#/components/schemas/Hotkeys" },
           "automation": { "type": "object" },
-          "recordingFormat": { "type": "string", "enum": ["mp4", "mkv", "mov", "flv"] }
+          "recordingFormat": { "type": "string", "enum": ["mp4", "mkv", "mov", "flv"] },
+          "displayCapture": { "$ref": "#/components/schemas/DisplayCapture" }
         }
       },
       "LibraryItem": {

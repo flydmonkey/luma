@@ -15,6 +15,7 @@ endif()
 add_executable(Luma.ObsHost
   main.cpp
   obs_session.cpp
+  gdi_capture.cpp
 )
 
 target_include_directories(Luma.ObsHost PRIVATE

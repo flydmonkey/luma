@@ -1,3 +1,4 @@
+using Luma.Core.Session;
 using Luma.Core.Settings;
 
 namespace Luma.Core.Tests;
@@ -62,6 +63,25 @@ public sealed class SettingsStoreTests
         store.Save(settings);
         Assert.Equal(RecordingContainers.Mkv, new SettingsStore(path).Load().RecordingFormat);
         Assert.Equal(".mkv", RecordingContainers.VideoExtension("MKV"));
+    }
+
+    [Fact]
+    public void Display_capture_defaults_to_auto_keeps_gdi_and_drops_unknown_values()
+    {
+        Assert.Equal(DisplayCaptureMethod.Auto, new AppSettings().DisplayCapture);
+
+        var path = Path.Combine(Path.GetTempPath(), "luma-tests", Guid.NewGuid().ToString("N"), "settings.json");
+        var store = new SettingsStore(path);
+        var settings = store.Load();
+        settings.DisplayCapture = DisplayCaptureMethod.Gdi;
+        store.Save(settings);
+        Assert.Equal(DisplayCaptureMethod.Gdi, new SettingsStore(path).Load().DisplayCapture);
+
+        settings.DisplayCapture = (DisplayCaptureMethod)9;
+        store.Save(settings);
+        Assert.Equal(DisplayCaptureMethod.Auto, new SettingsStore(path).Load().DisplayCapture);
+        Assert.Equal("gdi", DisplayCaptureMethods.HostValue(DisplayCaptureMethod.Gdi));
+        Assert.Equal("auto", DisplayCaptureMethods.HostValue((DisplayCaptureMethod)9));
     }
 
     [Theory]

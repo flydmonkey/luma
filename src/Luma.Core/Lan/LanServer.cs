@@ -613,6 +613,7 @@ public sealed class LanServer : IDisposable
         target.MonitorIndex = copy.MonitorIndex;
         target.Quality = copy.Quality;
         target.RecordingFormat = copy.RecordingFormat;
+        target.DisplayCapture = copy.DisplayCapture;
         target.Audio = copy.Audio;
         target.Overlay = copy.Overlay;
         target.ScreenAids = copy.ScreenAids;

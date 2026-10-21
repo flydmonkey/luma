@@ -74,6 +74,39 @@ public sealed class ObsHostRecordingTests
     }
 
     [Fact]
+    public async Task Host_records_display_through_gdi_capture()
+    {
+        if (ObsHostClient.FindHost() is null)
+        {
+            return;
+        }
+
+        var path = Path.Combine(Path.GetTempPath(), $"luma-obs-gdi-{Guid.NewGuid():N}.mp4");
+        using var host = new ObsHostClient();
+        try
+        {
+            await host.StartAsync(new RecordingRequest
+            {
+                OutputPath = path,
+                Target = new CaptureTarget { Mode = CaptureMode.Display },
+                Quality = QualitySettings.FromLevel(QualityLevel.Sd, 30),
+                CaptureSystemAudio = false,
+                CaptureMicrophone = false,
+                DisplayCapture = DisplayCaptureMethod.Gdi
+            });
+
+            await Task.Delay(1500);
+            var result = await host.StopAsync();
+            Assert.True(new FileInfo(result.OutputPath).Length > 1024, "GDI 采集的成片过小。");
+            Assert.True(MediaProbe.TryDuration(result.OutputPath) > TimeSpan.Zero);
+        }
+        finally
+        {
+            try { if (File.Exists(path)) File.Delete(path); } catch { /* ignore */ }
+        }
+    }
+
+    [Fact]
     public async Task Host_splits_system_and_microphone_tracks_and_repair_keeps_them()
     {
         if (ObsHostClient.FindHost() is null)

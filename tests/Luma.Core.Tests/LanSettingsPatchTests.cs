@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Luma.Core.Lan;
+using Luma.Core.Session;
 using Luma.Core.Settings;
 
 namespace Luma.Core.Tests;
@@ -50,6 +51,18 @@ public sealed class LanSettingsPatchTests
         Assert.Empty(updated.Automation.Schedules);
         Assert.Equal("Ctrl+Shift+X", updated.Hotkeys.Screenshot);
         Assert.Equal(source.Lan.Port, updated.Lan.Port);
+    }
+
+    [Fact]
+    public void Display_capture_is_written_by_name_and_reported_back()
+    {
+        var source = new AppSettings { SaveFolder = Path.GetTempPath() };
+        using var patch = JsonDocument.Parse("""{"displayCapture":"Gdi"}""");
+
+        var updated = LanControlApi.ApplySettings(source, patch.RootElement);
+
+        Assert.Equal(DisplayCaptureMethod.Gdi, updated.DisplayCapture);
+        Assert.Equal("Gdi", LanControlApi.SettingsForClient(updated)["displayCapture"]!.GetValue<string>());
     }
 
     [Fact]
